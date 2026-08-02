@@ -1,3 +1,9 @@
 graphify-out/
+node_modules/
+dist/
+tmp/
+.nx/
+.angular/
+.gocache/
 .agentloop/
 .code-review-graph/
