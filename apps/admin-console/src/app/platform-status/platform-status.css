@@ -1,0 +1,34 @@
+.platform-status {
+  font-family: system-ui, sans-serif;
+  margin: 3rem auto;
+  max-width: 32rem;
+  text-align: center;
+}
+
+.platform-status__label {
+  color: #52525b;
+  margin-bottom: 0.25rem;
+}
+
+.status {
+  border-radius: 999px;
+  display: inline-block;
+  font-weight: 600;
+  padding: 0.35rem 1.1rem;
+  text-transform: capitalize;
+}
+
+.status-checking {
+  background: #f4f4f5;
+  color: #52525b;
+}
+
+.status-healthy {
+  background: #dcfce7;
+  color: #15803d;
+}
+
+.status-unreachable {
+  background: #fee2e2;
+  color: #b91c1c;
+}

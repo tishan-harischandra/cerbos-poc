@@ -1,8 +1,8 @@
 import { Component } from '@angular/core';
-import { NxWelcome } from './nx-welcome';
+import { PlatformStatus } from './platform-status/platform-status';
 
 @Component({
-  imports: [NxWelcome],
+  imports: [PlatformStatus],
   selector: 'app-root',
   templateUrl: './app.html',
   styleUrl: './app.css',
