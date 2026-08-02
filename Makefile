@@ -23,6 +23,8 @@ down: ## Stop the control plane and remove its containers
 .PHONY: clean
 clean: ## Remove containers, named volumes, local images and build caches
 	$(COMPOSE) down --remove-orphans --volumes --rmi local
+	# The Go module cache is written read-only by the toolchain container.
+	@chmod -R u+w .gocache 2>/dev/null || true
 	rm -rf dist tmp .nx .angular .gocache
 
 .PHONY: test
