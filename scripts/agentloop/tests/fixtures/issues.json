@@ -1,0 +1,50 @@
+[
+  {
+    "number": 1,
+    "title": "PRD tracking issue",
+    "url": "https://example.test/1",
+    "state": "OPEN",
+    "labels": [{ "name": "prd" }],
+    "body": "## Problem\n\nTracking issue, never implemented directly.\n"
+  },
+  {
+    "number": 2,
+    "title": "Monorepo and compose skeleton",
+    "url": "https://example.test/2",
+    "state": "CLOSED",
+    "labels": [{ "name": "area:infra" }],
+    "body": "## Parent\n\n#1\n\n## Blocked by\n\nNone.\n"
+  },
+  {
+    "number": 3,
+    "title": "First real authorization decision",
+    "url": "https://example.test/3",
+    "state": "OPEN",
+    "labels": [{ "name": "area:ads" }],
+    "body": "## Parent\n\n#1\n\n## Blocked by\n\n- #2\n"
+  },
+  {
+    "number": 4,
+    "title": "Role permission resolution",
+    "url": "https://example.test/4",
+    "state": "OPEN",
+    "labels": [{ "name": "area:db" }],
+    "body": "## Parent\n\n#1\n\n## Blocked by\n\n- #2\n- #3\n"
+  },
+  {
+    "number": 5,
+    "title": "Capability evaluator",
+    "url": "https://example.test/5",
+    "state": "OPEN",
+    "labels": [{ "name": "area:web" }],
+    "body": "## Parent\n\n#1\n\n## What to build\n\nSee #3 and #4 for context.\n\n## Blocked by\n\nNone.\n"
+  },
+  {
+    "number": 6,
+    "title": "Already merged slice",
+    "url": "https://example.test/6",
+    "state": "CLOSED",
+    "labels": [{ "name": "area:infra" }],
+    "body": "## Blocked by\n\n- #2\n"
+  }
+]
