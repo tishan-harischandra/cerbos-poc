@@ -90,6 +90,12 @@ make gen           # every project's code generators
 npx nx affected --target=test --base=main
 ```
 
+The Nx daemon is disabled (`useDaemonProcess: false` in `nx.json`). On file
+systems where its watcher misses changes, the daemon serves a stale file map and
+Nx replays a cached result for a target whose test files have changed — a new
+failing test is silently never run. Correct caching matters more here than the
+daemon's speed-up.
+
 The Nx graph spans both languages, but the projects stay independent: a change
 under `apps/admin-console` never marks the Go service as affected.
 `scripts/tests/nx-affected-isolation.sh` asserts exactly that, and CI runs it.

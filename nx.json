@@ -46,6 +46,7 @@
     }
   },
   "plugins": ["@nx-go/nx-go"],
+  "useDaemonProcess": false,
   "generators": {
     "@nx/angular:application": {
       "e2eTestRunner": "none",
