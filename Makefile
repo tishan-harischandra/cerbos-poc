@@ -32,6 +32,14 @@ test: ## Run every project's tests plus the compose contract
 	$(NX) run-many --target=test --all
 	python3 scripts/tests/compose-contract.py
 
+.PHONY: ci
+ci: ## Run exactly what CI runs, so a green local run means a green pipeline
+	$(NX) run-many --target=lint --all
+	$(NX) run-many --target=test --all
+	$(NX) run-many --target=build --all
+	python3 scripts/tests/compose-contract.py
+	bash scripts/tests/nx-affected-isolation.sh
+
 .PHONY: smoke
 smoke: ## Verify a running stack end to end
 	bash scripts/tests/stack-smoke.sh
