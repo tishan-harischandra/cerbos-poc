@@ -97,5 +97,5 @@ Design
 CHECKLIST
 
 echo
-echo "Optional deeper pass: code-review-graph MCP"
-echo "  build_or_update_graph_tool, then detect_changes_tool base=origin/$DEFAULT_BRANCH"
+echo "Optional deeper pass: the graphify skill"
+echo "  graphify the changed files against origin/$DEFAULT_BRANCH, then read graphify-out/GRAPH_REPORT.md"

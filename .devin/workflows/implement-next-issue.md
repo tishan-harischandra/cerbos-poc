@@ -62,10 +62,10 @@ Repeat until clean or the cap trips:
 1. Run `scripts/agentloop/review-pr.sh N`. It prints the acceptance criteria,
    the commits, the diff, and the blocking-findings checklist, and consumes one
    review round.
-2. Run the code-review-graph MCP for the deeper pass:
-   `build_or_update_graph_tool`, then `detect_changes_tool` with
-   `base=origin/main`. Treat new untested hotspots, surprising cross-community
-   coupling, and affected critical flows as findings.
+2. Invoke the `graphify` skill for the deeper pass over the files this PR
+   touches, then read `graphify-out/GRAPH_REPORT.md`. Treat new untested
+   hotspots, surprising cross-community coupling, and affected critical flows as
+   findings.
 3. Judge honestly against the checklist. List every blocking finding with file,
    line and the required change. "Looks fine" without having read the diff is
    not a review.
