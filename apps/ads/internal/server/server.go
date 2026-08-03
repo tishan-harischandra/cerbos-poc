@@ -5,7 +5,13 @@ import (
 	"context"
 	"encoding/json"
 	"net/http"
+	"time"
 )
+
+// DefaultReadinessTimeout bounds how long readiness waits on its dependencies.
+// Without a bound, one hung downstream hangs /readyz, which in turn stalls the
+// health gate every other service starts behind.
+const DefaultReadinessTimeout = 3 * time.Second
 
 // Dependency is a downstream the ADS needs before it can serve traffic.
 type Dependency struct {
@@ -16,6 +22,10 @@ type Dependency struct {
 // Config holds the collaborators the ADS HTTP surface depends on.
 type Config struct {
 	Dependencies []Dependency
+
+	// ReadinessTimeout bounds a single /readyz probe round. Zero means
+	// DefaultReadinessTimeout.
+	ReadinessTimeout time.Duration
 }
 
 // New builds the ADS HTTP handler.
@@ -24,11 +34,19 @@ func New(cfg Config) http.Handler {
 	mux.HandleFunc("GET /healthz", func(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusOK, map[string]any{"status": "ok"})
 	})
+	timeout := cfg.ReadinessTimeout
+	if timeout <= 0 {
+		timeout = DefaultReadinessTimeout
+	}
+
 	mux.HandleFunc("GET /readyz", func(w http.ResponseWriter, r *http.Request) {
+		ctx, cancel := context.WithTimeout(r.Context(), timeout)
+		defer cancel()
+
 		results := make(map[string]string, len(cfg.Dependencies))
 		ready := true
 		for _, dep := range cfg.Dependencies {
-			if err := dep.Probe(r.Context()); err != nil {
+			if err := dep.Probe(ctx); err != nil {
 				results[dep.Name] = err.Error()
 				ready = false
 				continue

@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	"time"
 
 	"github.com/tishan-harischandra/cerbos-poc/apps/ads/internal/server"
 )
@@ -59,6 +60,36 @@ func TestReadyzIsUnavailableWhileADependencyIsUnreachable(t *testing.T) {
 	}
 	if got := body.Dependencies["cerbos"]; got == "ok" || got == "" {
 		t.Errorf("GET /readyz cerbos dependency = %q, want a failure reason", got)
+	}
+}
+
+func TestReadyzGivesUpOnADependencyThatNeverAnswers(t *testing.T) {
+	handler := server.New(server.Config{
+		ReadinessTimeout: 50 * time.Millisecond,
+		Dependencies: []server.Dependency{{
+			Name: "cerbos",
+			Probe: func(ctx context.Context) error {
+				<-ctx.Done()
+				return ctx.Err()
+			},
+		}},
+	})
+
+	rec := httptest.NewRecorder()
+	done := make(chan struct{})
+	go func() {
+		handler.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/readyz", nil))
+		close(done)
+	}()
+
+	select {
+	case <-done:
+	case <-time.After(2 * time.Second):
+		t.Fatal("GET /readyz never returned; a hung dependency must not hang readiness")
+	}
+
+	if rec.Code != http.StatusServiceUnavailable {
+		t.Fatalf("GET /readyz status = %d, want %d", rec.Code, http.StatusServiceUnavailable)
 	}
 }
 
