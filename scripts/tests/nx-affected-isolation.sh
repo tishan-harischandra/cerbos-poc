@@ -7,17 +7,10 @@ repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 cd "${repo_root}"
 export PATH="${repo_root}/scripts/bin:${PATH}"
 
-if [[ -n "$(git status --porcelain)" ]]; then
-  echo "nx-affected-isolation: working tree must be clean" >&2
-  exit 1
-fi
-
+# Ask Nx what a hypothetical Angular-only change would affect. Using --files
+# means this never mutates the working tree, so it is safe to run mid-change.
 probe="apps/admin-console/src/styles.css"
-restore() { git checkout -- "${probe}"; }
-trap restore EXIT
-
-printf '\n/* nx affected probe */\n' >> "${probe}"
-affected="$(npx nx show projects --affected --base=HEAD)"
+affected="$(npx nx show projects --affected --files="${probe}")"
 
 failures=0
 if grep -qx 'admin-console' <<<"${affected}"; then
