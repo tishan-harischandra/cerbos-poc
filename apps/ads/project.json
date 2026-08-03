@@ -5,7 +5,8 @@
   "targets": {
     "build": {
       "options": {
-        "main": "cmd/ads/main.go"
+        "main": "cmd/ads/main.go",
+        "outputPath": "../../dist/apps/ads/ads"
       }
     },
     "serve": {
