@@ -38,7 +38,7 @@ fi
 user_args=()
 if [[ -n "${GO_CONTAINER_USER:-}" ]]; then
   user_args=(--user "${GO_CONTAINER_USER}")
-elif ! "${DOCKER}" info 2>/dev/null | grep -qiE 'rootless:[[:space:]]*true|rootless'; then
+elif ! "${DOCKER}" info 2>/dev/null | grep -qiE 'rootless:[[:space:]]*true|name=rootless'; then
   user_args=(--user "$(id -u):$(id -g)")
 fi
 
