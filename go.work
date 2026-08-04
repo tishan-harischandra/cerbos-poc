@@ -4,4 +4,5 @@ use (
 	./apps/ads
 	./libs/cerbosclient
 	./libs/permissioncontext
+	./tests/architecture
 )
