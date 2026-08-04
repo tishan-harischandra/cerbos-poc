@@ -19,6 +19,32 @@ services:
       timeout: 5s
       retries: 20
 
+  # Oracle is a portability target, not part of the running stack: the dual
+  # dialect suite starts it deliberately and nothing else depends on it. It sits
+  # behind a profile because the image is large and slow to start, and paying
+  # that on every `make up` would make the default path unusable.
+  #
+  # gvenzl/oracle-free packages Oracle Database 23ai Free with a much smaller
+  # footprint than the vendor image and creates an application user from the
+  # environment, which the vendor image leaves to a setup script.
+  oracle:
+    image: docker.io/gvenzl/oracle-free:23-slim
+    profiles:
+      - oracle
+    environment:
+      ORACLE_PASSWORD: ${ORACLE_SYS_PASSWORD:-change-me}
+      APP_USER: ${ORACLE_USER:-cerbos_poc}
+      APP_USER_PASSWORD: ${ORACLE_PASSWORD:-change-me}
+    healthcheck:
+      test: ["CMD", "healthcheck.sh"]
+      interval: 10s
+      timeout: 10s
+      # Oracle's first start creates the pluggable database, which takes minutes
+      # on a cold volume. A short retry budget here would report a broken engine
+      # when it is merely still starting.
+      retries: 60
+      start_period: 30s
+
   cerbos:
     image: ghcr.io/cerbos/cerbos:0.46.0
     command: ["server", "--config=/conf/config.yaml"]

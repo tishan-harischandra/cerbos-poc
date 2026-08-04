@@ -75,6 +75,29 @@ def main() -> int:
         bool(compose.get("volumes")),
     )
 
+    # Oracle is a portability target, not part of the running stack. The image is
+    # large and slow to start, so a default `make up` that pulled it would make
+    # the ordinary path unusable.
+    check("service 'oracle' is defined", "oracle" in services)
+    if "oracle" in services:
+        check(
+            "oracle sits behind a profile, so it does not start by default",
+            "oracle" in services["oracle"].get("profiles", []),
+        )
+        check(
+            "oracle is not published to the host",
+            not services["oracle"].get("ports"),
+        )
+        # Nothing may wait on Oracle: a dependency would drag it into the default
+        # start-up path through the back door.
+        for name, service in services.items():
+            if name == "oracle":
+                continue
+            check(
+                f"service '{name}' does not depend on oracle",
+                "oracle" not in (service.get("depends_on") or {}),
+            )
+
     for name in ("ads", "admin-console"):
         build = services[name].get("build")
         check(f"service '{name}' is built from a Dockerfile in this repo", bool(build))

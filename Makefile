@@ -49,6 +49,29 @@ ci: ## Run exactly what CI runs, so a green local run means a green pipeline
 	python3 scripts/tests/compose-contract.py
 	bash scripts/tests/nx-affected-isolation.sh
 
+.PHONY: migrate
+migrate: ## Apply the authorization schema to PostgreSQL
+	bash scripts/liquibase.sh postgres update
+
+.PHONY: migrate-oracle
+migrate-oracle: ## Apply the same schema to Oracle, starting it if needed
+	$(COMPOSE) --profile oracle up --detach oracle
+	bash scripts/oracle-wait.sh
+	bash scripts/liquibase.sh oracle update
+
+.PHONY: db-test
+db-test: ## Run the store contract against PostgreSQL
+	bash scripts/tests/migration-contract.sh postgres
+	bash scripts/tests/store-contract.sh postgres
+
+.PHONY: db-test-dual
+db-test-dual: ## Prove portability: the same contract against both engines
+	bash scripts/tests/migration-contract.sh postgres
+	$(COMPOSE) --profile oracle up --detach oracle
+	bash scripts/oracle-wait.sh
+	bash scripts/tests/migration-contract.sh oracle
+	bash scripts/tests/store-contract.sh dual
+
 .PHONY: smoke
 smoke: ## Verify a running stack end to end
 	bash scripts/tests/stack-smoke.sh

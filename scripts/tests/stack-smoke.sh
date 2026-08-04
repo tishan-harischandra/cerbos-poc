@@ -34,6 +34,12 @@ check "the ADS reaches PostgreSQL from inside the network" "$?"
 ! curl -fsS --max-time 3 "http://127.0.0.1:3592/_cerbos/health" >/dev/null 2>&1
 check "the Cerbos PDP is not published to the host" "$?"
 
+# The compose contract asserts Oracle declares a profile; this asserts the
+# profile actually kept it out of the default stack, which is the property that
+# matters to anyone running `make up`.
+[[ -z "$(docker compose ps --status running --services 2>/dev/null | grep -x oracle)" ]]
+check "oracle is not running in the default stack" "$?"
+
 # nginx resolves a literal proxy_pass hostname once at startup, so without a
 # resolver the console proxies to a stale address the moment the ADS container is
 # recreated, and every decision request comes back 502. Assert the rendered
