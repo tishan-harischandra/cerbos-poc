@@ -8,6 +8,7 @@ WORKDIR /src
 # directives in its go.mod. Their manifests are copied before the sources so a
 # change to ADS code alone still reuses the cached download layer.
 COPY apps/ads/go.mod apps/ads/go.sum ./apps/ads/
+COPY libs/assignmentstore/go.mod libs/assignmentstore/go.sum ./libs/assignmentstore/
 COPY libs/cerbosclient/go.mod libs/cerbosclient/go.sum ./libs/cerbosclient/
 COPY libs/permissioncontext/go.mod ./libs/permissioncontext/
 WORKDIR /src/apps/ads

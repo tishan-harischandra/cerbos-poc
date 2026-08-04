@@ -65,7 +65,7 @@ func (s *Store) SaveRolePermission(ctx context.Context, permission assignmentsto
 	key := permission.Key
 	_, err := s.pool.Exec(ctx, statement,
 		key.TenantID, key.RoleExternalID, key.ResourceKey, key.ActionKey,
-		permission.Enabled, permission.ValidFrom, permission.ValidUntil, permission.Revision)
+		permission.Enabled, permission.ValidFrom, endOrNull(permission.ValidUntil), permission.Revision)
 	if err != nil {
 		return fmt.Errorf("postgresstore: saving a role permission: %w", err)
 	}
@@ -81,16 +81,82 @@ func (s *Store) RolePermission(ctx context.Context, key assignmentstore.RolePerm
 		  AND resource_key = $3 AND action_key = $4`
 
 	permission := assignmentstore.RolePermission{Key: key}
+	var validUntil *time.Time
 	err := s.pool.QueryRow(ctx, query,
 		key.TenantID, key.RoleExternalID, key.ResourceKey, key.ActionKey).
-		Scan(&permission.Enabled, &permission.ValidFrom, &permission.ValidUntil, &permission.Revision)
+		Scan(&permission.Enabled, &permission.ValidFrom, &validUntil, &permission.Revision)
 	if isNoRows(err) {
 		return assignmentstore.RolePermission{}, false, nil
 	}
 	if err != nil {
 		return assignmentstore.RolePermission{}, false, fmt.Errorf("postgresstore: reading a role permission: %w", err)
 	}
+	if validUntil != nil {
+		permission.ValidUntil = *validUntil
+	}
 	return permission, true, nil
+}
+
+// ActiveRolePermissions reads the whole role matrix for a set of roles in one
+// round trip.
+//
+// The role set is bound as a single array parameter rather than expanded into a
+// placeholder per role. A generated IN list would give the planner a differently
+// shaped statement for every role count, defeating the prepared-statement cache
+// on the hottest query in the system.
+func (s *Store) ActiveRolePermissions(ctx context.Context, query assignmentstore.ActiveRolePermissionQuery) ([]assignmentstore.RolePermission, error) {
+	if len(query.RoleExternalIDs) == 0 {
+		return nil, nil
+	}
+
+	const statement = `
+		SELECT role_external_id, action_key, enabled, valid_from, valid_until, revision
+		FROM role_permission
+		WHERE tenant_id = $1
+		  AND role_external_id = ANY($2)
+		  AND resource_key = $3
+		  AND valid_from <= $4
+		  AND (valid_until IS NULL OR valid_until > $4)`
+
+	rows, err := s.pool.Query(ctx, statement,
+		query.TenantID, query.RoleExternalIDs, query.ResourceKey, query.At)
+	if err != nil {
+		return nil, fmt.Errorf("postgresstore: reading the active role matrix: %w", err)
+	}
+	defer rows.Close()
+
+	var permissions []assignmentstore.RolePermission
+	for rows.Next() {
+		permission := assignmentstore.RolePermission{
+			Key: assignmentstore.RolePermissionKey{
+				TenantID:    query.TenantID,
+				ResourceKey: query.ResourceKey,
+			},
+		}
+		var validUntil *time.Time
+		if err := rows.Scan(&permission.Key.RoleExternalID, &permission.Key.ActionKey,
+			&permission.Enabled, &permission.ValidFrom, &validUntil, &permission.Revision); err != nil {
+			return nil, fmt.Errorf("postgresstore: scanning a role permission: %w", err)
+		}
+		if validUntil != nil {
+			permission.ValidUntil = *validUntil
+		}
+		permissions = append(permissions, permission)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("postgresstore: reading the active role matrix: %w", err)
+	}
+	return permissions, nil
+}
+
+// endOrNull maps the zero instant to a database NULL. A grant with no planned
+// end is the ordinary case, and storing year zero instead would make it look
+// like a grant that expired before it began.
+func endOrNull(end time.Time) *time.Time {
+	if end.IsZero() {
+		return nil
+	}
+	return &end
 }
 
 // SaveUserOverride inserts or updates one override on its §8.2 key.
@@ -143,6 +209,39 @@ func (s *Store) UserOverride(ctx context.Context, key assignmentstore.UserOverri
 	}
 	override.Effect = assignmentstore.OverrideEffect(effect)
 	return override, true, nil
+}
+
+// SavePermissionRevision advances a tenant's revision in place.
+func (s *Store) SavePermissionRevision(ctx context.Context, revision assignmentstore.PermissionRevision) error {
+	const statement = `
+		INSERT INTO permission_revision (tenant_id, revision, changed_at)
+		VALUES ($1, $2, $3)
+		ON CONFLICT (tenant_id) DO UPDATE SET
+			revision = EXCLUDED.revision,
+			changed_at = EXCLUDED.changed_at`
+
+	_, err := s.pool.Exec(ctx, statement,
+		revision.TenantID, revision.Revision, revision.ChangedAt)
+	if err != nil {
+		return fmt.Errorf("postgresstore: saving a permission revision: %w", err)
+	}
+	return nil
+}
+
+// PermissionRevision reads a tenant's current revision.
+func (s *Store) PermissionRevision(ctx context.Context, tenantID string) (assignmentstore.PermissionRevision, bool, error) {
+	const query = `
+		SELECT revision, changed_at FROM permission_revision WHERE tenant_id = $1`
+
+	revision := assignmentstore.PermissionRevision{TenantID: tenantID}
+	err := s.pool.QueryRow(ctx, query, tenantID).Scan(&revision.Revision, &revision.ChangedAt)
+	if isNoRows(err) {
+		return assignmentstore.PermissionRevision{}, false, nil
+	}
+	if err != nil {
+		return assignmentstore.PermissionRevision{}, false, fmt.Errorf("postgresstore: reading a permission revision: %w", err)
+	}
+	return revision, true, nil
 }
 
 // AppendAuditEvent appends one audit record. Audit history is append-only

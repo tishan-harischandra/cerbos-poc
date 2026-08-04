@@ -14,6 +14,8 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"strings"
+	"time"
 
 	_ "github.com/sijms/go-ora/v2" // registers the pure-Go "oracle" driver
 	"github.com/tishan-harischandra/cerbos-poc/libs/assignmentstore"
@@ -75,14 +77,25 @@ func (s *Store) SaveRolePermission(ctx context.Context, permission assignmentsto
 
 	key := permission.Key
 	enabled := boolToNumber(permission.Enabled)
+	validUntil := endOrNull(permission.ValidUntil)
 	_, err := s.db.ExecContext(ctx, statement,
 		key.TenantID, key.RoleExternalID, key.ResourceKey, key.ActionKey,
-		enabled, permission.ValidFrom, permission.ValidUntil, permission.Revision,
-		enabled, permission.ValidFrom, permission.ValidUntil, permission.Revision)
+		enabled, permission.ValidFrom, validUntil, permission.Revision,
+		enabled, permission.ValidFrom, validUntil, permission.Revision)
 	if err != nil {
 		return fmt.Errorf("oraclestore: saving a role permission: %w", err)
 	}
 	return nil
+}
+
+// endOrNull maps the zero instant to a database NULL. A grant with no planned
+// end is the ordinary case, and storing year zero instead would make it look
+// like a grant that expired before it began.
+func endOrNull(end time.Time) *time.Time {
+	if end.IsZero() {
+		return nil
+	}
+	return &end
 }
 
 // RolePermission reads one role permission by its §8.2 key.
@@ -95,9 +108,10 @@ func (s *Store) RolePermission(ctx context.Context, key assignmentstore.RolePerm
 
 	permission := assignmentstore.RolePermission{Key: key}
 	var enabled int64
+	var validUntil *time.Time
 	err := s.db.QueryRowContext(ctx, query,
 		key.TenantID, key.RoleExternalID, key.ResourceKey, key.ActionKey).
-		Scan(&enabled, &permission.ValidFrom, &permission.ValidUntil, &permission.Revision)
+		Scan(&enabled, &permission.ValidFrom, &validUntil, &permission.Revision)
 	if errors.Is(err, sql.ErrNoRows) {
 		return assignmentstore.RolePermission{}, false, nil
 	}
@@ -105,7 +119,81 @@ func (s *Store) RolePermission(ctx context.Context, key assignmentstore.RolePerm
 		return assignmentstore.RolePermission{}, false, fmt.Errorf("oraclestore: reading a role permission: %w", err)
 	}
 	permission.Enabled = enabled != 0
+	if validUntil != nil {
+		permission.ValidUntil = *validUntil
+	}
 	return permission, true, nil
+}
+
+// ActiveRolePermissions reads the whole role matrix for a set of roles in one
+// round trip.
+//
+// Oracle binds no array to an IN list without a schema-level collection type, so
+// the placeholders are generated from the role count. They are positional binds,
+// never interpolated values, so nothing a caller supplies reaches the statement
+// text.
+//
+// Oracle caps an IN list at 1000 expressions (ORA-01795). §11.2 sizes a tenant
+// at roughly 250 roles and the caller deduplicates the claim, so a real
+// principal stays well under that. A deployment that ever approaches it needs
+// chunked reads or a collection type rather than a larger statement, and would
+// see a clear ORA-01795 rather than a wrong answer.
+func (s *Store) ActiveRolePermissions(ctx context.Context, query assignmentstore.ActiveRolePermissionQuery) ([]assignmentstore.RolePermission, error) {
+	if len(query.RoleExternalIDs) == 0 {
+		return nil, nil
+	}
+
+	// The instant is bound twice, once per occurrence. The driver binds by
+	// position, not by name, so a placeholder mentioned twice consumes two
+	// arguments: reusing :3 for both ends of the window silently shifts every
+	// later bind and the statement fails with ORA-01008. PostgreSQL is happy to
+	// reuse $4, which is exactly why this only shows up on the second engine.
+	arguments := []any{query.TenantID, query.ResourceKey, query.At, query.At}
+	placeholders := make([]string, 0, len(query.RoleExternalIDs))
+	for _, role := range query.RoleExternalIDs {
+		arguments = append(arguments, role)
+		placeholders = append(placeholders, fmt.Sprintf(":%d", len(arguments)))
+	}
+
+	statement := `
+		SELECT role_external_id, action_key, enabled, valid_from, valid_until, revision
+		FROM role_permission
+		WHERE tenant_id = :1
+		  AND resource_key = :2
+		  AND valid_from <= :3
+		  AND (valid_until IS NULL OR valid_until > :4)
+		  AND role_external_id IN (` + strings.Join(placeholders, ", ") + `)`
+
+	rows, err := s.db.QueryContext(ctx, statement, arguments...)
+	if err != nil {
+		return nil, fmt.Errorf("oraclestore: reading the active role matrix: %w", err)
+	}
+	defer func() { _ = rows.Close() }()
+
+	var permissions []assignmentstore.RolePermission
+	for rows.Next() {
+		permission := assignmentstore.RolePermission{
+			Key: assignmentstore.RolePermissionKey{
+				TenantID:    query.TenantID,
+				ResourceKey: query.ResourceKey,
+			},
+		}
+		var enabled int64
+		var validUntil *time.Time
+		if err := rows.Scan(&permission.Key.RoleExternalID, &permission.Key.ActionKey,
+			&enabled, &permission.ValidFrom, &validUntil, &permission.Revision); err != nil {
+			return nil, fmt.Errorf("oraclestore: scanning a role permission: %w", err)
+		}
+		permission.Enabled = enabled != 0
+		if validUntil != nil {
+			permission.ValidUntil = *validUntil
+		}
+		permissions = append(permissions, permission)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("oraclestore: reading the active role matrix: %w", err)
+	}
+	return permissions, nil
 }
 
 // SaveUserOverride inserts or updates one override on its §8.2 key.
@@ -165,6 +253,43 @@ func (s *Store) UserOverride(ctx context.Context, key assignmentstore.UserOverri
 	override.Effect = assignmentstore.OverrideEffect(effect)
 	override.Enabled = enabled != 0
 	return override, true, nil
+}
+
+// SavePermissionRevision advances a tenant's revision in place.
+func (s *Store) SavePermissionRevision(ctx context.Context, revision assignmentstore.PermissionRevision) error {
+	const statement = `
+		MERGE INTO permission_revision t
+		USING (SELECT :1 AS tenant_id FROM dual) s
+		ON (t.tenant_id = s.tenant_id)
+		WHEN MATCHED THEN UPDATE SET revision = :2, changed_at = :3
+		WHEN NOT MATCHED THEN INSERT (tenant_id, revision, changed_at)
+		VALUES (s.tenant_id, :4, :5)`
+
+	_, err := s.db.ExecContext(ctx, statement,
+		revision.TenantID,
+		revision.Revision, revision.ChangedAt,
+		revision.Revision, revision.ChangedAt)
+	if err != nil {
+		return fmt.Errorf("oraclestore: saving a permission revision: %w", err)
+	}
+	return nil
+}
+
+// PermissionRevision reads a tenant's current revision.
+func (s *Store) PermissionRevision(ctx context.Context, tenantID string) (assignmentstore.PermissionRevision, bool, error) {
+	const query = `
+		SELECT revision, changed_at FROM permission_revision WHERE tenant_id = :1`
+
+	revision := assignmentstore.PermissionRevision{TenantID: tenantID}
+	err := s.db.QueryRowContext(ctx, query, tenantID).
+		Scan(&revision.Revision, &revision.ChangedAt)
+	if errors.Is(err, sql.ErrNoRows) {
+		return assignmentstore.PermissionRevision{}, false, nil
+	}
+	if err != nil {
+		return assignmentstore.PermissionRevision{}, false, fmt.Errorf("oraclestore: reading a permission revision: %w", err)
+	}
+	return revision, true, nil
 }
 
 // AppendAuditEvent appends one audit record.

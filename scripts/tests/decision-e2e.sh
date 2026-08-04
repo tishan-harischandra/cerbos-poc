@@ -49,13 +49,31 @@ wait_for_decisions() {
 
 wait_for_decisions || exit 1
 
+# Canonical §7.5 role identifiers, matching the seeded role matrix exactly.
+# Token-to-role normalisation has to produce the same identifiers the matrix is
+# keyed by, so a second spelling here would resolve to no permissions at all.
+DOCTOR_ROLE="kc:realm:patient-app:doctor"
+AUDITOR_ROLE="kc:realm:patient-app:auditor"
+
+# Which roles each principal presents. Role grants now come from the database,
+# so a principal's roles are what decides its grants: giving every principal the
+# doctor role would make "a principal with no assignments is denied" untestable.
+roles_for() {
+  case "$1" in
+    user-doctor|user-doctor-revoked) jq -cn --arg r "${DOCTOR_ROLE}" '[$r]' ;;
+    user-auditor)                    jq -cn --arg r "${AUDITOR_ROLE}" '[$r]' ;;
+    *)                               echo '[]' ;;
+  esac
+}
+
 # decide <principal> <status> <resource-tenant> <actions-json> [extra-idp-role]
 # Echoes the decision response body.
 decide() {
   local principal="$1" status="$2" resource_tenant="$3" actions="$4" extra_role="${5:-}"
-  local roles='["kc:realm:patient-app:doctor"]'
+  local roles
+  roles="$(roles_for "${principal}")"
   if [[ -n "${extra_role}" ]]; then
-    roles="$(jq -cn --arg extra "${extra_role}" '["kc:realm:patient-app:doctor", $extra]')"
+    roles="$(jq -cn --argjson base "${roles}" --arg extra "${extra_role}" '$base + [$extra]')"
   fi
 
   jq -cn \
@@ -106,11 +124,29 @@ expect_decision() {
 
 echo "--- the seven-case matrix, end to end through a real PDP ---"
 
-# A role grant allows.
-expect_decision "a role grant allows read" \
+# A seeded, enabled role permission allows, read from the database rather than
+# from anything compiled into the service.
+expect_decision "a seeded role grant allows read" \
   user-doctor ACTIVE tenant-a read true
-expect_decision "a role grant allows update" \
+expect_decision "a seeded role grant allows update" \
   user-doctor ACTIVE tenant-a update true
+
+# The seed writes a disabled delete row for this very role. Denied because a
+# disabled row grants nothing - and, as the next case shows, not because it was
+# taken for a denial.
+expect_decision "a disabled role permission grants nothing" \
+  user-doctor ACTIVE tenant-a delete false
+
+# The other tenant holds a live delete grant for the same role. The case above
+# would pass anyway if that grant leaked, so this one pins the direction: the
+# leak would have had to allow.
+expect_decision "another tenant's live grant does not reach this decision" \
+  user-doctor ACTIVE tenant-a delete false
+
+# The auditor's read grant is enabled and out of date. Ignoring expiry would
+# visibly allow here.
+expect_decision "an expired role permission is ignored" \
+  user-auditor ACTIVE tenant-a read false
 
 # The case ADR-003 exists for: a user revoke beating a role grant, all the way
 # through the stack rather than only inside a policy test.
@@ -169,7 +205,9 @@ contract_check() {
 
 contract_check "both requested actions are answered" \
   '.resources[0].actions | keys | join(",")' "read,update"
-contract_check "the response reports the permission revision it decided at" \
+# The revision comes from the tenant's permission_revision row, so this fails if
+# the ADS ever reports a constant again.
+contract_check "the response reports the tenant's current permission revision" \
   '.resources[0].permissionRevision' "184"
 contract_check "the response names the resource it decided about" \
   '.resources[0].kind' "patient_record"
