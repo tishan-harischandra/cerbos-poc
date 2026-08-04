@@ -35,15 +35,17 @@ services:
       ORACLE_PASSWORD: ${ORACLE_SYS_PASSWORD:-change-me}
       APP_USER: ${ORACLE_USER:-cerbos_poc}
       APP_USER_PASSWORD: ${ORACLE_PASSWORD:-change-me}
+    # Deliberately no volume: the image ships FREEPDB1 already created, so every
+    # start uses it and comes up in seconds. Persisting the data directory would
+    # trade that for a minutes-long first boot, and this engine holds nothing
+    # worth keeping between runs - the dual-dialect suite migrates it from
+    # scratch each time.
     healthcheck:
       test: ["CMD", "healthcheck.sh"]
       interval: 10s
       timeout: 10s
-      # Oracle's first start creates the pluggable database, which takes minutes
-      # on a cold volume. A short retry budget here would report a broken engine
-      # when it is merely still starting.
-      retries: 60
-      start_period: 30s
+      retries: 30
+      start_period: 20s
 
   cerbos:
     image: ghcr.io/cerbos/cerbos:0.46.0

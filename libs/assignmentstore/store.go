@@ -101,12 +101,12 @@ type OutboxEvent struct {
 
 // Capability is one composite UI capability definition (§8.1).
 type Capability struct {
-	CapabilityKey    string
-	ModuleKey        string
-	ContextType      string
-	ExpressionJSON   string
-	CatalogRevision  int64
-	Enabled          bool
+	CapabilityKey   string
+	ModuleKey       string
+	ContextType     string
+	ExpressionJSON  string
+	CatalogRevision int64
+	Enabled         bool
 }
 
 // Store is the port every engine adapter implements.
