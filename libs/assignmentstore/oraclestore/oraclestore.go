@@ -143,7 +143,12 @@ func (s *Store) ActiveRolePermissions(ctx context.Context, query assignmentstore
 		return nil, nil
 	}
 
-	arguments := []any{query.TenantID, query.ResourceKey, query.At}
+	// The instant is bound twice, once per occurrence. The driver binds by
+	// position, not by name, so a placeholder mentioned twice consumes two
+	// arguments: reusing :3 for both ends of the window silently shifts every
+	// later bind and the statement fails with ORA-01008. PostgreSQL is happy to
+	// reuse $4, which is exactly why this only shows up on the second engine.
+	arguments := []any{query.TenantID, query.ResourceKey, query.At, query.At}
 	placeholders := make([]string, 0, len(query.RoleExternalIDs))
 	for _, role := range query.RoleExternalIDs {
 		arguments = append(arguments, role)
@@ -156,7 +161,7 @@ func (s *Store) ActiveRolePermissions(ctx context.Context, query assignmentstore
 		WHERE tenant_id = :1
 		  AND resource_key = :2
 		  AND valid_from <= :3
-		  AND (valid_until IS NULL OR valid_until > :3)
+		  AND (valid_until IS NULL OR valid_until > :4)
 		  AND role_external_id IN (` + strings.Join(placeholders, ", ") + `)`
 
 	rows, err := s.db.QueryContext(ctx, statement, arguments...)
