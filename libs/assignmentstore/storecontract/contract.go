@@ -9,7 +9,6 @@ package storecontract
 import (
 	"context"
 	"encoding/json"
-	"sort"
 	"testing"
 	"time"
 
@@ -511,11 +510,4 @@ func closeStore(t *testing.T, store assignmentstore.Store) {
 	if err := store.Close(); err != nil {
 		t.Errorf("closing the store: %v", err)
 	}
-}
-
-// SortedTables is Tables in a stable order, for messages that list them.
-func SortedTables() []string {
-	out := append([]string(nil), Tables...)
-	sort.Strings(out)
-	return out
 }

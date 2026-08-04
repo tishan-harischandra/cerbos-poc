@@ -3,6 +3,7 @@ package assignmentstore_test
 import (
 	"context"
 	"os"
+	"strings"
 	"testing"
 	"time"
 
@@ -82,7 +83,11 @@ func TestTheContractIsNotSilentlySkipped(t *testing.T) {
 		"oracle":   os.Getenv(oracleDSNEnv),
 	}
 
-	for _, engine := range splitAndTrim(required) {
+	for _, engine := range strings.Split(required, ",") {
+		engine = strings.TrimSpace(engine)
+		if engine == "" {
+			continue
+		}
 		dsn, known := dsnFor[engine]
 		if !known {
 			t.Errorf("REQUIRE_ENGINES names %q, which this suite cannot run", engine)
@@ -92,24 +97,4 @@ func TestTheContractIsNotSilentlySkipped(t *testing.T) {
 			t.Errorf("the contract must run against %s here, but its DSN is empty", engine)
 		}
 	}
-}
-
-func splitAndTrim(list string) []string {
-	var out []string
-	current := ""
-	for _, r := range list {
-		switch r {
-		case ',', ' ':
-			if current != "" {
-				out = append(out, current)
-				current = ""
-			}
-		default:
-			current += string(r)
-		}
-	}
-	if current != "" {
-		out = append(out, current)
-	}
-	return out
 }

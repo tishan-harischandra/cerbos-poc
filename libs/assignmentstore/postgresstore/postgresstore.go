@@ -7,7 +7,6 @@ package postgresstore
 
 import (
 	"context"
-	"database/sql"
 	"errors"
 	"fmt"
 	"time"
@@ -85,7 +84,7 @@ func (s *Store) RolePermission(ctx context.Context, key assignmentstore.RolePerm
 	err := s.pool.QueryRow(ctx, query,
 		key.TenantID, key.RoleExternalID, key.ResourceKey, key.ActionKey).
 		Scan(&permission.Enabled, &permission.ValidFrom, &permission.ValidUntil, &permission.Revision)
-	if errors.Is(err, sql.ErrNoRows) || isNoRows(err) {
+	if isNoRows(err) {
 		return assignmentstore.RolePermission{}, false, nil
 	}
 	if err != nil {
