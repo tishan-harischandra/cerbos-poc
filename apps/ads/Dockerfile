@@ -1,6 +1,6 @@
 # syntax=docker/dockerfile:1
 # Build context is the repository root.
-FROM docker.io/library/golang:1.23-alpine AS build
+FROM docker.io/library/golang:1.25-alpine AS build
 
 WORKDIR /src
 COPY apps/ads/go.mod apps/ads/go.sum ./

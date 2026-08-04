@@ -1,6 +1,6 @@
 module github.com/tishan-harischandra/cerbos-poc/apps/ads
 
-go 1.23
+go 1.25
 
 require google.golang.org/grpc v1.68.0
 

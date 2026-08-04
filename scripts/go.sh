@@ -6,7 +6,7 @@
 # Example: scripts/go.sh apps/ads test ./...
 set -euo pipefail
 
-GO_IMAGE="${GO_IMAGE:-docker.io/library/golang:1.23-alpine}"
+GO_IMAGE="${GO_IMAGE:-docker.io/library/golang:1.25-alpine}"
 DOCKER="${DOCKER:-docker}"
 
 if [[ $# -lt 2 ]]; then
