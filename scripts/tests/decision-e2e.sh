@@ -14,34 +14,40 @@ failures=0
 
 command -v jq >/dev/null 2>&1 || { echo "decision-e2e: jq is required" >&2; exit 1; }
 
-# The ADS container is live as soon as /healthz answers, but a decision also needs
-# the PDP, so wait for /readyz to agree before asserting on behaviour.
-#
-# Several consecutive readings are required rather than one. A PDP that is going
-# down still answers for a moment, and a single ok taken during that window would
-# let the suite start asserting into a restart and report behavioural failures for
-# what is really a timing artefact.
-READY_URL="http://127.0.0.1:${PORT}/api/ads/readyz"
-REQUIRED_STREAK=3
-streak=0
+wait_for_decisions() {
+  # Gate on the decision path itself rather than on /readyz. Readiness probes the
+  # PDP over its own connection, so it reports healthy while the decision
+  # channel is still reconnecting, and it keeps saying healthy for a moment after
+  # a PDP that is going down stops being able to answer. Asking the real endpoint
+  # is the only signal that means what this suite needs.
+  #
+  # Consecutive successes, because one success during a restart proves nothing.
+  local required=3 streak=0 code
+  local probe='{"tenantId":"tenant-a","hospitalId":"hospital-1","principalId":"user-unassigned",
+    "idpRoles":[],"resources":[{"kind":"patient_record","id":"patient-000",
+    "attributes":{"tenantId":"tenant-a","hospitalId":"hospital-1","status":"ACTIVE"},
+    "actions":["read"]}]}'
 
-for _ in $(seq 1 40); do
-  if curl -fsS --max-time 3 "${READY_URL}" 2>/dev/null | grep -q '"cerbos":"ok"'; then
-    streak=$((streak + 1))
-    if (( streak >= REQUIRED_STREAK )); then
-      break
+  for _ in $(seq 1 60); do
+    code="$(curl -sS -o /dev/null -w '%{http_code}' --max-time 5 \
+      -H 'Content-Type: application/json' --data "${probe}" "${CHECK_URL}" 2>/dev/null)"
+    if [[ "${code}" == "200" ]]; then
+      streak=$((streak + 1))
+      if (( streak >= required )); then
+        return 0
+      fi
+    else
+      streak=0
     fi
-  else
-    streak=0
-  fi
-  sleep 1
-done
+    sleep 1
+  done
 
-if (( streak < REQUIRED_STREAK )); then
-  echo "decision-e2e: the ADS never held the PDP reachable at ${READY_URL}" >&2
-  curl -sS --max-time 3 "${READY_URL}" >&2 || true
-  exit 1
-fi
+  echo "decision-e2e: the ADS never served ${required} decisions in a row; last HTTP ${code}" >&2
+  curl -sS --max-time 5 "http://127.0.0.1:${PORT}/api/ads/readyz" >&2 || true
+  return 1
+}
+
+wait_for_decisions || exit 1
 
 # decide <principal> <status> <resource-tenant> <actions-json> [extra-idp-role]
 # Echoes the decision response body.
@@ -137,32 +143,43 @@ echo
 echo "--- the decision contract ---"
 
 code="$(decide user-doctor ACTIVE tenant-a '["read","update"]')"
-[[ "${code}" == "200" ]]
-check_code=$?
-if [[ ${check_code} -eq 0 ]]; then echo "ok   a batched request answers for every action"; else
-  echo "FAIL a batched request answers for every action (HTTP ${code})"; failures=$((failures + 1)); fi
+batched_body="$(cat /tmp/decision-body)"
 
-answered="$(jq -r '.resources[0].actions | keys | join(",")' /tmp/decision-body)"
-if [[ "${answered}" == "read,update" ]]; then
-  echo "ok   both requested actions are answered"
+if [[ "${code}" == "200" ]]; then
+  echo "ok   a batched request answers for every action"
 else
-  echo "FAIL both requested actions are answered (got ${answered})"
+  echo "FAIL a batched request answers for every action (HTTP ${code}: ${batched_body})"
   failures=$((failures + 1))
 fi
 
-call_id="$(jq -r '.cerbosCallId' /tmp/decision-body)"
+# Every assertion below reads the same response. Reporting the body when one
+# fails is what makes a flake diagnosable rather than a mystery.
+contract_check() {
+  local description="$1" expression="$2" expected="$3"
+  local actual
+  actual="$(jq -r "${expression}" <<<"${batched_body}" 2>&1)"
+  if [[ "${actual}" == "${expected}" ]]; then
+    echo "ok   ${description}"
+  else
+    echo "FAIL ${description} (${expression} = '${actual}', want '${expected}')"
+    echo "     response was: ${batched_body}"
+    failures=$((failures + 1))
+  fi
+}
+
+contract_check "both requested actions are answered" \
+  '.resources[0].actions | keys | join(",")' "read,update"
+contract_check "the response reports the permission revision it decided at" \
+  '.resources[0].permissionRevision' "184"
+contract_check "the response names the resource it decided about" \
+  '.resources[0].kind' "patient_record"
+
+call_id="$(jq -r '.cerbosCallId' <<<"${batched_body}" 2>&1)"
 if [[ -n "${call_id}" && "${call_id}" != "null" ]]; then
   echo "ok   the response carries the cerbosCallId for audit correlation"
 else
   echo "FAIL the response carries the cerbosCallId for audit correlation"
-  failures=$((failures + 1))
-fi
-
-revision="$(jq -r '.resources[0].permissionRevision' /tmp/decision-body)"
-if [[ "${revision}" == "184" ]]; then
-  echo "ok   the response reports the permission revision it decided at"
-else
-  echo "FAIL the response reports the permission revision (got ${revision})"
+  echo "     response was: ${batched_body}"
   failures=$((failures + 1))
 fi
 
