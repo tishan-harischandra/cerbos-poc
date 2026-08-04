@@ -53,6 +53,25 @@ type RolePermission struct {
 	Revision   int64
 }
 
+// ActiveRolePermissionQuery asks for the role matrix that is in force for one
+// tenant, one set of canonical roles and one resource at one instant.
+//
+// The role set is plural because a principal holds many roles at once and the
+// decision path resolves them together (§11.2). Asking per role would put one
+// round trip per role in front of every authorization question.
+type ActiveRolePermissionQuery struct {
+	TenantID string
+	// RoleExternalIDs are canonical role identifiers (§7.5). Empty means the
+	// principal holds no roles, which resolves to no permissions rather than
+	// to the tenant's whole matrix.
+	RoleExternalIDs []string
+	ResourceKey     string
+	// At is the instant the validity windows are judged against. It is a
+	// parameter rather than the database clock so a decision, a test and a
+	// replay all agree on when "now" was.
+	At time.Time
+}
+
 // UserOverrideKey identifies one user override (§8.2 unique key).
 type UserOverrideKey struct {
 	TenantID       string
@@ -163,6 +182,12 @@ type Store interface {
 
 	SaveRolePermission(ctx context.Context, permission RolePermission) error
 	RolePermission(ctx context.Context, key RolePermissionKey) (RolePermission, bool, error)
+
+	// ActiveRolePermissions reads, in one round trip, every role permission
+	// in force for the queried roles. Rows outside their validity window are
+	// left out; disabled rows are returned marked disabled, because "grants
+	// nothing" and "denies" are different facts (§8.3).
+	ActiveRolePermissions(ctx context.Context, query ActiveRolePermissionQuery) ([]RolePermission, error)
 
 	SaveUserOverride(ctx context.Context, override UserOverride) error
 	UserOverride(ctx context.Context, key UserOverrideKey) (UserOverride, bool, error)

@@ -84,6 +84,153 @@ func Run(t *testing.T, newStore Factory) {
 	t.Run("a tenant's permission revision is readable and advances in place", func(t *testing.T) {
 		assertPermissionRevision(t, newStore(t))
 	})
+	t.Run("the active role matrix for a set of roles is read in one call", func(t *testing.T) {
+		assertActiveRolePermissions(t, newStore(t))
+	})
+	t.Run("a role permission with no end date stays active", func(t *testing.T) {
+		assertOpenEndedRolePermission(t, newStore(t))
+	})
+}
+
+// The hot path resolves every role a principal holds at once (§11.2). What that
+// lookup must and must not return is the whole of this case.
+//
+// Note what is *not* filtered here: a disabled row comes back marked disabled
+// rather than being dropped. Disabled means "contributes no grant", not "denies"
+// (§8.3), and turning it into an absence here would leave the caller unable to
+// tell a row that exists and grants nothing from a row that was never written.
+// Validity is filtered, because §8.3 says an expired assignment is ignored
+// outright and the validity columns are indexed for exactly this predicate.
+func assertActiveRolePermissions(t *testing.T, store assignmentstore.Store) {
+	t.Helper()
+	defer closeStore(t, store)
+	ctx := context.Background()
+	truncate(t, store, "role_permission")
+
+	now := time.Date(2026, 6, 1, 12, 0, 0, 0, time.UTC)
+	lastYear := now.AddDate(-1, 0, 0)
+	nextYear := now.AddDate(1, 0, 0)
+
+	save := func(tenant, role, resource, action string, enabled bool, from, until time.Time) {
+		t.Helper()
+		if err := store.SaveRolePermission(ctx, assignmentstore.RolePermission{
+			Key: assignmentstore.RolePermissionKey{
+				TenantID: tenant, RoleExternalID: role,
+				ResourceKey: resource, ActionKey: action,
+			},
+			Enabled: enabled, ValidFrom: from, ValidUntil: until, Revision: 12,
+		}); err != nil {
+			t.Fatalf("saving %s/%s/%s/%s: %v", tenant, role, resource, action, err)
+		}
+	}
+
+	save("tenant-a", "role-doctor", "patient_record", "read", true, lastYear, nextYear)
+	save("tenant-a", "role-nurse", "patient_record", "list", true, lastYear, nextYear)
+	// Disabled: present, but granting nothing.
+	save("tenant-a", "role-doctor", "patient_record", "delete", false, lastYear, nextYear)
+	// Expired and not yet in force: both invisible to a decision taken now.
+	save("tenant-a", "role-doctor", "patient_record", "update", true, lastYear, now.AddDate(0, -1, 0))
+	save("tenant-a", "role-doctor", "patient_record", "create", true, now.AddDate(0, 1, 0), nextYear)
+	// Another tenant, another resource and a role nobody asked about.
+	save("tenant-b", "role-doctor", "patient_record", "read", true, lastYear, nextYear)
+	save("tenant-a", "role-doctor", "prescription", "read", true, lastYear, nextYear)
+	save("tenant-a", "role-porter", "patient_record", "read", true, lastYear, nextYear)
+
+	found, err := store.ActiveRolePermissions(ctx, assignmentstore.ActiveRolePermissionQuery{
+		TenantID:        "tenant-a",
+		RoleExternalIDs: []string{"role-doctor", "role-nurse"},
+		ResourceKey:     "patient_record",
+		At:              now,
+	})
+	if err != nil {
+		t.Fatalf("reading the active role matrix: %v", err)
+	}
+
+	got := make(map[string]bool, len(found))
+	for _, permission := range found {
+		if permission.Key.TenantID != "tenant-a" {
+			t.Errorf("a %s row reached a tenant-a lookup", permission.Key.TenantID)
+		}
+		if permission.Key.ResourceKey != "patient_record" {
+			t.Errorf("a %s row reached a patient_record lookup", permission.Key.ResourceKey)
+		}
+		got[permission.Key.RoleExternalID+"/"+permission.Key.ActionKey] = permission.Enabled
+	}
+
+	want := map[string]bool{
+		"role-doctor/read":   true,
+		"role-doctor/delete": false,
+		"role-nurse/list":    true,
+	}
+	if len(got) != len(want) {
+		t.Fatalf("the active matrix is %v, want %v", got, want)
+	}
+	for key, enabled := range want {
+		stored, present := got[key]
+		if !present {
+			t.Errorf("%s is missing from the active matrix %v", key, got)
+			continue
+		}
+		if stored != enabled {
+			t.Errorf("%s came back enabled=%t, want %t", key, stored, enabled)
+		}
+	}
+
+	// An empty role set is a principal with no roles, not a request for
+	// everything: it must read as no permissions rather than as the tenant's
+	// whole matrix.
+	none, err := store.ActiveRolePermissions(ctx, assignmentstore.ActiveRolePermissionQuery{
+		TenantID:    "tenant-a",
+		ResourceKey: "patient_record",
+		At:          now,
+	})
+	if err != nil {
+		t.Fatalf("reading with no roles: %v", err)
+	}
+	if len(none) != 0 {
+		t.Errorf("a principal with no roles resolved %d permissions, want none", len(none))
+	}
+}
+
+// valid_until is nullable: a grant with no planned end is the ordinary case, and
+// it must not be mistaken for one that expired at the zero instant.
+func assertOpenEndedRolePermission(t *testing.T, store assignmentstore.Store) {
+	t.Helper()
+	defer closeStore(t, store)
+	ctx := context.Background()
+	truncate(t, store, "role_permission")
+
+	now := time.Date(2026, 6, 1, 12, 0, 0, 0, time.UTC)
+	key := assignmentstore.RolePermissionKey{
+		TenantID: "tenant-a", RoleExternalID: "role-doctor",
+		ResourceKey: "patient_record", ActionKey: "read",
+	}
+	if err := store.SaveRolePermission(ctx, assignmentstore.RolePermission{
+		Key: key, Enabled: true, ValidFrom: now.AddDate(-1, 0, 0), Revision: 3,
+	}); err != nil {
+		t.Fatalf("saving an open-ended permission: %v", err)
+	}
+
+	stored, found, err := store.RolePermission(ctx, key)
+	if err != nil || !found {
+		t.Fatalf("reading it back: found=%t err=%v", found, err)
+	}
+	if !stored.ValidUntil.IsZero() {
+		t.Errorf("validUntil = %s, want the zero instant for an open-ended grant", stored.ValidUntil)
+	}
+
+	active, err := store.ActiveRolePermissions(ctx, assignmentstore.ActiveRolePermissionQuery{
+		TenantID:        "tenant-a",
+		RoleExternalIDs: []string{"role-doctor"},
+		ResourceKey:     "patient_record",
+		At:              now,
+	})
+	if err != nil {
+		t.Fatalf("reading the active matrix: %v", err)
+	}
+	if len(active) != 1 {
+		t.Fatalf("an open-ended grant resolved %d permissions, want 1", len(active))
+	}
 }
 
 // The ADS reports the revision it decided at alongside every decision (§11.3),
