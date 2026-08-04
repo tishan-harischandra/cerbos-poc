@@ -26,6 +26,11 @@ type Config struct {
 	// ReadinessTimeout bounds a single /readyz probe round. Zero means
 	// DefaultReadinessTimeout.
 	ReadinessTimeout time.Duration
+
+	// AuthzHandler serves POST /internal/authz/check. When nil the route is
+	// not registered at all, so a misconfigured build fails with 404 rather
+	// than answering authorization questions from a stub.
+	AuthzHandler http.Handler
 }
 
 // New builds the ADS HTTP handler.
@@ -34,6 +39,10 @@ func New(cfg Config) http.Handler {
 	mux.HandleFunc("GET /healthz", func(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusOK, map[string]any{"status": "ok"})
 	})
+	if cfg.AuthzHandler != nil {
+		mux.Handle("POST /internal/authz/check", cfg.AuthzHandler)
+	}
+
 	timeout := cfg.ReadinessTimeout
 	if timeout <= 0 {
 		timeout = DefaultReadinessTimeout

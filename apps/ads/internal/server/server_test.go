@@ -63,6 +63,34 @@ func TestReadyzIsUnavailableWhileADependencyIsUnreachable(t *testing.T) {
 	}
 }
 
+func TestTheDecisionEndpointIsMountedWhenAHandlerIsConfigured(t *testing.T) {
+	handler := server.New(server.Config{
+		AuthzHandler: http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+			w.WriteHeader(http.StatusTeapot)
+		}),
+	})
+
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, httptest.NewRequest(http.MethodPost, "/internal/authz/check", nil))
+
+	if rec.Code != http.StatusTeapot {
+		t.Errorf("POST /internal/authz/check status = %d, want the configured handler to answer", rec.Code)
+	}
+}
+
+// Without a decision handler the route must not exist at all. A stub answering
+// 200 would be indistinguishable from a real allow.
+func TestTheDecisionEndpointIsAbsentWhenNoHandlerIsConfigured(t *testing.T) {
+	handler := server.New(server.Config{})
+
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, httptest.NewRequest(http.MethodPost, "/internal/authz/check", nil))
+
+	if rec.Code != http.StatusNotFound {
+		t.Errorf("POST /internal/authz/check status = %d, want %d", rec.Code, http.StatusNotFound)
+	}
+}
+
 func TestReadyzGivesUpOnADependencyThatNeverAnswers(t *testing.T) {
 	handler := server.New(server.Config{
 		ReadinessTimeout: 50 * time.Millisecond,
