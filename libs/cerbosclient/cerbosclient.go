@@ -10,14 +10,29 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"time"
 
 	"github.com/cerbos/cerbos-sdk-go/cerbos"
 	effectv1 "github.com/cerbos/cerbos/api/genpb/cerbos/effect/v1"
 	requestv1 "github.com/cerbos/cerbos/api/genpb/cerbos/request/v1"
 	svcv1 "github.com/cerbos/cerbos/api/genpb/cerbos/svc/v1"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/backoff"
 	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/credentials/insecure"
+)
+
+// Connection tuning for a hot decision path.
+//
+// gRPC defaults suit long-lived streams, not a call that sits in front of every
+// authorization question. Its 20s connect timeout means that when the PDP moves
+// to a new address - a container recreate, a rollout - each caller waits 20s
+// before the ADS fails closed, and the channel does not re-resolve DNS until the
+// attempt gives up. Bounding the attempt turns that into a few seconds.
+const (
+	connectTimeout   = 2 * time.Second
+	backoffBaseDelay = 200 * time.Millisecond
+	backoffMaxDelay  = 5 * time.Second
 )
 
 // EvaluationRole is the single synthetic role every policy rule binds to.
@@ -121,7 +136,18 @@ func New(cfg Config) (*Client, error) {
 		transport = insecure.NewCredentials()
 	}
 
-	conn, err := grpc.NewClient(cfg.Address, grpc.WithTransportCredentials(transport))
+	conn, err := grpc.NewClient(cfg.Address,
+		grpc.WithTransportCredentials(transport),
+		grpc.WithConnectParams(grpc.ConnectParams{
+			Backoff: backoff.Config{
+				BaseDelay:  backoffBaseDelay,
+				Multiplier: 1.6,
+				Jitter:     0.2,
+				MaxDelay:   backoffMaxDelay,
+			},
+			MinConnectTimeout: connectTimeout,
+		}),
+	)
 	if err != nil {
 		return nil, fmt.Errorf("cerbosclient: preparing a channel to %s: %w", cfg.Address, err)
 	}

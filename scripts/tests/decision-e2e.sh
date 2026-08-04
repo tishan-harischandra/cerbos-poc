@@ -14,6 +14,35 @@ failures=0
 
 command -v jq >/dev/null 2>&1 || { echo "decision-e2e: jq is required" >&2; exit 1; }
 
+# The ADS container is live as soon as /healthz answers, but a decision also needs
+# the PDP, so wait for /readyz to agree before asserting on behaviour.
+#
+# Several consecutive readings are required rather than one. A PDP that is going
+# down still answers for a moment, and a single ok taken during that window would
+# let the suite start asserting into a restart and report behavioural failures for
+# what is really a timing artefact.
+READY_URL="http://127.0.0.1:${PORT}/api/ads/readyz"
+REQUIRED_STREAK=3
+streak=0
+
+for _ in $(seq 1 40); do
+  if curl -fsS --max-time 3 "${READY_URL}" 2>/dev/null | grep -q '"cerbos":"ok"'; then
+    streak=$((streak + 1))
+    if (( streak >= REQUIRED_STREAK )); then
+      break
+    fi
+  else
+    streak=0
+  fi
+  sleep 1
+done
+
+if (( streak < REQUIRED_STREAK )); then
+  echo "decision-e2e: the ADS never held the PDP reachable at ${READY_URL}" >&2
+  curl -sS --max-time 3 "${READY_URL}" >&2 || true
+  exit 1
+fi
+
 # decide <principal> <status> <resource-tenant> <actions-json> [extra-idp-role]
 # Echoes the decision response body.
 decide() {

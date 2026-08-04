@@ -17,10 +17,6 @@ resourcePolicy:
 
   variables:
     local:
-      same_tenant: >-
-        request.principal.attr.tenantId == request.resource.attr.tenantId
-      same_hospital: >-
-        request.principal.attr.hospitalId == request.resource.attr.hospitalId
       isolated: >-
         request.principal.attr.tenantId == request.resource.attr.tenantId &&
         request.principal.attr.hospitalId == request.resource.attr.hospitalId
@@ -30,9 +26,20 @@ resourcePolicy:
       is_locked: request.resource.attr.status == "LOCKED"
 
   rules:
-    # Mandatory restrictions first. These cannot be bypassed by any grant,
-    # which is why they are expressed as explicit denies rather than as
-    # conditions on the allow rules.
+    # Mandatory restrictions first. They are explicit denies rather than
+    # conditions on the allow rules so that no grant can bypass them and no
+    # future allow rule can forget them: within this one role, deny always wins.
+
+    # Isolation applies to every action, including ones added later, which is
+    # why it uses the wildcard rather than a list to keep in step.
+    - name: tenant_and_hospital_isolation
+      actions: ["*"]
+      effect: EFFECT_DENY
+      roles: ["sys:permission-evaluator"]
+      condition:
+        match:
+          expr: "!variables.isolated"
+
     - name: locked_record_restriction
       actions: ["update", "delete"]
       effect: EFFECT_DENY
@@ -42,6 +49,12 @@ resourcePolicy:
           expr: variables.is_locked
 
     # User revocations outrank every grant below.
+    #
+    # These are one rule per action because a Cerbos condition cannot name the
+    # action being evaluated: there is no `request.action` in the CEL context, so
+    # the action has to be a literal. That is the repetition the policy generator
+    # exists to remove (§8); when a new action is added, every block below needs a
+    # sibling, and the §19.1 matrix is what catches a missing one.
     - name: revoke_read
       actions: ["read"]
       effect: EFFECT_DENY
@@ -66,15 +79,16 @@ resourcePolicy:
         match:
           expr: '"delete" in variables.user_revokes'
 
-    # User grants. Kept separate from role grants so an audit trail records
-    # which source of authority allowed the action.
+    # User grants. Kept separate from role grants so the audit trail records
+    # which source of authority allowed the action. Isolation is not repeated
+    # here: the mandatory deny above already covers every action.
     - name: grant_read_to_user
       actions: ["read"]
       effect: EFFECT_ALLOW
       roles: ["sys:permission-evaluator"]
       condition:
         match:
-          expr: '"read" in variables.user_grants && variables.isolated'
+          expr: '"read" in variables.user_grants'
 
     - name: grant_update_to_user
       actions: ["update"]
@@ -82,7 +96,7 @@ resourcePolicy:
       roles: ["sys:permission-evaluator"]
       condition:
         match:
-          expr: '"update" in variables.user_grants && variables.isolated'
+          expr: '"update" in variables.user_grants'
 
     - name: grant_delete_to_user
       actions: ["delete"]
@@ -90,7 +104,7 @@ resourcePolicy:
       roles: ["sys:permission-evaluator"]
       condition:
         match:
-          expr: '"delete" in variables.user_grants && variables.isolated'
+          expr: '"delete" in variables.user_grants'
 
     # Role grants, the default source of business capability.
     - name: grant_read_to_role
@@ -99,7 +113,7 @@ resourcePolicy:
       roles: ["sys:permission-evaluator"]
       condition:
         match:
-          expr: '"read" in variables.role_actions && variables.isolated'
+          expr: '"read" in variables.role_actions'
 
     - name: grant_update_to_role
       actions: ["update"]
@@ -107,7 +121,7 @@ resourcePolicy:
       roles: ["sys:permission-evaluator"]
       condition:
         match:
-          expr: '"update" in variables.role_actions && variables.isolated'
+          expr: '"update" in variables.role_actions'
 
     - name: grant_delete_to_role
       actions: ["delete"]
@@ -115,7 +129,7 @@ resourcePolicy:
       roles: ["sys:permission-evaluator"]
       condition:
         match:
-          expr: '"delete" in variables.role_actions && variables.isolated'
+          expr: '"delete" in variables.role_actions'
 
   schemas:
     principalSchema:

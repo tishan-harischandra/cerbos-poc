@@ -153,6 +153,81 @@ func TestCheckSurfacesATransportFailure(t *testing.T) {
 	}
 }
 
+// The PDP is restarted routinely, by a policy rollout or a container recreate.
+// gRPC's default reconnect backoff climbs to two minutes, which on the decision
+// path means the ADS keeps failing closed long after the PDP is answering again.
+// Recovery has to be prompt.
+func TestTheClientRecoversPromptlyAfterThePDPRestarts(t *testing.T) {
+	respond := func(*requestv1.CheckResourcesRequest) *responsev1.CheckResourcesResponse {
+		return &responsev1.CheckResourcesResponse{
+			CerbosCallId: "call-1",
+			Results: []*responsev1.CheckResourcesResponse_ResultEntry{
+				resultFor("patient-456", map[string]effectv1.Effect{
+					"read": effectv1.Effect_EFFECT_ALLOW,
+				}),
+			},
+		}
+	}
+
+	pdp := startFakePDP(t, respond)
+	client := dial(t, pdp.address)
+
+	if _, err := client.Check(context.Background(), readRequest()); err != nil {
+		t.Fatalf("first Check: %v", err)
+	}
+
+	// Drop the PDP and let the channel see the failure, so it enters backoff.
+	pdp.stop()
+	if _, err := client.Check(context.Background(), readRequest()); err == nil {
+		t.Fatal("Check succeeded while the PDP was down")
+	}
+
+	restartFakePDP(t, pdp, respond)
+
+	deadline := time.Now().Add(20 * time.Second)
+	var lastErr error
+	for time.Now().Before(deadline) {
+		if _, lastErr = client.Check(context.Background(), readRequest()); lastErr == nil {
+			return
+		}
+		time.Sleep(250 * time.Millisecond)
+	}
+	t.Fatalf("the client never recovered after the PDP came back: %v", lastErr)
+}
+
+// A decision request must not sit waiting on a dead address. gRPC's default
+// connect timeout is 20 seconds, so when the PDP moves to a new IP - a container
+// recreate, a rollout - the ADS holds each caller for 20s before failing closed,
+// and the channel only re-resolves DNS once the attempt gives up. Bounding the
+// attempt is what turns a half-minute outage into a few seconds.
+func TestAConnectionToAnUnreachableAddressFailsFast(t *testing.T) {
+	// TEST-NET-1 (RFC 5737) is reserved and routed nowhere, so a connection
+	// attempt hangs rather than being refused.
+	client, err := cerbosclient.New(cerbosclient.Config{
+		Address:      "192.0.2.1:3593",
+		PlaintextTLS: true,
+	})
+	if err != nil {
+		t.Fatalf("New: %v", err)
+	}
+	t.Cleanup(func() { _ = client.Close() })
+
+	// Comfortably below gRPC's 20s default, comfortably above our own bound.
+	ctx, cancel := context.WithTimeout(context.Background(), 12*time.Second)
+	defer cancel()
+
+	start := time.Now()
+	_, err = client.Check(ctx, readRequest())
+	elapsed := time.Since(start)
+
+	if err == nil {
+		t.Fatal("Check against an unroutable address succeeded")
+	}
+	if errors.Is(ctx.Err(), context.DeadlineExceeded) {
+		t.Fatalf("Check was still waiting after %s; the connect attempt is unbounded", elapsed)
+	}
+}
+
 func TestNewRejectsAnEmptyAddress(t *testing.T) {
 	_, err := cerbosclient.New(cerbosclient.Config{})
 	if err == nil {
@@ -339,6 +414,13 @@ type fakePDPHandle struct {
 	address  string
 	pdp      *fakePDP
 	listener *countingListener
+	server   *grpc.Server
+}
+
+// stop shuts the server down while leaving the address free to be listened on
+// again, so a restart can be simulated.
+func (h *fakePDPHandle) stop() {
+	h.server.Stop()
 }
 
 func (h *fakePDPHandle) requests() int {
@@ -373,5 +455,29 @@ func startFakePDP(t *testing.T, respond func(*requestv1.CheckResourcesRequest) *
 		address:  raw.Addr().String(),
 		pdp:      pdp,
 		listener: listener,
+		server:   server,
 	}
+}
+
+// restartFakePDP brings a stopped PDP back on the same address, the way a
+// container restart or a policy rollout does.
+func restartFakePDP(t *testing.T, handle *fakePDPHandle, respond func(*requestv1.CheckResourcesRequest) *responsev1.CheckResourcesResponse) {
+	t.Helper()
+
+	raw, err := net.Listen("tcp", handle.address)
+	if err != nil {
+		t.Fatalf("re-listening on %s: %v", handle.address, err)
+	}
+	listener := &countingListener{Listener: raw}
+
+	pdp := &fakePDP{respond: respond}
+	server := grpc.NewServer()
+	svcv1.RegisterCerbosServiceServer(server, pdp)
+
+	go func() { _ = server.Serve(listener) }()
+	t.Cleanup(server.Stop)
+
+	handle.pdp = pdp
+	handle.listener = listener
+	handle.server = server
 }
