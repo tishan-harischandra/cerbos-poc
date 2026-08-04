@@ -33,6 +33,9 @@ next_with() {
 
 # shellcheck source=../lib.sh
 source "$LOOP_DIR/lib.sh"
+# lib.sh turns on errexit; the harness deliberately calls scripts that exit
+# non-zero, so it must run without it.
+set +e
 
 verdict_of() {
   printf '%s' "$1" | rollup_verdict
@@ -114,10 +117,6 @@ next_with "$tmp/all-closed.json" >/dev/null
 check "exits 3 when every slice is closed" "3" "$?"
 
 # --- branch naming -----------------------------------------------------------
-
-# shellcheck source=../lib.sh
-source "$LOOP_DIR/lib.sh"
-set +e
 
 check "branch names are derived from the issue number and a slug" \
   "issue-7-role-permission-resolution" \
