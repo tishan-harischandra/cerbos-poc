@@ -8,7 +8,7 @@ AGENTLOOP_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(git -C "$AGENTLOOP_DIR" rev-parse --show-toplevel)"
 STATE_DIR="$REPO_ROOT/.agentloop"
 DEFAULT_BRANCH="${AGENTLOOP_DEFAULT_BRANCH:-main}"
-MAX_REVIEW_ROUNDS="${AGENTLOOP_MAX_REVIEW_ROUNDS:-3}"
+MAX_REVIEW_ROUNDS="${AGENTLOOP_MAX_REVIEW_ROUNDS:-8}"
 HUMAN_LABEL="needs-human"
 
 die() {

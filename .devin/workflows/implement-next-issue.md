@@ -57,7 +57,8 @@ Invoke the `tdd` skill and follow it strictly.
 
 ## 5. Self-review loop
 
-Repeat until clean or the cap trips:
+Repeat until a round finds nothing or the cap trips. Either exit condition leads
+to the merge in section 6 — the cap is a budget, not a failure.
 
 1. Run `scripts/agentloop/review-pr.sh N`. It prints the acceptance criteria,
    the commits, the diff, and the blocking-findings checklist, and consumes one
@@ -71,19 +72,24 @@ Repeat until clean or the cap trips:
    not a review.
 4. If there are findings: fix them with the same TDD discipline, commit, push,
    and go back to step 1.
-5. If there are no findings: repeat the review once more. Two consecutive clean
-   rounds are required before merging.
-6. Exit code 4 from `review-pr.sh` means the round cap is exhausted. Write the
-   unresolved findings to a file and run
-   `scripts/agentloop/escalate.sh N --reason-file <path>`, then stop this issue.
+5. If there are no findings, stop reviewing and go to section 6.
+6. Exit code 4 from `review-pr.sh` means the round cap is reached. Stop reviewing
+   and go to section 6 as well, carrying any unresolved findings into the merge
+   note so they are on the record.
+
+Never weaken a test or drop an acceptance criterion to reach a clean round.
 
 ## 6. Merge and close
 
-1. Run `scripts/agentloop/merge-and-close.sh N --comment-file <path>` with a
-   short delivery note. It refuses on conflicts, red required checks, or a
-   blocked merge state; it squash-merges, deletes the branch, syncs `main` and
-   verifies the issue is closed.
-2. Confirm with `gh issue view N --json state` that the issue is `CLOSED`.
+1. Wait for CI to finish, then write a short delivery note. If the loop ended on
+   the cap with findings still open, list them in that note.
+2. Run `scripts/agentloop/merge-and-close.sh N --comment-file <path>`. It refuses
+   on conflicts, red required checks, or a blocked merge state; it squash-merges,
+   deletes the branch, syncs `main` and verifies the issue is closed.
+3. If the merge gate refuses, fix the cause if it is a red check. If it cannot be
+   fixed here, run `scripts/agentloop/escalate.sh N --reason-file <path>`. That
+   is now the only path to escalation.
+4. Confirm with `gh issue view N --json state` that the issue is `CLOSED`.
 
 ## 7. Report
 
