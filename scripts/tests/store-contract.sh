@@ -49,7 +49,22 @@ case "${mode}" in
     ;;
 esac
 
+# Both adapters must build with cgo disabled. That is the executable form of "no
+# Instant Client in any image": a driver needing a native Oracle client could not
+# link this way, so this fails the moment someone swaps go-ora for an ODPI-based
+# driver, rather than at image build time in some later slice.
+echo "--- the adapters need no native database client ---"
+if CGO_ENABLED=0 GO_ENV_PASS="CGO_ENABLED" \
+    bash "${repo_root}/scripts/go.sh" libs/assignmentstore build ./... >/tmp/store-cgo.log 2>&1; then
+  echo "ok   both adapters build as pure Go"
+else
+  echo "FAIL both adapters build as pure Go"
+  tail -10 /tmp/store-cgo.log
+  exit 1
+fi
+
 export GO_ENV_PASS="ASSIGNMENTSTORE_POSTGRES_DSN ASSIGNMENTSTORE_ORACLE_DSN REQUIRE_ENGINES"
 
+echo
 echo "--- the store contract on ${mode} ---"
 exec bash "${repo_root}/scripts/go.sh" libs/assignmentstore test -count=1 -v ./...

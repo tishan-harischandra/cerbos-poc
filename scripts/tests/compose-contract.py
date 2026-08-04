@@ -28,6 +28,47 @@ def check(description: str, condition: bool) -> None:
         failures.append(description)
 
 
+# Two dependencies the prototype deliberately refuses to carry, both easy to
+# reintroduce by accident:
+#
+#   Oracle Instant Client - the reason the Oracle driver is go-ora, which speaks
+#   the wire protocol in pure Go. An ODPI-based driver would put a native client
+#   library inside every image that touches the database.
+#
+#   A JVM - Liquibase needs one, so Liquibase runs as its own container rather
+#   than being installed into a service image or onto the host.
+FORBIDDEN_IN_IMAGES = {
+    "instantclient": "Oracle Instant Client",
+    "libaio": "the Instant Client's native dependency",
+    "oracle-instantclient": "Oracle Instant Client",
+    "openjdk": "a JVM",
+    "default-jre": "a JVM",
+    "default-jdk": "a JVM",
+    "temurin": "a JVM",
+    "liquibase": "Liquibase, which belongs in its own container",
+}
+
+
+def check_images_carry_no_native_clients() -> None:
+    dockerfiles = sorted(REPO_ROOT.glob("apps/*/Dockerfile"))
+    check("there is at least one service Dockerfile to inspect", bool(dockerfiles))
+
+    for dockerfile in dockerfiles:
+        relative = dockerfile.relative_to(REPO_ROOT)
+        text = dockerfile.read_text().lower()
+        offenders = [
+            description
+            for token, description in FORBIDDEN_IN_IMAGES.items()
+            if token in text
+        ]
+        check(
+            f"{relative} installs no native database client and no JVM",
+            not offenders,
+        )
+        if offenders:
+            print(f"     found: {', '.join(sorted(set(offenders)))}")
+
+
 def main() -> int:
     if not COMPOSE_FILE.exists():
         print(f"FAIL {COMPOSE_FILE} does not exist")
@@ -101,6 +142,8 @@ def main() -> int:
     for name in ("ads", "admin-console"):
         build = services[name].get("build")
         check(f"service '{name}' is built from a Dockerfile in this repo", bool(build))
+
+    check_images_carry_no_native_clients()
 
     if failures:
         print(f"\n{len(failures)} contract failure(s)")
