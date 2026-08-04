@@ -1,0 +1,69 @@
+databaseChangeLog:
+  - changeSet:
+      id: 006-fhir-resource
+      author: cerbos-poc
+      comment: >-
+        The polymorphic business resource table. Not in the source design: it
+        exists so that mandatory rules such as status != 'LOCKED' have real state
+        to evaluate against rather than a fixture. One table for every resource
+        type, because a table per FHIR type would be ~157 of them.
+      changes:
+        - createTable:
+            tableName: fhir_resource
+            columns:
+              - column:
+                  name: resource_type
+                  type: VARCHAR(128)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: resource_id
+                  type: VARCHAR(128)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: tenant_id
+                  type: VARCHAR(64)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: hospital_id
+                  type: VARCHAR(64)
+                  constraints:
+                    nullable: false
+              # The attributes the mandatory rules read. Promoted to columns
+              # rather than left inside the payload so a policy condition never
+              # depends on an engine's JSON operators.
+              - column:
+                  name: status
+                  type: VARCHAR(32)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: department
+                  type: VARCHAR(128)
+              - column:
+                  name: sensitivity
+                  type: VARCHAR(32)
+              - column:
+                  name: payload
+                  type: CLOB
+              - column:
+                  name: updated_at
+                  type: TIMESTAMP WITH TIME ZONE
+                  constraints:
+                    nullable: false
+        - addPrimaryKey:
+            tableName: fhir_resource
+            columnNames: resource_type, resource_id
+            constraintName: pk_fhir_resource
+        - createIndex:
+            tableName: fhir_resource
+            indexName: ix_fhir_tenant_hospital
+            columns:
+              - column:
+                  name: tenant_id
+              - column:
+                  name: hospital_id
+              - column:
+                  name: resource_type

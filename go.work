@@ -2,6 +2,7 @@ go 1.25.11
 
 use (
 	./apps/ads
+	./libs/assignmentstore
 	./libs/cerbosclient
 	./libs/permissioncontext
 	./tests/architecture

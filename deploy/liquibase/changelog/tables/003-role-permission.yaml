@@ -1,0 +1,74 @@
+databaseChangeLog:
+  - changeSet:
+      id: 003-role-permission
+      author: cerbos-poc
+      comment: >-
+        Role grants (§8.1). A disabled row contributes no grant and is not an
+        explicit deny (§8.3), so `enabled` is a fact about the grant, never a
+        verdict.
+      changes:
+        - createTable:
+            tableName: role_permission
+            columns:
+              - column:
+                  name: tenant_id
+                  type: VARCHAR(64)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: role_external_id
+                  type: VARCHAR(128)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: resource_key
+                  type: VARCHAR(128)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: action_key
+                  type: VARCHAR(64)
+                  constraints:
+                    nullable: false
+              # BOOLEAN is generic: PostgreSQL gets boolean, Oracle NUMBER(1).
+              - column:
+                  name: enabled
+                  type: BOOLEAN
+                  defaultValueBoolean: true
+                  constraints:
+                    nullable: false
+              # Validity is an instant, not a wall-clock reading, so the zone
+              # travels with it on both engines.
+              - column:
+                  name: valid_from
+                  type: TIMESTAMP WITH TIME ZONE
+                  constraints:
+                    nullable: false
+              - column:
+                  name: valid_until
+                  type: TIMESTAMP WITH TIME ZONE
+              - column:
+                  name: revision
+                  type: BIGINT
+                  constraints:
+                    nullable: false
+
+  - changeSet:
+      id: 003-role-permission-keys
+      author: cerbos-poc
+      comment: >-
+        §8.2 unique role permission key, plus the index behind the hot lookup
+        "everything this role grants in this tenant".
+      changes:
+        - addUniqueConstraint:
+            tableName: role_permission
+            columnNames: tenant_id, role_external_id, resource_key, action_key
+            constraintName: ux_role_permission
+        - createIndex:
+            tableName: role_permission
+            indexName: ix_role_perm_tenant_role
+            columns:
+              - column:
+                  name: tenant_id
+              - column:
+                  name: role_external_id

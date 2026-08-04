@@ -1,0 +1,116 @@
+databaseChangeLog:
+  - changeSet:
+      id: 002-authorization-resource
+      author: cerbos-poc
+      comment: The resource half of the authorization catalog (§8.1).
+      changes:
+        - createTable:
+            tableName: authorization_resource
+            columns:
+              - column:
+                  name: resource_key
+                  type: VARCHAR(128)
+                  constraints:
+                    primaryKey: true
+                    primaryKeyName: pk_authorization_resource
+                    nullable: false
+              - column:
+                  name: version
+                  type: VARCHAR(32)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: display_name
+                  type: VARCHAR(256)
+              - column:
+                  name: domain
+                  type: VARCHAR(128)
+              - column:
+                  name: catalog_revision
+                  type: BIGINT
+                  constraints:
+                    nullable: false
+
+  - changeSet:
+      id: 002-authorization-action
+      author: cerbos-poc
+      comment: The action half of the catalog, one row per resource-action pair.
+      changes:
+        - createTable:
+            tableName: authorization_action
+            columns:
+              - column:
+                  name: resource_key
+                  type: VARCHAR(128)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: action_key
+                  type: VARCHAR(64)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: display_name
+                  type: VARCHAR(256)
+              - column:
+                  name: context_type
+                  type: VARCHAR(32)
+              - column:
+                  name: risk_level
+                  type: VARCHAR(32)
+        - addPrimaryKey:
+            tableName: authorization_action
+            columnNames: resource_key, action_key
+            constraintName: pk_authorization_action
+        - addForeignKeyConstraint:
+            baseTableName: authorization_action
+            baseColumnNames: resource_key
+            referencedTableName: authorization_resource
+            referencedColumnNames: resource_key
+            constraintName: fk_action_resource
+
+  - changeSet:
+      id: 002-ui-capability-definition
+      author: cerbos-poc
+      comment: Composite UI capabilities and the expression each one evaluates.
+      changes:
+        - createTable:
+            tableName: ui_capability_definition
+            columns:
+              - column:
+                  name: capability_key
+                  type: VARCHAR(128)
+                  constraints:
+                    primaryKey: true
+                    primaryKeyName: pk_ui_capability_def
+                    nullable: false
+              - column:
+                  name: module_key
+                  type: VARCHAR(64)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: context_type
+                  type: VARCHAR(32)
+              # The capability expression. One of the four JSON-bearing columns
+              # the portability contract round-trips byte for byte.
+              - column:
+                  name: expression_json
+                  type: CLOB
+              - column:
+                  name: catalog_revision
+                  type: BIGINT
+                  constraints:
+                    nullable: false
+              - column:
+                  name: enabled
+                  type: BOOLEAN
+                  defaultValueBoolean: true
+                  constraints:
+                    nullable: false
+        - createIndex:
+            tableName: ui_capability_definition
+            indexName: ix_ui_cap_module
+            columns:
+              - column:
+                  name: module_key

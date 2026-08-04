@@ -1,0 +1,118 @@
+databaseChangeLog:
+  - changeSet:
+      id: 004-user-permission-override
+      author: cerbos-poc
+      comment: >-
+        User overrides (§8.1, §8.3). GRANT allows when mandatory constraints
+        pass; REVOKE denies even when a role grants. INHERIT is the absence of a
+        row, or a disabled row, so it is not a stored effect.
+      changes:
+        - createTable:
+            tableName: user_permission_override
+            columns:
+              - column:
+                  name: tenant_id
+                  type: VARCHAR(64)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: hospital_id
+                  type: VARCHAR(64)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: user_external_id
+                  type: VARCHAR(128)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: resource_key
+                  type: VARCHAR(128)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: action_key
+                  type: VARCHAR(64)
+                  constraints:
+                    nullable: false
+              # NOT NULL with a sentinel default rather than the nullable column
+              # §8.2 describes.
+              #
+              # A NULL here would make the unique key below unenforceable: NULL
+              # never equals NULL in a unique index on either engine, so two
+              # tenant-wide overrides for the same user, resource and action
+              # would both be accepted. Oracle also stores '' as NULL, so the
+              # empty string cannot serve as a distinct value either. The store
+              # normalises "no instance" to '*' on the way in.
+              - column:
+                  name: resource_instance_id
+                  type: VARCHAR(128)
+                  defaultValue: "*"
+                  constraints:
+                    nullable: false
+              - column:
+                  name: effect
+                  type: VARCHAR(16)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: enabled
+                  type: BOOLEAN
+                  defaultValueBoolean: true
+                  constraints:
+                    nullable: false
+              - column:
+                  name: valid_from
+                  type: TIMESTAMP WITH TIME ZONE
+                  constraints:
+                    nullable: false
+              - column:
+                  name: valid_until
+                  type: TIMESTAMP WITH TIME ZONE
+              - column:
+                  name: revision
+                  type: BIGINT
+                  constraints:
+                    nullable: false
+
+  - changeSet:
+      id: 004-user-override-keys
+      author: cerbos-poc
+      comment: >-
+        §8.2 unique override key, and the index for "the active overrides for
+        this user in this hospital" - the ADS' hottest override lookup.
+      changes:
+        - addUniqueConstraint:
+            tableName: user_permission_override
+            columnNames: >-
+              tenant_id, hospital_id, user_external_id, resource_key,
+              action_key, resource_instance_id
+            constraintName: ux_user_override
+        - createIndex:
+            tableName: user_permission_override
+            indexName: ix_user_override_active
+            columns:
+              - column:
+                  name: tenant_id
+              - column:
+                  name: hospital_id
+              - column:
+                  name: user_external_id
+              - column:
+                  name: valid_from
+              - column:
+                  name: valid_until
+
+  - changeSet:
+      id: 004-user-override-effect-check
+      author: cerbos-poc
+      comment: >-
+        Only the two §8.3 effects are storable. INHERIT is deliberately absent:
+        it is the absence of an override, and a row spelling it would be a third
+        state the evaluator would have to interpret.
+      changes:
+        - sql:
+            sql: >-
+              ALTER TABLE user_permission_override
+              ADD CONSTRAINT ck_user_override_effect
+              CHECK (effect IN ('GRANT', 'REVOKE'))
