@@ -59,7 +59,7 @@ func (i inspector) UniqueKeys(ctx context.Context, table string) (map[string][]s
 // answers with a generated identifier.
 func (i inspector) Indexes(ctx context.Context, table string) (map[string][]string, error) {
 	const query = `
-		SELECT i.index_name, ic.column_name, ic.column_position, e.column_expression
+		SELECT i.index_name, ic.column_name, e.column_expression
 		FROM user_indexes i
 		JOIN user_ind_columns ic ON ic.index_name = i.index_name
 		LEFT JOIN user_ind_expressions e
@@ -77,9 +77,8 @@ func (i inspector) Indexes(ctx context.Context, table string) (map[string][]stri
 	grouped := make(map[string][]string)
 	for rows.Next() {
 		var name, column string
-		var position int
 		var expression sql.NullString
-		if err := rows.Scan(&name, &column, &position, &expression); err != nil {
+		if err := rows.Scan(&name, &column, &expression); err != nil {
 			return nil, fmt.Errorf("oraclestore: scanning indexes for %s: %w", table, err)
 		}
 		if systemColumn.MatchString(column) && expression.Valid {
