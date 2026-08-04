@@ -1,0 +1,19 @@
+#!/usr/bin/env bash
+# A `go` shim that satisfies tools which insist on a Go toolchain on PATH
+# (notably the Nx Go plugin) without installing Go on the host. Every
+# invocation runs in the pinned Go container, in the same relative directory.
+set -euo pipefail
+
+repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+cwd="$(pwd)"
+
+case "${cwd}" in
+  "${repo_root}") rel="." ;;
+  "${repo_root}"/*) rel="${cwd#"${repo_root}"/}" ;;
+  *)
+    echo "scripts/bin/go: refusing to run outside ${repo_root}" >&2
+    exit 64
+    ;;
+esac
+
+exec "${repo_root}/scripts/go.sh" "${rel}" "$@"

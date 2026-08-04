@@ -8,12 +8,38 @@ AGENTLOOP_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(git -C "$AGENTLOOP_DIR" rev-parse --show-toplevel)"
 STATE_DIR="$REPO_ROOT/.agentloop"
 DEFAULT_BRANCH="${AGENTLOOP_DEFAULT_BRANCH:-main}"
-MAX_REVIEW_ROUNDS="${AGENTLOOP_MAX_REVIEW_ROUNDS:-3}"
+MAX_REVIEW_ROUNDS="${AGENTLOOP_MAX_REVIEW_ROUNDS:-8}"
 HUMAN_LABEL="needs-human"
 
 die() {
   echo "error: $*" >&2
   exit 1
+}
+
+# Reads a GitHub statusCheckRollup array on stdin and prints one verdict:
+#   none | green | pending:<n> | red:<n>
+#
+# Judged from the rollup rather than `gh pr checks --required`, which exits
+# non-zero when a branch simply has no required checks configured. Treating that
+# as failure would block every merge on an unprotected repository.
+rollup_verdict() {
+  jq -r '
+    (. // []) as $checks
+    | ($checks | length) as $total
+    | if $total == 0 then "none"
+      else
+        ([ $checks[] | select(
+            (has("status") and .status != "COMPLETED")
+            or ((.state? // "") == "PENDING")
+          ) ] | length) as $pending
+        | ([ $checks[] | select(
+            ((.conclusion? // "") | IN("FAILURE","CANCELLED","TIMED_OUT","ACTION_REQUIRED","STARTUP_FAILURE"))
+            or ((.state? // "") | IN("FAILURE","ERROR"))
+          ) ] | length) as $failed
+        | if $failed > 0 then "red:\($failed)"
+          elif $pending > 0 then "pending:\($pending)"
+          else "green" end
+      end'
 }
 
 info() {

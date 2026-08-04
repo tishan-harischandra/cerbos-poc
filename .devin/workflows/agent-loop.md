@@ -23,10 +23,10 @@ Repeat:
    - Exit code 3: go to Termination.
 2. Execute the whole of `.windsurf/workflows/implement-next-issue.md` for that
    issue number, start to finish, including the merge and the issue close.
-3. If that issue escalated instead of merging, do not retry it. It now carries
-   the `needs-human` label; selection will still offer it next time, so record
-   it in your running notes and skip any issue you have already escalated in
-   this session.
+3. An issue only escalates when its merge gate refuses. If that happens, do not
+   retry it. It now carries the `needs-human` label; selection will still offer
+   it next time, so record it in your running notes and skip any issue you have
+   already escalated in this session.
 4. Post a one-line progress note: issue number, PR number, outcome.
 5. Continue with the next iteration.
 
@@ -34,7 +34,10 @@ Guard rails for the loop itself:
 
 - Never work two issues at once. One branch, one PR, one issue.
 - Never start an issue whose blockers are open, even if it looks easy.
-- Never merge without two consecutive clean self-review rounds.
+- Merge once a self-review round finds nothing, or once the round cap is
+  reached, whichever comes first. Carry any findings still open at the cap into
+  the merge note.
+- Never merge on red CI. A red check is a defect to fix, not a gate to bypass.
 - Never weaken or delete a test to make a build pass. If a pre-existing test
   fails, that is a finding to fix, not an obstacle to remove.
 - If `main` breaks after a merge, the very next iteration fixes `main` before

@@ -1,0 +1,72 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  # The Nx Go plugin needs a `go` on PATH; the shim forwards to a container so
+  # the runner never installs a Go toolchain.
+  NX_GO_SHIM: ${{ github.workspace }}/scripts/bin
+
+jobs:
+  affected:
+    name: nx affected
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      - run: npm ci --no-audit --no-fund
+
+      - name: Derive the SHAs for nx affected
+        uses: nrwl/nx-set-shas@v4
+
+      - name: Lint, test and build affected projects
+        run: |
+          export PATH="${NX_GO_SHIM}:${PATH}"
+          npx nx affected --target=lint --parallel=3
+          npx nx affected --target=test --parallel=3
+          npx nx affected --target=build --parallel=3
+
+      - name: An Angular change must not rebuild the Go service
+        run: bash scripts/tests/nx-affected-isolation.sh
+
+  compose:
+    name: docker compose walking skeleton
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install the compose contract test dependencies
+        run: pip install --quiet pyyaml
+
+      - name: Compose topology contract
+        run: python3 scripts/tests/compose-contract.py
+
+      - name: Start the control plane
+        run: |
+          cp .env.example .env
+          make up
+
+      - name: Smoke the running stack
+        run: make smoke
+
+      - name: Container logs
+        if: failure()
+        run: docker compose logs --no-color
+
+      - name: Tear everything down
+        if: always()
+        run: make clean

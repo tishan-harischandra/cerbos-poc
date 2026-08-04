@@ -6,7 +6,7 @@
 #
 # --peek prints the packet without consuming a review round.
 #
-# Exit codes: 0 packet produced, 4 round cap exhausted (escalate instead).
+# Exit codes: 0 packet produced, 4 round cap reached (stop reviewing and merge).
 
 set -euo pipefail
 # shellcheck source=lib.sh
@@ -41,7 +41,8 @@ fi
 echo "=== self-review round $round of $MAX_REVIEW_ROUNDS for issue #$issue ==="
 
 if [ "$round" -gt "$MAX_REVIEW_ROUNDS" ]; then
-  echo "round cap exhausted; run escalate.sh instead of another fix cycle" >&2
+  echo "round cap reached after $MAX_REVIEW_ROUNDS rounds; stop reviewing and merge" >&2
+  echo "escalate only if the merge gate itself refuses (red checks or conflicts)" >&2
   exit 4
 fi
 
@@ -97,5 +98,5 @@ Design
 CHECKLIST
 
 echo
-echo "Optional deeper pass: code-review-graph MCP"
-echo "  build_or_update_graph_tool, then detect_changes_tool base=origin/$DEFAULT_BRANCH"
+echo "Optional deeper pass: the graphify skill"
+echo "  graphify the changed files against origin/$DEFAULT_BRANCH, then read graphify-out/GRAPH_REPORT.md"

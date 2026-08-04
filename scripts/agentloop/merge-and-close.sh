@@ -51,10 +51,14 @@ case "$merge_state" in
     ;;
 esac
 
-if gh pr checks "$pr" >/dev/null 2>&1; then
-  gh pr checks "$pr" --required >/dev/null \
-    || die "required checks are not green on pull request #$pr"
-fi
+verdict="$(gh pr view "$pr" --json statusCheckRollup -q '.statusCheckRollup // []' | rollup_verdict)"
+case "$verdict" in
+  none)      info "no status checks reported on pull request #$pr" ;;
+  green)     info "all status checks green on pull request #$pr" ;;
+  pending:*) die "${verdict#pending:} check(s) still running on pull request #$pr; wait for CI" ;;
+  red:*)     die "${verdict#red:} check(s) are red on pull request #$pr; fix them before merging" ;;
+  *)         die "could not read the status check rollup for pull request #$pr" ;;
+esac
 
 info "squash merging pull request #$pr"
 gh pr merge "$pr" --squash --delete-branch
