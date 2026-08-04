@@ -30,6 +30,9 @@ clean: ## Remove containers, named volumes, local images and build caches
 .PHONY: policy-test
 policy-test: ## Compile the Cerbos policies and run the policy test suite
 	bash scripts/cerbos.sh compile --tests=/policies/tests /policies
+	# The ADR-003 control experiment reproduces the cross-role hazard on purpose,
+	# so it is compiled from its own directory and never served to the PDP.
+	POLICY_DIR=deploy/cerbos/control bash scripts/cerbos.sh compile --tests=/policies/tests /policies
 
 .PHONY: test
 test: ## Run every project's tests, the policy suite and the compose contract

@@ -84,7 +84,7 @@ apps/ads              Go service: health, readiness and the decision endpoint
 apps/admin-console    Angular app: live platform status
 libs/permissioncontext  Assembles permissionContext data; never a verdict
 libs/cerbosclient     Long-lived gRPC channel to the PDP
-deploy/cerbos         Cerbos config and the policy directory (one file per resource)
+deploy/cerbos         Cerbos config, the served policy bundle and the ADR-003 control
 tests/architecture    Executable checks for constraints no compiler enforces
 scripts/              Container-backed toolchain helpers and infrastructure tests
 ```
@@ -122,13 +122,15 @@ Three layers hold that line:
 
 - **The policy suite** (`make policy-test`) states the rules and proves all seven
   §19.1 cases for `read`, `update` and `delete`, plus tenant and hospital
-  isolation. `deploy/cerbos/policies/resources/multirole_control.yaml` is a
-  deliberate counter-example: it shows an allow on one role defeating a deny on
-  another, which is the hazard the synthetic role exists to remove.
+  isolation. `deploy/cerbos/control/` holds a deliberate counter-example showing
+  an allow on one role defeating a deny on another — the hazard the synthetic
+  role exists to remove. It is compiled and tested but kept out of the bundle the
+  PDP serves, since it is a proof, not a deployment.
 - **The architecture test** (`tests/architecture`) parses every Go file and fails
   on any read of `roleGrantedActions`, `userGrantedActions` or
   `userRevokedActions` outside the package that defines them, because that is
-  where a Go-side precedence implementation would begin.
+  where a Go-side precedence implementation would begin. It also refuses to let a
+  non-production policy reappear in the served bundle.
 - **The end-to-end decision test** (`scripts/tests/decision-e2e.sh`, part of
   `make smoke`) drives the matrix through the running ADS into a real PDP, so a
   policy that never loaded or a context that never arrived cannot pass.

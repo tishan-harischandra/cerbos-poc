@@ -6,7 +6,8 @@
     "test": {
       "inputs": [
         "{workspaceRoot}/**/*.go",
-        "{workspaceRoot}/go.work"
+        "{workspaceRoot}/go.work",
+        "{workspaceRoot}/deploy/cerbos/policies/**/*"
       ]
     }
   }

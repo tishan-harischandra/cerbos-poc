@@ -160,6 +160,49 @@ func TestNewRejectsAnEmptyAddress(t *testing.T) {
 	}
 }
 
+// The ADS sends idpRoles as a []string. Nothing in the policy requires it, so if
+// the SDK dropped that shape the way it drops structs, the roles would vanish
+// from every audit record and no test would notice. Assert against the encoded
+// protobuf the PDP actually receives.
+func TestStringSliceAttributesSurviveEncoding(t *testing.T) {
+	var received *requestv1.CheckResourcesRequest
+	pdp := startFakePDP(t, func(req *requestv1.CheckResourcesRequest) *responsev1.CheckResourcesResponse {
+		received = req
+		return &responsev1.CheckResourcesResponse{}
+	})
+
+	_, err := dial(t, pdp.address).Check(context.Background(), cerbosclient.Request{
+		Principal: cerbosclient.Principal{
+			ID: "user-123",
+			Attr: map[string]any{
+				"idpRoles": []string{"kc:realm:patient-app:doctor", "kc:realm:patient-app:nurse"},
+			},
+		},
+		Resources: []cerbosclient.ResourceCheck{{
+			Resource: cerbosclient.ResourceRef{Kind: "patient_record", ID: "patient-456"},
+			Attr:     map[string]any{"tenantId": "tenant-a"},
+			Actions:  []string{"read"},
+		}},
+	})
+	if err != nil {
+		t.Fatalf("Check: %v", err)
+	}
+
+	attr := received.GetPrincipal().GetAttr()
+	roles, present := attr["idpRoles"]
+	if !present {
+		t.Fatalf("idpRoles never reached the PDP; principal attributes were %v", attr)
+	}
+
+	values := roles.GetListValue().GetValues()
+	if len(values) != 2 {
+		t.Fatalf("idpRoles arrived as %v, want a two-element list", roles)
+	}
+	if got := values[0].GetStringValue(); got != "kc:realm:patient-app:doctor" {
+		t.Errorf("idpRoles[0] = %q, want the role the caller presented", got)
+	}
+}
+
 // An attribute the wire format cannot carry must fail loudly. The Cerbos SDK
 // drops such values silently, which produced a PDP that answered "denied" for
 // everything because permissionContext never arrived.

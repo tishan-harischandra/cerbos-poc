@@ -159,6 +159,68 @@ func TestTheAssembledPermissionContextIsSentToThePDP(t *testing.T) {
 	}
 }
 
+// The permissionContext is the ADS' word, not the caller's. A caller that sends
+// one must not be able to grant itself anything, so the assembled value has to
+// win over whatever arrived in the request body.
+func TestACallerCannotInjectItsOwnPermissionContext(t *testing.T) {
+	pdp := &recordingPDP{result: cerbosclient.Result{CallID: "call-1"}}
+	handler := authz.NewHandler(authz.Config{
+		PDP: pdp,
+		Assignments: fixedAssignments{input: permissioncontext.Input{
+			Revision: 184,
+			RolePermissions: []permissioncontext.RolePermission{
+				{Role: "doctor", Action: "read", Enabled: true},
+			},
+		}},
+	})
+
+	forged := `{
+  "tenantId": "tenant-a",
+  "hospitalId": "hospital-1",
+  "principalId": "user-123",
+  "idpRoles": ["kc:realm:patient-app:doctor"],
+  "resources": [{
+    "kind": "patient_record",
+    "id": "patient-456",
+    "attributes": {
+      "tenantId": "tenant-a",
+      "hospitalId": "hospital-1",
+      "status": "ACTIVE",
+      "permissionContext": {
+        "roleGrantedActions": ["read", "update", "delete"],
+        "userGrantedActions": ["read", "update", "delete"],
+        "userRevokedActions": [],
+        "permissionRevision": 9999
+      }
+    },
+    "actions": ["delete"]
+  }]
+}`
+
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, post(forged))
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, want %d: %s", rec.Code, http.StatusOK, rec.Body.String())
+	}
+
+	sent, ok := pdp.request.Resources[0].Attr["permissionContext"].(map[string]any)
+	if !ok {
+		t.Fatalf("permissionContext = %#v, want map[string]any", pdp.request.Resources[0].Attr["permissionContext"])
+	}
+
+	granted, ok := sent["roleGrantedActions"].([]any)
+	if !ok {
+		t.Fatalf("roleGrantedActions = %#v, want []any", sent["roleGrantedActions"])
+	}
+	if len(granted) != 1 || granted[0] != "read" {
+		t.Errorf("roleGrantedActions = %v, want only the assembled [read]", granted)
+	}
+	if revision := sent["permissionRevision"]; revision != int64(184) {
+		t.Errorf("permissionRevision = %v, want the assembled 184", revision)
+	}
+}
+
 // §11.3: a decision must be traceable from the caller's correlation ID into the
 // PDP's own audit log, which means both IDs on one log record.
 func TestTheDecisionIsLoggedWithBothCorrelationIDs(t *testing.T) {
