@@ -75,6 +75,16 @@ type UserOverride struct {
 	Revision   int64
 }
 
+// PermissionRevision is a tenant's current permission revision (§8.1).
+//
+// One row per tenant, advanced in place by every matrix save. The ADS reads it
+// so a decision can say which state of the matrix it was taken against (§11.3).
+type PermissionRevision struct {
+	TenantID  string
+	Revision  int64
+	ChangedAt time.Time
+}
+
 // AuditEvent is one append-only record of an authorization change (§8.1).
 type AuditEvent struct {
 	EventID       string
@@ -156,6 +166,9 @@ type Store interface {
 
 	SaveUserOverride(ctx context.Context, override UserOverride) error
 	UserOverride(ctx context.Context, key UserOverrideKey) (UserOverride, bool, error)
+
+	SavePermissionRevision(ctx context.Context, revision PermissionRevision) error
+	PermissionRevision(ctx context.Context, tenantID string) (PermissionRevision, bool, error)
 
 	AppendAuditEvent(ctx context.Context, event AuditEvent) error
 	AuditEvent(ctx context.Context, eventID string) (AuditEvent, bool, error)

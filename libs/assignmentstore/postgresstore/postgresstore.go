@@ -145,6 +145,39 @@ func (s *Store) UserOverride(ctx context.Context, key assignmentstore.UserOverri
 	return override, true, nil
 }
 
+// SavePermissionRevision advances a tenant's revision in place.
+func (s *Store) SavePermissionRevision(ctx context.Context, revision assignmentstore.PermissionRevision) error {
+	const statement = `
+		INSERT INTO permission_revision (tenant_id, revision, changed_at)
+		VALUES ($1, $2, $3)
+		ON CONFLICT (tenant_id) DO UPDATE SET
+			revision = EXCLUDED.revision,
+			changed_at = EXCLUDED.changed_at`
+
+	_, err := s.pool.Exec(ctx, statement,
+		revision.TenantID, revision.Revision, revision.ChangedAt)
+	if err != nil {
+		return fmt.Errorf("postgresstore: saving a permission revision: %w", err)
+	}
+	return nil
+}
+
+// PermissionRevision reads a tenant's current revision.
+func (s *Store) PermissionRevision(ctx context.Context, tenantID string) (assignmentstore.PermissionRevision, bool, error) {
+	const query = `
+		SELECT revision, changed_at FROM permission_revision WHERE tenant_id = $1`
+
+	revision := assignmentstore.PermissionRevision{TenantID: tenantID}
+	err := s.pool.QueryRow(ctx, query, tenantID).Scan(&revision.Revision, &revision.ChangedAt)
+	if isNoRows(err) {
+		return assignmentstore.PermissionRevision{}, false, nil
+	}
+	if err != nil {
+		return assignmentstore.PermissionRevision{}, false, fmt.Errorf("postgresstore: reading a permission revision: %w", err)
+	}
+	return revision, true, nil
+}
+
 // AppendAuditEvent appends one audit record. Audit history is append-only
 // (§8.2), so there is deliberately no update path.
 func (s *Store) AppendAuditEvent(ctx context.Context, event assignmentstore.AuditEvent) error {

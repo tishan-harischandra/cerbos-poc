@@ -81,6 +81,61 @@ func Run(t *testing.T, newStore Factory) {
 	t.Run("an absent optional text reads back the same on either engine", func(t *testing.T) {
 		assertAbsentOptionalText(t, newStore(t))
 	})
+	t.Run("a tenant's permission revision is readable and advances in place", func(t *testing.T) {
+		assertPermissionRevision(t, newStore(t))
+	})
+}
+
+// The ADS reports the revision it decided at alongside every decision (§11.3),
+// so the revision has to be readable per tenant and has to advance in place
+// rather than accumulating a row per change.
+func assertPermissionRevision(t *testing.T, store assignmentstore.Store) {
+	t.Helper()
+	defer closeStore(t, store)
+	ctx := context.Background()
+	truncate(t, store, "permission_revision")
+
+	if _, found, err := store.PermissionRevision(ctx, "tenant-never-seeded"); err != nil || found {
+		t.Fatalf("an unseeded tenant reported found=%t err=%v, want found=false", found, err)
+	}
+
+	changed := time.Date(2026, 5, 4, 12, 0, 0, 0, time.UTC)
+	for _, revision := range []int64{184, 185} {
+		if err := store.SavePermissionRevision(ctx, assignmentstore.PermissionRevision{
+			TenantID:  "tenant-a",
+			Revision:  revision,
+			ChangedAt: changed,
+		}); err != nil {
+			t.Fatalf("saving revision %d: %v", revision, err)
+		}
+	}
+
+	stored, found, err := store.PermissionRevision(ctx, "tenant-a")
+	if err != nil || !found {
+		t.Fatalf("reading the revision back: found=%t err=%v", found, err)
+	}
+	if stored.Revision != 185 {
+		t.Errorf("revision = %d, want 185", stored.Revision)
+	}
+	if !stored.ChangedAt.Equal(changed) {
+		t.Errorf("changedAt = %s, want %s", stored.ChangedAt, changed)
+	}
+
+	// Another tenant's revision is its own.
+	if err := store.SavePermissionRevision(ctx, assignmentstore.PermissionRevision{
+		TenantID:  "tenant-b",
+		Revision:  7,
+		ChangedAt: changed,
+	}); err != nil {
+		t.Fatalf("saving another tenant's revision: %v", err)
+	}
+	other, found, err := store.PermissionRevision(ctx, "tenant-b")
+	if err != nil || !found {
+		t.Fatalf("reading the other tenant's revision: found=%t err=%v", found, err)
+	}
+	if other.Revision != 7 {
+		t.Errorf("tenant-b revision = %d, want 7", other.Revision)
+	}
 }
 
 // assertUniqueKeyColumns requires a unique key or primary key on exactly the

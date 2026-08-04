@@ -167,6 +167,43 @@ func (s *Store) UserOverride(ctx context.Context, key assignmentstore.UserOverri
 	return override, true, nil
 }
 
+// SavePermissionRevision advances a tenant's revision in place.
+func (s *Store) SavePermissionRevision(ctx context.Context, revision assignmentstore.PermissionRevision) error {
+	const statement = `
+		MERGE INTO permission_revision t
+		USING (SELECT :1 AS tenant_id FROM dual) s
+		ON (t.tenant_id = s.tenant_id)
+		WHEN MATCHED THEN UPDATE SET revision = :2, changed_at = :3
+		WHEN NOT MATCHED THEN INSERT (tenant_id, revision, changed_at)
+		VALUES (s.tenant_id, :4, :5)`
+
+	_, err := s.db.ExecContext(ctx, statement,
+		revision.TenantID,
+		revision.Revision, revision.ChangedAt,
+		revision.Revision, revision.ChangedAt)
+	if err != nil {
+		return fmt.Errorf("oraclestore: saving a permission revision: %w", err)
+	}
+	return nil
+}
+
+// PermissionRevision reads a tenant's current revision.
+func (s *Store) PermissionRevision(ctx context.Context, tenantID string) (assignmentstore.PermissionRevision, bool, error) {
+	const query = `
+		SELECT revision, changed_at FROM permission_revision WHERE tenant_id = :1`
+
+	revision := assignmentstore.PermissionRevision{TenantID: tenantID}
+	err := s.db.QueryRowContext(ctx, query, tenantID).
+		Scan(&revision.Revision, &revision.ChangedAt)
+	if errors.Is(err, sql.ErrNoRows) {
+		return assignmentstore.PermissionRevision{}, false, nil
+	}
+	if err != nil {
+		return assignmentstore.PermissionRevision{}, false, fmt.Errorf("oraclestore: reading a permission revision: %w", err)
+	}
+	return revision, true, nil
+}
+
 // AppendAuditEvent appends one audit record.
 func (s *Store) AppendAuditEvent(ctx context.Context, event assignmentstore.AuditEvent) error {
 	const statement = `
