@@ -109,6 +109,32 @@ type Capability struct {
 	Enabled         bool
 }
 
+// InstallationConfig is the per-installation identity provider selection (§8.1).
+type InstallationConfig struct {
+	InstallationID string
+	IDPType        string
+	IDPConfigJSON  string
+	ActiveRootTag  string
+}
+
+// Resource is one business resource the mandatory rules evaluate against.
+//
+// One polymorphic table rather than a table per FHIR type: the catalog runs to
+// ~157 types, and the attributes the policies actually read are the same few in
+// every one of them. Those attributes are columns rather than fields inside the
+// payload so that no policy condition ever depends on an engine's JSON operators.
+type Resource struct {
+	ResourceType string
+	ResourceID   string
+	TenantID     string
+	HospitalID   string
+	Status       string
+	Department   string
+	Sensitivity  string
+	PayloadJSON  string
+	UpdatedAt    time.Time
+}
+
 // Store is the port every engine adapter implements.
 //
 // Every method is expressed in domain terms. Nothing here exposes a dialect, a
@@ -139,6 +165,12 @@ type Store interface {
 
 	SaveCapability(ctx context.Context, capability Capability) error
 	Capability(ctx context.Context, capabilityKey string) (Capability, bool, error)
+
+	SaveInstallationConfig(ctx context.Context, config InstallationConfig) error
+	InstallationConfig(ctx context.Context, installationID string) (InstallationConfig, bool, error)
+
+	SaveResource(ctx context.Context, resource Resource) error
+	Resource(ctx context.Context, resourceType, resourceID string) (Resource, bool, error)
 
 	// Truncate empties the named tables so each contract test starts clean.
 	Truncate(ctx context.Context, tables ...string) error

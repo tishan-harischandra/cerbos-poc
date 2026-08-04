@@ -264,6 +264,100 @@ func (s *Store) Capability(ctx context.Context, capabilityKey string) (assignmen
 	return capability, true, nil
 }
 
+// SaveInstallationConfig inserts or updates the installation configuration.
+func (s *Store) SaveInstallationConfig(ctx context.Context, config assignmentstore.InstallationConfig) error {
+	const statement = `
+		INSERT INTO installation_config (
+			installation_id, idp_type, idp_config, active_root_tag)
+		VALUES ($1, $2, $3, $4)
+		ON CONFLICT (installation_id) DO UPDATE SET
+			idp_type = EXCLUDED.idp_type,
+			idp_config = EXCLUDED.idp_config,
+			active_root_tag = EXCLUDED.active_root_tag`
+
+	_, err := s.pool.Exec(ctx, statement,
+		config.InstallationID, config.IDPType, config.IDPConfigJSON, config.ActiveRootTag)
+	if err != nil {
+		return fmt.Errorf("postgresstore: saving the installation config: %w", err)
+	}
+	return nil
+}
+
+// InstallationConfig reads the installation configuration.
+func (s *Store) InstallationConfig(ctx context.Context, installationID string) (assignmentstore.InstallationConfig, bool, error) {
+	const query = `
+		SELECT idp_type, idp_config, active_root_tag
+		FROM installation_config WHERE installation_id = $1`
+
+	config := assignmentstore.InstallationConfig{InstallationID: installationID}
+	err := s.pool.QueryRow(ctx, query, installationID).Scan(
+		&config.IDPType, &config.IDPConfigJSON, &config.ActiveRootTag)
+	if isNoRows(err) {
+		return assignmentstore.InstallationConfig{}, false, nil
+	}
+	if err != nil {
+		return assignmentstore.InstallationConfig{}, false, fmt.Errorf("postgresstore: reading the installation config: %w", err)
+	}
+	return config, true, nil
+}
+
+// SaveResource inserts or updates one business resource.
+func (s *Store) SaveResource(ctx context.Context, resource assignmentstore.Resource) error {
+	const statement = `
+		INSERT INTO fhir_resource (
+			resource_type, resource_id, tenant_id, hospital_id,
+			status, department, sensitivity, payload, updated_at)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+		ON CONFLICT (resource_type, resource_id) DO UPDATE SET
+			tenant_id = EXCLUDED.tenant_id,
+			hospital_id = EXCLUDED.hospital_id,
+			status = EXCLUDED.status,
+			department = EXCLUDED.department,
+			sensitivity = EXCLUDED.sensitivity,
+			payload = EXCLUDED.payload,
+			updated_at = EXCLUDED.updated_at`
+
+	_, err := s.pool.Exec(ctx, statement,
+		resource.ResourceType, resource.ResourceID, resource.TenantID, resource.HospitalID,
+		resource.Status, resource.Department, resource.Sensitivity,
+		resource.PayloadJSON, resource.UpdatedAt)
+	if err != nil {
+		return fmt.Errorf("postgresstore: saving a resource: %w", err)
+	}
+	return nil
+}
+
+// Resource reads one business resource.
+//
+// department and sensitivity are read as nullable even though this engine can
+// store an empty string faithfully. Oracle cannot, so a row written there arrives
+// as NULL, and both adapters must hand callers the same empty string rather than
+// leaving them to discover which engine wrote the row.
+func (s *Store) Resource(ctx context.Context, resourceType, resourceID string) (assignmentstore.Resource, bool, error) {
+	const query = `
+		SELECT tenant_id, hospital_id, status, department, sensitivity, payload, updated_at
+		FROM fhir_resource WHERE resource_type = $1 AND resource_id = $2`
+
+	resource := assignmentstore.Resource{ResourceType: resourceType, ResourceID: resourceID}
+	var department, sensitivity *string
+	err := s.pool.QueryRow(ctx, query, resourceType, resourceID).Scan(
+		&resource.TenantID, &resource.HospitalID, &resource.Status,
+		&department, &sensitivity, &resource.PayloadJSON, &resource.UpdatedAt)
+	if isNoRows(err) {
+		return assignmentstore.Resource{}, false, nil
+	}
+	if err != nil {
+		return assignmentstore.Resource{}, false, fmt.Errorf("postgresstore: reading a resource: %w", err)
+	}
+	if department != nil {
+		resource.Department = *department
+	}
+	if sensitivity != nil {
+		resource.Sensitivity = *sensitivity
+	}
+	return resource, true, nil
+}
+
 // Truncate empties the named tables.
 func (s *Store) Truncate(ctx context.Context, tables ...string) error {
 	for _, table := range tables {

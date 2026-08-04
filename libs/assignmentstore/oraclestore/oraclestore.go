@@ -300,6 +300,98 @@ func (s *Store) Capability(ctx context.Context, capabilityKey string) (assignmen
 	return capability, true, nil
 }
 
+// SaveInstallationConfig inserts or updates the installation configuration.
+func (s *Store) SaveInstallationConfig(ctx context.Context, config assignmentstore.InstallationConfig) error {
+	const statement = `
+		MERGE INTO installation_config t
+		USING (SELECT :1 AS installation_id FROM dual) s
+		ON (t.installation_id = s.installation_id)
+		WHEN MATCHED THEN UPDATE SET
+			idp_type = :2, idp_config = :3, active_root_tag = :4
+		WHEN NOT MATCHED THEN INSERT (
+			installation_id, idp_type, idp_config, active_root_tag)
+		VALUES (s.installation_id, :5, :6, :7)`
+
+	_, err := s.db.ExecContext(ctx, statement,
+		config.InstallationID,
+		config.IDPType, config.IDPConfigJSON, config.ActiveRootTag,
+		config.IDPType, config.IDPConfigJSON, config.ActiveRootTag)
+	if err != nil {
+		return fmt.Errorf("oraclestore: saving the installation config: %w", err)
+	}
+	return nil
+}
+
+// InstallationConfig reads the installation configuration.
+func (s *Store) InstallationConfig(ctx context.Context, installationID string) (assignmentstore.InstallationConfig, bool, error) {
+	const query = `
+		SELECT idp_type, idp_config, active_root_tag
+		FROM installation_config WHERE installation_id = :1`
+
+	config := assignmentstore.InstallationConfig{InstallationID: installationID}
+	err := s.db.QueryRowContext(ctx, query, installationID).Scan(
+		&config.IDPType, &config.IDPConfigJSON, &config.ActiveRootTag)
+	if errors.Is(err, sql.ErrNoRows) {
+		return assignmentstore.InstallationConfig{}, false, nil
+	}
+	if err != nil {
+		return assignmentstore.InstallationConfig{}, false, fmt.Errorf("oraclestore: reading the installation config: %w", err)
+	}
+	return config, true, nil
+}
+
+// SaveResource inserts or updates one business resource.
+func (s *Store) SaveResource(ctx context.Context, resource assignmentstore.Resource) error {
+	const statement = `
+		MERGE INTO fhir_resource t
+		USING (SELECT :1 AS resource_type, :2 AS resource_id FROM dual) s
+		ON (t.resource_type = s.resource_type AND t.resource_id = s.resource_id)
+		WHEN MATCHED THEN UPDATE SET
+			tenant_id = :3, hospital_id = :4, status = :5, department = :6,
+			sensitivity = :7, payload = :8, updated_at = :9
+		WHEN NOT MATCHED THEN INSERT (
+			resource_type, resource_id, tenant_id, hospital_id,
+			status, department, sensitivity, payload, updated_at)
+		VALUES (s.resource_type, s.resource_id, :10, :11, :12, :13, :14, :15, :16)`
+
+	_, err := s.db.ExecContext(ctx, statement,
+		resource.ResourceType, resource.ResourceID,
+		resource.TenantID, resource.HospitalID, resource.Status, resource.Department,
+		resource.Sensitivity, resource.PayloadJSON, resource.UpdatedAt,
+		resource.TenantID, resource.HospitalID, resource.Status, resource.Department,
+		resource.Sensitivity, resource.PayloadJSON, resource.UpdatedAt)
+	if err != nil {
+		return fmt.Errorf("oraclestore: saving a resource: %w", err)
+	}
+	return nil
+}
+
+// Resource reads one business resource.
+//
+// department and sensitivity are nullable, and Oracle cannot tell an empty string
+// from NULL, so both come back as the empty string rather than as a distinction
+// callers would have to handle differently per engine.
+func (s *Store) Resource(ctx context.Context, resourceType, resourceID string) (assignmentstore.Resource, bool, error) {
+	const query = `
+		SELECT tenant_id, hospital_id, status, department, sensitivity, payload, updated_at
+		FROM fhir_resource WHERE resource_type = :1 AND resource_id = :2`
+
+	resource := assignmentstore.Resource{ResourceType: resourceType, ResourceID: resourceID}
+	var department, sensitivity sql.NullString
+	err := s.db.QueryRowContext(ctx, query, resourceType, resourceID).Scan(
+		&resource.TenantID, &resource.HospitalID, &resource.Status,
+		&department, &sensitivity, &resource.PayloadJSON, &resource.UpdatedAt)
+	if errors.Is(err, sql.ErrNoRows) {
+		return assignmentstore.Resource{}, false, nil
+	}
+	if err != nil {
+		return assignmentstore.Resource{}, false, fmt.Errorf("oraclestore: reading a resource: %w", err)
+	}
+	resource.Department = department.String
+	resource.Sensitivity = sensitivity.String
+	return resource, true, nil
+}
+
 // Truncate empties the named tables.
 func (s *Store) Truncate(ctx context.Context, tables ...string) error {
 	for _, table := range tables {

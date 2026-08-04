@@ -9,6 +9,8 @@ package storecontract
 import (
 	"context"
 	"encoding/json"
+	"slices"
+	"sort"
 	"testing"
 	"time"
 
@@ -40,6 +42,15 @@ func Run(t *testing.T, newStore Factory) {
 	t.Run("the migrated schema carries every authorization table", func(t *testing.T) {
 		assertEveryTableExists(t, newStore(t))
 	})
+	t.Run("the schema declares the unique role permission key", func(t *testing.T) {
+		assertUniqueKeyColumns(t, newStore(t), "role_permission",
+			[]string{"tenant_id", "role_external_id", "resource_key", "action_key"})
+	})
+	t.Run("the schema declares the unique user override key", func(t *testing.T) {
+		assertUniqueKeyColumns(t, newStore(t), "user_permission_override",
+			[]string{"tenant_id", "hospital_id", "user_external_id",
+				"resource_key", "action_key", "resource_instance_id"})
+	})
 	t.Run("the unique role permission key is enforced", func(t *testing.T) {
 		assertRolePermissionKeyEnforced(t, newStore(t))
 	})
@@ -67,6 +78,79 @@ func Run(t *testing.T, newStore Factory) {
 	t.Run("an unpublished outbox event has no publication time", func(t *testing.T) {
 		assertNullableTimestamp(t, newStore(t))
 	})
+	t.Run("an absent optional text reads back the same on either engine", func(t *testing.T) {
+		assertAbsentOptionalText(t, newStore(t))
+	})
+}
+
+// assertUniqueKeyColumns requires a unique key or primary key on exactly the
+// given columns.
+//
+// The enforcement cases below write through the adapters, which use an upsert.
+// That proves the write path addresses one row, but not that the database would
+// refuse a duplicate arriving by another route: Oracle's MERGE needs no unique
+// constraint to work, so on that engine an upsert would happily pass over a table
+// with no key at all. Reading the catalog closes that gap.
+func assertUniqueKeyColumns(t *testing.T, store assignmentstore.Store, table string, want []string) {
+	t.Helper()
+	defer closeStore(t, store)
+
+	keys, err := store.Schema().UniqueKeys(context.Background(), table)
+	if err != nil {
+		t.Fatalf("listing unique keys on %s: %v", table, err)
+	}
+
+	wantSorted := append([]string(nil), want...)
+	sort.Strings(wantSorted)
+
+	for _, columns := range keys {
+		got := append([]string(nil), columns...)
+		sort.Strings(got)
+		if slices.Equal(got, wantSorted) {
+			return
+		}
+	}
+	t.Fatalf("no unique key on %s covers exactly %v; found %v", table, want, keys)
+}
+
+// Oracle stores the empty string as NULL and PostgreSQL stores it as an empty
+// string. Callers must not be able to tell, or every consumer of an optional text
+// column would need to know which engine wrote the row.
+func assertAbsentOptionalText(t *testing.T, store assignmentstore.Store) {
+	t.Helper()
+	defer closeStore(t, store)
+	ctx := context.Background()
+	truncate(t, store, "fhir_resource")
+
+	resource := assignmentstore.Resource{
+		ResourceType: "PatientRecord",
+		ResourceID:   "patient-empty",
+		TenantID:     "tenant-a",
+		HospitalID:   "hospital-1",
+		Status:       "ACTIVE",
+		Department:   "",
+		Sensitivity:  "",
+		PayloadJSON:  `{"resourceType":"PatientRecord"}`,
+		UpdatedAt:    time.Date(2026, 5, 4, 12, 0, 0, 0, time.UTC),
+	}
+	if err := store.SaveResource(ctx, resource); err != nil {
+		t.Fatalf("saving a resource with absent optional text: %v", err)
+	}
+
+	stored, found, err := store.Resource(ctx, resource.ResourceType, resource.ResourceID)
+	if err != nil || !found {
+		t.Fatalf("reading it back: found=%t err=%v", found, err)
+	}
+	if stored.Department != "" {
+		t.Errorf("department = %q, want the empty string", stored.Department)
+	}
+	if stored.Sensitivity != "" {
+		t.Errorf("sensitivity = %q, want the empty string", stored.Sensitivity)
+	}
+	// The mandatory rules read status, so it must survive intact regardless.
+	if stored.Status != "ACTIVE" {
+		t.Errorf("status = %q, want ACTIVE", stored.Status)
+	}
 }
 
 func assertEveryTableExists(t *testing.T, store assignmentstore.Store) {
@@ -321,14 +405,17 @@ func assertTimestampRoundTrip(t *testing.T, store assignmentstore.Store) {
 	}
 }
 
-// The four JSON-bearing columns are where portability quietly fails, so each one
-// is written and read back and compared as text, not as a parsed document: a
-// column that reorders or reformats what it was given has changed the payload.
+// Every JSON-bearing column is where portability quietly fails, so each one is
+// written and read back and compared as text, not as a parsed document: a column
+// that reorders or reformats what it was given has changed the payload. All six
+// are covered - before_json, after_json, the outbox payload, expression_json,
+// idp_config and the fhir_resource payload.
 func assertJSONRoundTrip(t *testing.T, store assignmentstore.Store) {
 	t.Helper()
 	defer closeStore(t, store)
 	ctx := context.Background()
-	truncate(t, store, "permission_audit_event", "outbox_event", "ui_capability_definition")
+	truncate(t, store, "permission_audit_event", "outbox_event",
+		"ui_capability_definition", "installation_config", "fhir_resource")
 
 	// Key order, unicode, an embedded quote and a deliberately un-pretty layout:
 	// all things a JSON-aware column type is entitled to normalise away.
@@ -400,6 +487,53 @@ func assertJSONRoundTrip(t *testing.T, store assignmentstore.Store) {
 	if capability.ExpressionJSON != payload {
 		t.Errorf("expression_json round-tripped as\n  %s\nwant\n  %s",
 			capability.ExpressionJSON, payload)
+	}
+
+	// installation_config.idp_config and fhir_resource.payload are JSON-bearing
+	// too, so they get the same treatment as the four the PRD calls out.
+	if err := store.SaveInstallationConfig(ctx, assignmentstore.InstallationConfig{
+		InstallationID: "installation-1",
+		IDPType:        "keycloak",
+		IDPConfigJSON:  payload,
+		ActiveRootTag:  "v1.0.0",
+	}); err != nil {
+		t.Fatalf("saving the installation config: %v", err)
+	}
+
+	config, found, err := store.InstallationConfig(ctx, "installation-1")
+	if err != nil || !found {
+		t.Fatalf("reading the installation config: found=%t err=%v", found, err)
+	}
+	if config.IDPConfigJSON != payload {
+		t.Errorf("idp_config round-tripped as\n  %s\nwant\n  %s", config.IDPConfigJSON, payload)
+	}
+
+	if err := store.SaveResource(ctx, assignmentstore.Resource{
+		ResourceType: "PatientRecord",
+		ResourceID:   "patient-456",
+		TenantID:     "tenant-a",
+		HospitalID:   "hospital-1",
+		Status:       "ACTIVE",
+		Department:   "cardiology",
+		Sensitivity:  "normal",
+		PayloadJSON:  payload,
+		UpdatedAt:    created,
+	}); err != nil {
+		t.Fatalf("saving a resource: %v", err)
+	}
+
+	resource, found, err := store.Resource(ctx, "PatientRecord", "patient-456")
+	if err != nil || !found {
+		t.Fatalf("reading the resource: found=%t err=%v", found, err)
+	}
+	if resource.PayloadJSON != payload {
+		t.Errorf("fhir payload round-tripped as\n  %s\nwant\n  %s", resource.PayloadJSON, payload)
+	}
+	// The attributes the mandatory rules read are columns, not payload fields, so
+	// they must survive as columns.
+	if resource.Status != "ACTIVE" || resource.Department != "cardiology" {
+		t.Errorf("resource attributes round-tripped as {status:%q department:%q}",
+			resource.Status, resource.Department)
 	}
 }
 
