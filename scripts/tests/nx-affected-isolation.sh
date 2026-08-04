@@ -27,6 +27,26 @@ else
   echo "ok   an Angular change leaves the Go service ads untouched"
 fi
 
+# The architecture test scans every Go file in the repository, so Nx cannot infer
+# its inputs from imports. If a Go change elsewhere left it unaffected, the guard
+# against precedence logic in Go would sleep through the very commit that added
+# some, and a cached pass would be reported instead.
+go_affected="$(npx nx show projects --affected --files="apps/ads/internal/authz/authz.go")"
+
+if grep -qx 'architecture' <<<"${go_affected}"; then
+  echo "ok   a Go change anywhere marks the architecture test as affected"
+else
+  echo "FAIL a Go change must mark the architecture test as affected"
+  failures=$((failures + 1))
+fi
+
+if grep -qx 'architecture' <<<"${affected}"; then
+  echo "FAIL an Angular-only change must not mark the architecture test as affected"
+  failures=$((failures + 1))
+else
+  echo "ok   an Angular-only change leaves the architecture test untouched"
+fi
+
 if (( failures > 0 )); then
   echo
   echo "${failures} affected-graph failure(s)"
