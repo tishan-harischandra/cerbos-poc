@@ -17,6 +17,7 @@ import (
 	"github.com/tishan-harischandra/cerbos-poc/apps/ads/internal/config"
 	"github.com/tishan-harischandra/cerbos-poc/apps/ads/internal/netprobe"
 	"github.com/tishan-harischandra/cerbos-poc/apps/ads/internal/server"
+	"github.com/tishan-harischandra/cerbos-poc/libs/assignmentstore/postgresstore"
 	"github.com/tishan-harischandra/cerbos-poc/libs/cerbosclient"
 )
 
@@ -37,15 +38,28 @@ func main() {
 	}
 	defer func() { _ = pdp.Close() }()
 
+	// The pool is opened once and read through on every cache miss (§11.2).
+	// Opening it lazily per decision would put a connection handshake in front
+	// of the hot path.
+	store, err := postgresstore.Open(context.Background(), cfg.PostgresDSN)
+	if err != nil {
+		logger.Error("could not prepare the authorization database pool", slog.Any("error", err))
+		os.Exit(1)
+	}
+	defer func() { _ = store.Close() }()
+
 	handler := server.New(server.Config{
 		Dependencies: []server.Dependency{
 			{Name: "cerbos", Probe: cerbos.NewGRPCProbe(cfg.CerbosGRPCAddr)},
 			{Name: "postgres", Probe: netprobe.NewTCPProbe(cfg.PostgresAddr)},
 		},
 		AuthzHandler: authz.NewHandler(authz.Config{
-			PDP:         pdp,
-			Assignments: assignments.NewFixtures(),
-			Logger:      logger,
+			PDP: pdp,
+			Assignments: assignments.NewResolver(assignments.ResolverConfig{
+				Matrix:    assignments.NewCachingRoleMatrix(store, cfg.RoleMatrixCacheTTL),
+				Overrides: assignments.NewSeededOverrides(),
+			}),
+			Logger: logger,
 		}),
 	})
 
@@ -71,6 +85,7 @@ func main() {
 		slog.String("addr", cfg.HTTPAddr),
 		slog.String("cerbos", cfg.CerbosGRPCAddr),
 		slog.String("postgres", cfg.PostgresAddr),
+		slog.Duration("roleMatrixCacheTtl", cfg.RoleMatrixCacheTTL),
 		slog.String("seededPrincipals", assignments.Describe()),
 	)
 
