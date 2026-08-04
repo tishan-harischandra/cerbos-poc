@@ -15,6 +15,11 @@ help: ## List the available targets
 up: ## Build and start the whole control plane, waiting for health
 	$(COMPOSE) up --build --detach
 	bash scripts/compose-wait.sh
+	# The ADS reads the role matrix from the database, so the schema and the
+	# demo matrix have to be there before the stack can answer anything. Both
+	# steps are idempotent, so `make up` on a running stack is a no-op.
+	$(MAKE) migrate
+	$(MAKE) seed
 
 .PHONY: down
 down: ## Stop the control plane and remove its containers
@@ -58,6 +63,10 @@ migrate-oracle: ## Apply the same schema to Oracle, starting it if needed
 	$(COMPOSE) --profile oracle up --detach oracle
 	bash scripts/oracle-wait.sh
 	bash scripts/liquibase.sh oracle update
+
+.PHONY: seed
+seed: ## Write the demo role matrix into the authorization database
+	bash scripts/seed.sh postgres
 
 .PHONY: db-test
 db-test: ## Run the store contract against PostgreSQL
