@@ -20,9 +20,11 @@ func matrixQuery(tenant string, roles ...string) assignmentstore.ActiveRolePermi
 }
 
 func newCache(inner assignments.RoleMatrix, clock func() time.Time) *assignments.CachingRoleMatrix {
-	cache := assignments.NewCachingRoleMatrix(inner, time.Minute)
-	cache.Now = clock
-	return cache
+	return assignments.NewCachingRoleMatrix(assignments.CacheConfig{
+		Matrix: inner,
+		TTL:    time.Minute,
+		Now:    clock,
+	})
 }
 
 // §11.2: the warm path is served in process and only a miss reaches the
@@ -127,6 +129,48 @@ func TestACachedEntryIsRereadOnceItsLifetimeHasPassed(t *testing.T) {
 
 	if len(inner.queries) != 2 {
 		t.Errorf("an expired entry was served from the cache: %d reads, want 2", len(inner.queries))
+	}
+}
+
+// The TTL bounds staleness for validity windows too, not only for edits: a
+// grant that expires between two decisions keeps being served until its entry
+// is next read through. This pins that bound so the behaviour is a decision on
+// record rather than an accident, and so a future targeted invalidation can be
+// seen to tighten it.
+func TestAGrantExpiringWithinTheCacheLifetimeIsStillServedUntilItIsReread(t *testing.T) {
+	now := decidedAt
+	inner := &recordingMatrix{
+		permissions: []assignmentstore.RolePermission{
+			grant("tenant-a", "role-doctor", "read", true),
+		},
+	}
+	cache := newCache(inner, func() time.Time { return now })
+	ctx := context.Background()
+
+	if _, err := cache.ActiveRolePermissions(ctx, matrixQuery("tenant-a", "role-doctor")); err != nil {
+		t.Fatalf("first lookup: %v", err)
+	}
+
+	// The row goes away underneath the cache, as an expiry would.
+	inner.permissions = nil
+
+	now = now.Add(30 * time.Second)
+	withinTTL, err := cache.ActiveRolePermissions(ctx, matrixQuery("tenant-a", "role-doctor"))
+	if err != nil {
+		t.Fatalf("lookup within the lifetime: %v", err)
+	}
+	if len(withinTTL) != 1 {
+		t.Errorf("resolved %d permissions within the lifetime, want the cached 1", len(withinTTL))
+	}
+
+	now = now.Add(31 * time.Second)
+	afterTTL, err := cache.ActiveRolePermissions(ctx, matrixQuery("tenant-a", "role-doctor"))
+	if err != nil {
+		t.Fatalf("lookup after the lifetime: %v", err)
+	}
+	if len(afterTTL) != 0 {
+		t.Errorf("resolved %d permissions after the lifetime, want 0: the expiry was never noticed",
+			len(afterTTL))
 	}
 }
 

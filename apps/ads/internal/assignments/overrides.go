@@ -20,15 +20,22 @@ import (
 )
 
 // Seeded principals, one per interesting row of the §19.1 matrix.
+//
+// They are named for their override state, which is all this file decides. What
+// each one's roles grant is now a question for the seeded role matrix, and the
+// two are deliberately described in separate places so neither can quietly
+// start speaking for the other.
 const (
-	// DoctorWithRoleGrants has read and update from a role and no overrides.
-	DoctorWithRoleGrants = "user-doctor"
-	// DoctorWithRevokedUpdate has the same role grants with update revoked,
-	// the case Cerbos' cross-role semantics would otherwise get wrong.
+	// DoctorWithNoOverride is the control: whatever its roles grant stands.
+	DoctorWithNoOverride = "user-doctor"
+	// DoctorWithRevokedUpdate carries the same roles with update revoked, the
+	// case Cerbos' cross-role semantics would otherwise get wrong.
 	DoctorWithRevokedUpdate = "user-doctor-revoked"
-	// ClerkWithUserGrantOnly has no role grants and a single user grant.
+	// ClerkWithUserGrantOnly holds no roles and a single user grant, so an
+	// allow can only have come from the override.
 	ClerkWithUserGrantOnly = "user-clerk-granted"
-	// PrincipalWithNoAssignments exercises default deny.
+	// PrincipalWithNoAssignments holds no roles and no overrides, and so
+	// exercises default deny.
 	PrincipalWithNoAssignments = "user-unassigned"
 )
 
@@ -71,15 +78,19 @@ func (o *SeededOverrides) For(_ context.Context, query authz.AssignmentQuery) ([
 // Principals lists the seeded principal IDs, for documentation and smoke tests.
 func Principals() []string {
 	return []string{
-		DoctorWithRoleGrants,
+		DoctorWithNoOverride,
 		DoctorWithRevokedUpdate,
 		ClerkWithUserGrantOnly,
 		PrincipalWithNoAssignments,
 	}
 }
 
-// Describe renders the seeded principals as a single log line so an operator can
-// see what the demo stack will answer for.
+// Describe renders the principals the override seed knows about as a single log
+// line.
+//
+// It is explicitly not a list of who the stack will answer for: role grants come
+// from the database now, so the stack answers for anyone presenting a seeded
+// role. These are only the principals with an override attached.
 func Describe() string {
 	return strings.Join(Principals(), ", ")
 }

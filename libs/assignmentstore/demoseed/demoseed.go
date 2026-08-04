@@ -21,12 +21,16 @@ import (
 	"github.com/tishan-harischandra/cerbos-poc/libs/assignmentstore"
 )
 
-// The demo installation: one tenant, one hospital, two canonical roles.
+// The demo installation: one tenant and two canonical roles.
+//
+// There is no hospital here on purpose. §8.1 scopes role_permission to the
+// tenant and gives it no hospital_id column: a role means the same thing across
+// a tenant, and it is user overrides that narrow to one hospital. Naming a
+// hospital in this seed would imply a dimension the table does not have.
 const (
 	TenantID = "tenant-a"
 	// OtherTenantID holds the grant that tenant isolation must keep out.
 	OtherTenantID = "tenant-b"
-	HospitalID    = "hospital-1"
 	// DoctorRole and AuditorRole are canonical Keycloak role identifiers
 	// (§7.5), spelled exactly as Appendix B and the policy test suite spell
 	// them. §7.5 is explicit that token-to-role normalisation must produce the

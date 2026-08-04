@@ -27,17 +27,40 @@ const DefaultCacheTTL = 30 * time.Second
 // Entries hold facts only - which actions a role grants and whether the row is
 // enabled. Nothing cached here is a verdict, so a stale entry can only be wrong
 // about the data, never about the precedence rules.
+//
+// The TTL is the staleness bound on two different things, and the second is
+// easy to miss. It bounds how long an edited row stays unseen, which is what it
+// is for. It equally bounds how long a validity window transition stays unseen:
+// a grant that expires, or one that becomes valid, is only noticed when its
+// entry is next read through. The query still filters on the caller's instant,
+// so the window is honoured at read time - it is the cached copy that lags.
+//
+// Memory is bounded by the live keyspace rather than by traffic: entries are
+// keyed by tenant, role and resource and are overwritten in place, so repeated
+// decisions reuse keys instead of accumulating them. There is deliberately no
+// eviction beyond that. Adding one before the load slice has measured the real
+// keyspace would be machinery built against a guess.
 type CachingRoleMatrix struct {
 	inner RoleMatrix
 	ttl   time.Duration
-
-	// Now is the clock entries are aged against. Exported so tests can advance
-	// time without sleeping.
-	Now func() time.Time
+	// now is the clock entries are aged against, injected so tests can advance
+	// time without sleeping. Unexported: a caller mutating it while decisions
+	// are in flight would be a data race on the hot path.
+	now func() time.Time
 
 	mu        sync.Mutex
 	roles     map[roleCacheKey]cachedActions
 	revisions map[string]cachedRevision
+}
+
+// CacheConfig holds the cache's collaborators.
+type CacheConfig struct {
+	Matrix RoleMatrix
+	// TTL bounds how long an entry may outlive a change to the underlying row.
+	// Non-positive falls back to DefaultCacheTTL.
+	TTL time.Duration
+	// Now defaults to time.Now.
+	Now func() time.Time
 }
 
 type roleCacheKey struct {
@@ -57,16 +80,20 @@ type cachedRevision struct {
 	readAt   time.Time
 }
 
-// NewCachingRoleMatrix wraps a role matrix in a read-through cache. A
-// non-positive TTL falls back to DefaultCacheTTL.
-func NewCachingRoleMatrix(inner RoleMatrix, ttl time.Duration) *CachingRoleMatrix {
+// NewCachingRoleMatrix wraps a role matrix in a read-through cache.
+func NewCachingRoleMatrix(cfg CacheConfig) *CachingRoleMatrix {
+	ttl := cfg.TTL
 	if ttl <= 0 {
 		ttl = DefaultCacheTTL
 	}
+	now := cfg.Now
+	if now == nil {
+		now = time.Now
+	}
 	return &CachingRoleMatrix{
-		inner:     inner,
+		inner:     cfg.Matrix,
 		ttl:       ttl,
-		Now:       time.Now,
+		now:       now,
 		roles:     make(map[roleCacheKey]cachedActions),
 		revisions: make(map[string]cachedRevision),
 	}
@@ -78,7 +105,7 @@ func NewCachingRoleMatrix(inner RoleMatrix, ttl time.Duration) *CachingRoleMatri
 // The miss is issued as one query for every uncached role rather than one query
 // per role: a cold principal with seventy roles must still cost one round trip.
 func (c *CachingRoleMatrix) ActiveRolePermissions(ctx context.Context, query assignmentstore.ActiveRolePermissionQuery) ([]assignmentstore.RolePermission, error) {
-	now := c.Now()
+	now := c.now()
 
 	var resolved []assignmentstore.RolePermission
 	var missing []string
@@ -137,7 +164,7 @@ func (c *CachingRoleMatrix) ActiveRolePermissions(ctx context.Context, query ass
 // decision reports it, so reading it from the database each time would put a
 // second round trip on the hot path.
 func (c *CachingRoleMatrix) PermissionRevision(ctx context.Context, tenantID string) (assignmentstore.PermissionRevision, bool, error) {
-	now := c.Now()
+	now := c.now()
 
 	c.mu.Lock()
 	entry, cached := c.revisions[tenantID]

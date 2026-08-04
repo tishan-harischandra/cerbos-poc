@@ -56,7 +56,10 @@ func main() {
 		AuthzHandler: authz.NewHandler(authz.Config{
 			PDP: pdp,
 			Assignments: assignments.NewResolver(assignments.ResolverConfig{
-				Matrix:    assignments.NewCachingRoleMatrix(store, cfg.RoleMatrixCacheTTL),
+				Matrix: assignments.NewCachingRoleMatrix(assignments.CacheConfig{
+					Matrix: store,
+					TTL:    cfg.RoleMatrixCacheTTL,
+				}),
 				Overrides: assignments.NewSeededOverrides(),
 			}),
 			Logger: logger,
@@ -86,7 +89,7 @@ func main() {
 		slog.String("cerbos", cfg.CerbosGRPCAddr),
 		slog.String("postgres", cfg.PostgresAddr),
 		slog.Duration("roleMatrixCacheTtl", cfg.RoleMatrixCacheTTL),
-		slog.String("seededPrincipals", assignments.Describe()),
+		slog.String("overridePrincipals", assignments.Describe()),
 	)
 
 	if err := httpServer.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
