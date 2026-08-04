@@ -1,0 +1,24 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Authorization principal",
+  "description": "Trusted identity attributes derived from a verified access token. The synthetic evaluation role is carried in principal.roles, not here; the real IdP roles travel as attributes for audit and optional conditions (§6.4).",
+  "type": "object",
+  "required": ["tenantId", "hospitalId"],
+  "additionalProperties": true,
+  "properties": {
+    "tenantId": {
+      "type": "string",
+      "minLength": 1
+    },
+    "hospitalId": {
+      "type": "string",
+      "minLength": 1
+    },
+    "idpRoles": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    }
+  }
+}

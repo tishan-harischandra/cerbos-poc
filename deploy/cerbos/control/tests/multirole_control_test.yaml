@@ -1,0 +1,64 @@
+---
+# Proves the hazard ADR-003 exists to avoid, against a real PDP.
+#
+# Read this suite as the "before" picture: it is what precedence looks like
+# WITHOUT the synthetic evaluation role. patient_record_test.yaml is the
+# "after" picture, where the same conflict resolves deterministically.
+name: MultiRoleConflictControl
+description: An allow bound to one role defeats a deny bound to another (§6.4)
+
+principals:
+  nurse_only:
+    id: user-nurse
+    roles: ["nurse"]
+
+  doctor_only:
+    id: user-doctor
+    roles: ["doctor"]
+
+  nurse_and_doctor:
+    id: user-both
+    roles: ["nurse", "doctor"]
+
+resources:
+  record:
+    kind: multirole_control
+    policyVersion: v1
+    id: record-1
+
+tests:
+  - name: a single denied role is denied
+    input:
+      principals: [nurse_only]
+      resources: [record]
+      actions: ["read"]
+    expected:
+      - principal: nurse_only
+        resource: record
+        actions:
+          read: EFFECT_DENY
+
+  - name: a single allowed role is allowed
+    input:
+      principals: [doctor_only]
+      resources: [record]
+      actions: ["read"]
+    expected:
+      - principal: doctor_only
+        resource: record
+        actions:
+          read: EFFECT_ALLOW
+
+  # The hazard. Holding a denied role AND an allowed role yields ALLOW: the
+  # deny does not survive across roles. This is exactly why every rule in
+  # patient_record.yaml binds to `sys:permission-evaluator` instead.
+  - name: an allow from a second role defeats a deny from the first
+    input:
+      principals: [nurse_and_doctor]
+      resources: [record]
+      actions: ["read"]
+    expected:
+      - principal: nurse_and_doctor
+        resource: record
+        actions:
+          read: EFFECT_ALLOW

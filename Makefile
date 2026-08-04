@@ -27,9 +27,17 @@ clean: ## Remove containers, named volumes, local images and build caches
 	@chmod -R u+w .gocache 2>/dev/null || true
 	rm -rf dist tmp .nx .angular .gocache
 
+.PHONY: policy-test
+policy-test: ## Compile the Cerbos policies and run the policy test suite
+	bash scripts/cerbos.sh compile --tests=/policies/tests /policies
+	# The ADR-003 control experiment reproduces the cross-role hazard on purpose,
+	# so it is compiled from its own directory and never served to the PDP.
+	POLICY_DIR=deploy/cerbos/control bash scripts/cerbos.sh compile --tests=/policies/tests /policies
+
 .PHONY: test
-test: ## Run every project's tests plus the compose contract
+test: ## Run every project's tests, the policy suite and the compose contract
 	$(NX) run-many --target=test --all
+	$(MAKE) policy-test
 	python3 scripts/tests/compose-contract.py
 
 .PHONY: ci
@@ -37,12 +45,14 @@ ci: ## Run exactly what CI runs, so a green local run means a green pipeline
 	$(NX) run-many --target=lint --all
 	$(NX) run-many --target=test --all
 	$(NX) run-many --target=build --all
+	$(MAKE) policy-test
 	python3 scripts/tests/compose-contract.py
 	bash scripts/tests/nx-affected-isolation.sh
 
 .PHONY: smoke
 smoke: ## Verify a running stack end to end
 	bash scripts/tests/stack-smoke.sh
+	bash scripts/tests/decision-e2e.sh
 
 .PHONY: gen
 gen: ## Run every project's code generators

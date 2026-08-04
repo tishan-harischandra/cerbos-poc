@@ -1,8 +1,12 @@
-module github.com/tishan-harischandra/cerbos-poc/apps/ads
+module github.com/tishan-harischandra/cerbos-poc/libs/cerbosclient
 
 go 1.25.11
 
-require google.golang.org/grpc v1.82.1
+require (
+	github.com/cerbos/cerbos-sdk-go v0.4.2
+	github.com/cerbos/cerbos/api/genpb v0.53.1-0.20260706072259-a9322b666597
+	google.golang.org/grpc v1.82.1
+)
 
 require (
 	buf.build/gen/go/bufbuild/protovalidate/protocolbuffers/go v1.36.11-20260415201107-50325440f8f2.1 // indirect
@@ -12,8 +16,6 @@ require (
 	connectrpc.com/otelconnect v0.9.0 // indirect
 	github.com/antlr4-go/antlr/v4 v4.13.1 // indirect
 	github.com/bits-and-blooms/bitset v1.24.4 // indirect
-	github.com/cerbos/cerbos-sdk-go v0.4.2 // indirect
-	github.com/cerbos/cerbos/api/genpb v0.53.1-0.20260706072259-a9322b666597 // indirect
 	github.com/cerbos/cloud-api v0.2.3 // indirect
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect
 	github.com/danieljoos/wincred v1.2.3 // indirect
@@ -58,21 +60,12 @@ require (
 	go.yaml.in/yaml/v3 v3.0.4 // indirect
 	golang.org/x/crypto v0.53.0 // indirect
 	golang.org/x/exp v0.0.0-20260508232706-74f9aab9d74a // indirect
-	google.golang.org/genproto/googleapis/api v0.0.0-20260622175928-b703f567277d // indirect
-	gopkg.in/yaml.v2 v2.4.0 // indirect
-	gopkg.in/yaml.v3 v3.0.1 // indirect
-)
-
-require (
-	github.com/tishan-harischandra/cerbos-poc/libs/cerbosclient v0.0.0
-	github.com/tishan-harischandra/cerbos-poc/libs/permissioncontext v0.0.0
 	golang.org/x/net v0.55.0 // indirect
 	golang.org/x/sys v0.46.0 // indirect
 	golang.org/x/text v0.38.0 // indirect
+	google.golang.org/genproto/googleapis/api v0.0.0-20260622175928-b703f567277d // indirect
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20260630182238-925bb5da69e7 // indirect
 	google.golang.org/protobuf v1.36.11 // indirect
+	gopkg.in/yaml.v2 v2.4.0 // indirect
+	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
-
-replace github.com/tishan-harischandra/cerbos-poc/libs/cerbosclient => ../../libs/cerbosclient
-
-replace github.com/tishan-harischandra/cerbos-poc/libs/permissioncontext => ../../libs/permissioncontext

@@ -1,12 +1,20 @@
 # syntax=docker/dockerfile:1
 # Build context is the repository root.
-FROM docker.io/library/golang:1.23-alpine AS build
+FROM docker.io/library/golang:1.25-alpine AS build
 
 WORKDIR /src
-COPY apps/ads/go.mod apps/ads/go.sum ./
+
+# The ADS depends on sibling modules in libs/, resolved by the replace
+# directives in its go.mod. Their manifests are copied before the sources so a
+# change to ADS code alone still reuses the cached download layer.
+COPY apps/ads/go.mod apps/ads/go.sum ./apps/ads/
+COPY libs/cerbosclient/go.mod libs/cerbosclient/go.sum ./libs/cerbosclient/
+COPY libs/permissioncontext/go.mod ./libs/permissioncontext/
+WORKDIR /src/apps/ads
 RUN go mod download
 
-COPY apps/ads/ ./
+COPY libs/ /src/libs/
+COPY apps/ads/ /src/apps/ads/
 RUN CGO_ENABLED=0 go build -trimpath -ldflags="-s -w" -o /out/ads ./cmd/ads
 
 FROM docker.io/library/alpine:3.20 AS runtime

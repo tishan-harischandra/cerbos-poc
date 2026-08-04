@@ -1,0 +1,14 @@
+{
+  "name": "architecture",
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "projectType": "library",
+  "targets": {
+    "test": {
+      "inputs": [
+        "{workspaceRoot}/**/*.go",
+        "{workspaceRoot}/go.work",
+        "{workspaceRoot}/deploy/cerbos/policies/**/*"
+      ]
+    }
+  }
+}

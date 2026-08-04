@@ -43,6 +43,18 @@ jobs:
       - name: An Angular change must not rebuild the Go service
         run: bash scripts/tests/nx-affected-isolation.sh
 
+  policy:
+    name: cerbos policy suite
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # The policy suite is the authoritative statement of the precedence rules,
+      # so it runs on every commit rather than only when Nx thinks it is
+      # affected. It needs no Node, no Go and no running stack.
+      - name: Compile the policies and run the precedence matrix
+        run: make policy-test
+
   compose:
     name: docker compose walking skeleton
     runs-on: ubuntu-latest
@@ -60,7 +72,10 @@ jobs:
           cp .env.example .env
           make up
 
-      - name: Smoke the running stack
+      # make smoke also runs the end-to-end decision test, which drives real
+      # authorization decisions through the ADS into a real PDP. The policy suite
+      # proves the rules; this proves the wiring that carries them.
+      - name: Smoke the running stack and its decisions
         run: make smoke
 
       - name: Container logs

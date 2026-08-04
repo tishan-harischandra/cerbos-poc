@@ -1,3 +1,8 @@
-go 1.23
+go 1.25.11
 
-use ./apps/ads
+use (
+	./apps/ads
+	./libs/cerbosclient
+	./libs/permissioncontext
+	./tests/architecture
+)

@@ -1,0 +1,138 @@
+---
+# Root resource policy for patient_record (ADR-006: one file per resource).
+#
+# Every rule binds to the single synthetic role `sys:permission-evaluator`
+# (§6.4, ADR-003). That is the whole point: Cerbos resolves deny-over-allow
+# within a role but lets an allow from one role defeat a deny from another, so
+# funnelling every rule through one role is what makes
+#
+#     mandatory deny > user REVOKE > user GRANT > role grant > default deny
+#
+# deterministic. The ADS supplies the three action sets as resource data and
+# never decides anything itself (§6.3, §21).
+apiVersion: api.cerbos.dev/v1
+resourcePolicy:
+  resource: patient_record
+  version: v1
+
+  variables:
+    local:
+      isolated: >-
+        request.principal.attr.tenantId == request.resource.attr.tenantId &&
+        request.principal.attr.hospitalId == request.resource.attr.hospitalId
+      role_actions: request.resource.attr.permissionContext.roleGrantedActions
+      user_grants: request.resource.attr.permissionContext.userGrantedActions
+      user_revokes: request.resource.attr.permissionContext.userRevokedActions
+      is_locked: request.resource.attr.status == "LOCKED"
+
+  rules:
+    # Mandatory restrictions first. They are explicit denies rather than
+    # conditions on the allow rules so that no grant can bypass them and no
+    # future allow rule can forget them: within this one role, deny always wins.
+
+    # Isolation applies to every action, including ones added later, which is
+    # why it uses the wildcard rather than a list to keep in step.
+    - name: tenant_and_hospital_isolation
+      actions: ["*"]
+      effect: EFFECT_DENY
+      roles: ["sys:permission-evaluator"]
+      condition:
+        match:
+          expr: "!variables.isolated"
+
+    - name: locked_record_restriction
+      actions: ["update", "delete"]
+      effect: EFFECT_DENY
+      roles: ["sys:permission-evaluator"]
+      condition:
+        match:
+          expr: variables.is_locked
+
+    # User revocations outrank every grant below.
+    #
+    # These are one rule per action because a Cerbos condition cannot name the
+    # action being evaluated: there is no `request.action` in the CEL context, so
+    # the action has to be a literal. That is the repetition the policy generator
+    # exists to remove (§8); when a new action is added, every block below needs a
+    # sibling, and the §19.1 matrix is what catches a missing one.
+    - name: revoke_read
+      actions: ["read"]
+      effect: EFFECT_DENY
+      roles: ["sys:permission-evaluator"]
+      condition:
+        match:
+          expr: '"read" in variables.user_revokes'
+
+    - name: revoke_update
+      actions: ["update"]
+      effect: EFFECT_DENY
+      roles: ["sys:permission-evaluator"]
+      condition:
+        match:
+          expr: '"update" in variables.user_revokes'
+
+    - name: revoke_delete
+      actions: ["delete"]
+      effect: EFFECT_DENY
+      roles: ["sys:permission-evaluator"]
+      condition:
+        match:
+          expr: '"delete" in variables.user_revokes'
+
+    # User grants. Kept separate from role grants so the audit trail records
+    # which source of authority allowed the action. Isolation is not repeated
+    # here: the mandatory deny above already covers every action.
+    - name: grant_read_to_user
+      actions: ["read"]
+      effect: EFFECT_ALLOW
+      roles: ["sys:permission-evaluator"]
+      condition:
+        match:
+          expr: '"read" in variables.user_grants'
+
+    - name: grant_update_to_user
+      actions: ["update"]
+      effect: EFFECT_ALLOW
+      roles: ["sys:permission-evaluator"]
+      condition:
+        match:
+          expr: '"update" in variables.user_grants'
+
+    - name: grant_delete_to_user
+      actions: ["delete"]
+      effect: EFFECT_ALLOW
+      roles: ["sys:permission-evaluator"]
+      condition:
+        match:
+          expr: '"delete" in variables.user_grants'
+
+    # Role grants, the default source of business capability.
+    - name: grant_read_to_role
+      actions: ["read"]
+      effect: EFFECT_ALLOW
+      roles: ["sys:permission-evaluator"]
+      condition:
+        match:
+          expr: '"read" in variables.role_actions'
+
+    - name: grant_update_to_role
+      actions: ["update"]
+      effect: EFFECT_ALLOW
+      roles: ["sys:permission-evaluator"]
+      condition:
+        match:
+          expr: '"update" in variables.role_actions'
+
+    - name: grant_delete_to_role
+      actions: ["delete"]
+      effect: EFFECT_ALLOW
+      roles: ["sys:permission-evaluator"]
+      condition:
+        match:
+          expr: '"delete" in variables.role_actions'
+
+  schemas:
+    principalSchema:
+      ref: cerbos:///principal.json
+    resourceSchema:
+      ref: cerbos:///patient_record.json

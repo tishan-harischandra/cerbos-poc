@@ -1,0 +1,28 @@
+---
+# Control experiment for ADR-003. Not a production policy.
+#
+# ADR-003 funnels every rule through one synthetic role because Cerbos'
+# conflict resolution is role-aware: a deny bound to one role is claimed to be
+# defeatable by an allow bound to another (§6.4, [R1]). That claim is the
+# justification for the whole synthetic-role design, and the PRD notes nobody
+# has demonstrated it against a real PDP.
+#
+# This policy reproduces the hazard in isolation: `nurse` is denied `read`,
+# `doctor` is allowed `read`, and the test asserts what a principal holding
+# both roles actually gets. If this control ever starts denying, the premise
+# behind ADR-003 has changed and the synthetic role may no longer be needed.
+apiVersion: api.cerbos.dev/v1
+resourcePolicy:
+  resource: multirole_control
+  version: v1
+
+  rules:
+    - name: nurse_is_denied_read
+      actions: ["read"]
+      effect: EFFECT_DENY
+      roles: ["nurse"]
+
+    - name: doctor_is_allowed_read
+      actions: ["read"]
+      effect: EFFECT_ALLOW
+      roles: ["doctor"]

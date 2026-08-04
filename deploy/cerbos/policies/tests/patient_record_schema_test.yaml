@@ -1,0 +1,225 @@
+---
+# Schema enforcement (§19 schema tests, [R10]).
+#
+# A request missing tenantId, hospitalId or permissionContext must not reach
+# rule evaluation. Cerbos reports schema validation failures and, with
+# enforcement set to reject, denies the action outright. These cases carry a
+# role grant and a user grant so that a passing test can only mean the schema
+# stopped the request, never that the rules happened to deny it.
+name: PatientRecordSchemaValidation
+description: Malformed authorization attributes are rejected before a decision
+
+principals:
+  doctor:
+    id: idp-user-123
+    roles:
+      - "sys:permission-evaluator"
+    attr:
+      tenantId: tenant-a
+      hospitalId: hospital-1
+      idpRoles:
+        - "kc:realm:patient-app:doctor"
+
+  principal_without_tenant:
+    id: idp-user-124
+    roles:
+      - "sys:permission-evaluator"
+    attr:
+      hospitalId: hospital-1
+
+  principal_without_hospital:
+    id: idp-user-125
+    roles:
+      - "sys:permission-evaluator"
+    attr:
+      tenantId: tenant-a
+
+resources:
+  fully_granted_record:
+    kind: patient_record
+    policyVersion: v1
+    id: patient-456
+    attr:
+      tenantId: tenant-a
+      hospitalId: hospital-1
+      status: ACTIVE
+      permissionContext:
+        roleGrantedActions: ["read", "update", "delete"]
+        userGrantedActions: ["read", "update", "delete"]
+        userRevokedActions: []
+        permissionRevision: 184
+
+  record_without_permission_context:
+    kind: patient_record
+    policyVersion: v1
+    id: patient-456
+    attr:
+      tenantId: tenant-a
+      hospitalId: hospital-1
+      status: ACTIVE
+
+  record_without_tenant:
+    kind: patient_record
+    policyVersion: v1
+    id: patient-456
+    attr:
+      hospitalId: hospital-1
+      status: ACTIVE
+      permissionContext:
+        roleGrantedActions: ["read"]
+        userGrantedActions: []
+        userRevokedActions: []
+        permissionRevision: 184
+
+  record_without_hospital:
+    kind: patient_record
+    policyVersion: v1
+    id: patient-456
+    attr:
+      tenantId: tenant-a
+      status: ACTIVE
+      permissionContext:
+        roleGrantedActions: ["read"]
+        userGrantedActions: []
+        userRevokedActions: []
+        permissionRevision: 184
+
+  record_with_unknown_permission_context_field:
+    kind: patient_record
+    policyVersion: v1
+    id: patient-456
+    attr:
+      tenantId: tenant-a
+      hospitalId: hospital-1
+      status: ACTIVE
+      permissionContext:
+        roleGrantedActions: ["read"]
+        userGrantedActions: []
+        userRevokedActions: []
+        permissionRevision: 184
+        effectiveDecision: ALLOW
+
+  # The ADS forwards the caller's resource attributes verbatim, so the schema is
+  # what stops a caller planting an attribute a future policy condition might
+  # read.
+  record_with_unknown_attribute:
+    kind: patient_record
+    policyVersion: v1
+    id: patient-456
+    attr:
+      tenantId: tenant-a
+      hospitalId: hospital-1
+      status: ACTIVE
+      ownerId: idp-user-123
+      permissionContext:
+        roleGrantedActions: ["read"]
+        userGrantedActions: []
+        userRevokedActions: []
+        permissionRevision: 184
+
+  record_with_unknown_status:
+    kind: patient_record
+    policyVersion: v1
+    id: patient-456
+    attr:
+      tenantId: tenant-a
+      hospitalId: hospital-1
+      status: SUPERSEDED
+      permissionContext:
+        roleGrantedActions: ["read"]
+        userGrantedActions: []
+        userRevokedActions: []
+        permissionRevision: 184
+
+tests:
+  - name: a resource missing permissionContext is denied
+    input:
+      principals: [doctor]
+      resources: [record_without_permission_context]
+      actions: ["read"]
+    expected:
+      - principal: doctor
+        resource: record_without_permission_context
+        actions:
+          read: EFFECT_DENY
+
+  - name: a resource missing tenantId is denied
+    input:
+      principals: [doctor]
+      resources: [record_without_tenant]
+      actions: ["read"]
+    expected:
+      - principal: doctor
+        resource: record_without_tenant
+        actions:
+          read: EFFECT_DENY
+
+  - name: a resource missing hospitalId is denied
+    input:
+      principals: [doctor]
+      resources: [record_without_hospital]
+      actions: ["read"]
+    expected:
+      - principal: doctor
+        resource: record_without_hospital
+        actions:
+          read: EFFECT_DENY
+
+  - name: a principal missing tenantId is denied
+    input:
+      principals: [principal_without_tenant]
+      resources: [fully_granted_record]
+      actions: ["read"]
+    expected:
+      - principal: principal_without_tenant
+        resource: fully_granted_record
+        actions:
+          read: EFFECT_DENY
+
+  - name: a principal missing hospitalId is denied
+    input:
+      principals: [principal_without_hospital]
+      resources: [fully_granted_record]
+      actions: ["read"]
+    expected:
+      - principal: principal_without_hospital
+        resource: fully_granted_record
+        actions:
+          read: EFFECT_DENY
+
+  # A verdict smuggled into permissionContext must be rejected outright rather
+  # than quietly ignored: permissionContext carries data, never a decision.
+  - name: a permissionContext carrying a decision field is denied
+    input:
+      principals: [doctor]
+      resources: [record_with_unknown_permission_context_field]
+      actions: ["read"]
+    expected:
+      - principal: doctor
+        resource: record_with_unknown_permission_context_field
+        actions:
+          read: EFFECT_DENY
+
+  - name: a resource attribute the schema does not declare is denied
+    input:
+      principals: [doctor]
+      resources: [record_with_unknown_attribute]
+      actions: ["read"]
+    expected:
+      - principal: doctor
+        resource: record_with_unknown_attribute
+        actions:
+          read: EFFECT_DENY
+
+  # status drives the mandatory LOCKED restriction, so an unrecognised value must
+  # be rejected rather than treated as "not locked".
+  - name: a status outside the declared set is denied
+    input:
+      principals: [doctor]
+      resources: [record_with_unknown_status]
+      actions: ["read"]
+    expected:
+      - principal: doctor
+        resource: record_with_unknown_status
+        actions:
+          read: EFFECT_DENY

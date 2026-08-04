@@ -34,6 +34,24 @@ check "the ADS reaches PostgreSQL from inside the network" "$?"
 ! curl -fsS --max-time 3 "http://127.0.0.1:3592/_cerbos/health" >/dev/null 2>&1
 check "the Cerbos PDP is not published to the host" "$?"
 
+# nginx resolves a literal proxy_pass hostname once at startup, so without a
+# resolver the console proxies to a stale address the moment the ADS container is
+# recreated, and every decision request comes back 502. Assert the rendered
+# config still resolves at request time.
+# Ask compose for the container rather than guessing its name: Docker Compose
+# names it cerbos-poc-admin-console-1 and podman-compose cerbos-poc_admin-console_1.
+console="$(docker compose ps -q admin-console 2>/dev/null | head -1)"
+rendered=""
+if [[ -n "${console}" ]]; then
+  rendered="$(docker exec "${console}" nginx -T 2>/dev/null)"
+fi
+[[ -n "${rendered}" ]]
+check "the console's nginx config can be read" "$?"
+grep -q 'resolver ' <<<"${rendered}"
+check "the console proxy configures a DNS resolver" "$?"
+grep -qE 'proxy_pass \$' <<<"${rendered}"
+check "the console proxy resolves the ADS at request time, surviving a rebuild" "$?"
+
 if (( failures > 0 )); then
   echo
   echo "${failures} smoke failure(s)"
