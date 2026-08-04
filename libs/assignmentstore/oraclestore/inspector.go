@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"regexp"
 	"strings"
 )
 
@@ -47,15 +48,67 @@ func (i inspector) UniqueKeys(ctx context.Context, table string) (map[string][]s
 	return i.collect(ctx, query, table)
 }
 
+// Indexes reports index columns, resolving Oracle's hidden system columns back to
+// the columns the schema actually declared.
+//
+// Indexing a TIMESTAMP WITH TIME ZONE column makes Oracle build a function-based
+// index over an invisible virtual column, and user_ind_columns then reports that
+// column as SYS_NC00012$ rather than as valid_from. The real name is recoverable
+// from user_ind_expressions, and recovering it here is the adapter's job: a caller
+// asking which columns are indexed should not have to know that one engine
+// answers with a generated identifier.
 func (i inspector) Indexes(ctx context.Context, table string) (map[string][]string, error) {
 	const query = `
-		SELECT i.index_name, ic.column_name
+		SELECT i.index_name, ic.column_name, ic.column_position, e.column_expression
 		FROM user_indexes i
 		JOIN user_ind_columns ic ON ic.index_name = i.index_name
+		LEFT JOIN user_ind_expressions e
+			ON e.index_name = ic.index_name
+			AND e.column_position = ic.column_position
 		WHERE i.table_name = UPPER(:1)
 		ORDER BY i.index_name, ic.column_position`
 
-	return i.collect(ctx, query, table)
+	rows, err := i.db.QueryContext(ctx, query, table)
+	if err != nil {
+		return nil, fmt.Errorf("oraclestore: reading indexes for %s: %w", table, err)
+	}
+	defer func() { _ = rows.Close() }()
+
+	grouped := make(map[string][]string)
+	for rows.Next() {
+		var name, column string
+		var position int
+		var expression sql.NullString
+		if err := rows.Scan(&name, &column, &position, &expression); err != nil {
+			return nil, fmt.Errorf("oraclestore: scanning indexes for %s: %w", table, err)
+		}
+		if systemColumn.MatchString(column) && expression.Valid {
+			if resolved := columnInExpression(expression.String); resolved != "" {
+				column = resolved
+			}
+		}
+		lowered := strings.ToLower(name)
+		grouped[lowered] = append(grouped[lowered], strings.ToLower(column))
+	}
+	return grouped, rows.Err()
+}
+
+// systemColumn matches the names Oracle generates for the invisible virtual
+// columns behind a function-based index, for example SYS_NC00012$.
+var systemColumn = regexp.MustCompile(`^SYS_NC\d+\$$`)
+
+// quotedIdentifier picks the column name out of an index expression such as
+// SYS_EXTRACT_UTC("VALID_FROM").
+var quotedIdentifier = regexp.MustCompile(`"([A-Za-z0-9_$#]+)"`)
+
+func columnInExpression(expression string) string {
+	// The last quoted identifier is the innermost operand, which is the column
+	// the expression is computed from.
+	matches := quotedIdentifier.FindAllStringSubmatch(expression, -1)
+	if len(matches) == 0 {
+		return ""
+	}
+	return matches[len(matches)-1][1]
 }
 
 func (i inspector) collect(ctx context.Context, query, table string) (map[string][]string, error) {

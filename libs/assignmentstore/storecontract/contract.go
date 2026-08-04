@@ -278,12 +278,48 @@ func assertRolePermissionIndex(t *testing.T, store assignmentstore.Store) {
 		[]string{"tenant_id", "role_external_id"})
 }
 
+// §8.2 asks for active user overrides to be indexed by tenant, hospital, user and
+// validity period. The leading columns alone would be satisfied by the unique key
+// that happens to start the same way, so the validity columns are required
+// explicitly: without them the "which overrides are in force now" lookup, the one
+// the ADS makes on every decision, has nothing behind it.
 func assertUserOverrideIndex(t *testing.T, store assignmentstore.Store) {
 	t.Helper()
 	defer closeStore(t, store)
 
 	assertIndexCovers(t, store, "user_permission_override",
 		[]string{"tenant_id", "hospital_id", "user_external_id"})
+	assertIndexIncludes(t, store, "user_permission_override",
+		[]string{"tenant_id", "hospital_id", "user_external_id", "valid_from", "valid_until"})
+}
+
+// assertIndexIncludes requires one index containing all the given columns, in any
+// order. Which order an engine's optimiser prefers is its business; that the
+// validity dimension is indexed at all is not.
+func assertIndexIncludes(t *testing.T, store assignmentstore.Store, table string, want []string) {
+	t.Helper()
+	ctx := context.Background()
+
+	indexes, err := store.Schema().Indexes(ctx, table)
+	if err != nil {
+		t.Fatalf("listing indexes on %s: %v", table, err)
+	}
+
+	for _, columns := range indexes {
+		if containsAll(columns, want) {
+			return
+		}
+	}
+	t.Fatalf("no index on %s covers %v; indexes are %v", table, want, indexes)
+}
+
+func containsAll(columns, want []string) bool {
+	for _, needed := range want {
+		if !slices.Contains(columns, needed) {
+			return false
+		}
+	}
+	return true
 }
 
 // assertIndexCovers requires some index or unique key whose leading columns are
