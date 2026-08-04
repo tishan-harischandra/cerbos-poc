@@ -271,6 +271,23 @@ func TestAPrincipalWithNoRolesResolvesToNoPermissions(t *testing.T) {
 	}
 }
 
+// A role claim arrives from a token, so it can carry blanks and repeats. Neither
+// should reach the database: a blank is a lookup for the empty role, and a
+// repeat is a bind placeholder that buys no extra answer.
+func TestABlankOrRepeatedRoleClaimNeverReachesTheQuery(t *testing.T) {
+	matrix := &recordingMatrix{}
+
+	query := doctorQuery("kc:realm:patient-app:doctor", "", "kc:realm:patient-app:doctor")
+	if _, err := newResolver(matrix).For(context.Background(), query); err != nil {
+		t.Fatalf("For: %v", err)
+	}
+
+	asked := matrix.queries[0].RoleExternalIDs
+	if len(asked) != 1 || asked[0] != "kc:realm:patient-app:doctor" {
+		t.Errorf("the matrix was asked for %v, want the one role once", asked)
+	}
+}
+
 // An unreachable database must not read as "this principal has no permissions".
 // That failure mode turns an outage into a silent, total grant of nothing,
 // which the caller cannot distinguish from a legitimate default deny.

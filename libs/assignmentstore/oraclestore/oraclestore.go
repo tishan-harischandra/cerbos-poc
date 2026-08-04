@@ -132,6 +132,12 @@ func (s *Store) RolePermission(ctx context.Context, key assignmentstore.RolePerm
 // the placeholders are generated from the role count. They are positional binds,
 // never interpolated values, so nothing a caller supplies reaches the statement
 // text.
+//
+// Oracle caps an IN list at 1000 expressions (ORA-01795). §11.2 sizes a tenant
+// at roughly 250 roles and the caller deduplicates the claim, so a real
+// principal stays well under that. A deployment that ever approaches it needs
+// chunked reads or a collection type rather than a larger statement, and would
+// see a clear ORA-01795 rather than a wrong answer.
 func (s *Store) ActiveRolePermissions(ctx context.Context, query assignmentstore.ActiveRolePermissionQuery) ([]assignmentstore.RolePermission, error) {
 	if len(query.RoleExternalIDs) == 0 {
 		return nil, nil

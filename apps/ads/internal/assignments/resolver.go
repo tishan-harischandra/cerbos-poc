@@ -108,18 +108,28 @@ func (r *Resolver) For(ctx context.Context, query authz.AssignmentQuery) (permis
 	return input, nil
 }
 
-// canonicalRoles drops empty entries so a stray blank in a token's role claim
-// cannot become a lookup for the empty role.
+// canonicalRoles drops empty entries and repeats.
+//
+// A blank would become a lookup for the empty role. A repeat is harmless by the
+// time it reaches the wire, because Assemble collects actions into a set, but it
+// reaches the database first: on Oracle each role is a bind placeholder, and a
+// token that repeats a claim would grow the statement for no added answer.
 //
 // The identifiers are otherwise passed through untouched: they are already the
 // §7.5 canonical form the matrix is keyed by, and normalising a token claim
 // into that form is the identity adapter's job, not this one's.
 func canonicalRoles(roles []string) []string {
 	canonical := make([]string, 0, len(roles))
+	seen := make(map[string]struct{}, len(roles))
 	for _, role := range roles {
-		if role != "" {
-			canonical = append(canonical, role)
+		if role == "" {
+			continue
 		}
+		if _, repeated := seen[role]; repeated {
+			continue
+		}
+		seen[role] = struct{}{}
+		canonical = append(canonical, role)
 	}
 	if len(canonical) == 0 {
 		return nil
