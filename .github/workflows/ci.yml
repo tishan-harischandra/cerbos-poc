@@ -55,6 +55,114 @@ jobs:
       - name: Compile the policies and run the precedence matrix
         run: make policy-test
 
+  # The migration and store contracts against the default engine. Fast enough to
+  # run on every push, unlike the Oracle half below.
+  database:
+    name: authorization schema on postgres
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Start PostgreSQL
+        run: |
+          cp .env.example .env
+          docker compose up --detach postgres
+          bash scripts/compose-wait.sh postgres
+
+      - name: The changelog set applies, twice, and is portable by construction
+        run: bash scripts/tests/migration-contract.sh postgres
+
+      - name: The store contract holds on PostgreSQL
+        run: bash scripts/tests/store-contract.sh postgres
+
+      - name: Database logs
+        if: failure()
+        run: docker compose logs --no-color postgres
+
+      - name: Tear everything down
+        if: always()
+        run: make clean
+
+  # Does this change touch the schema or the store?
+  #
+  # The Oracle job is expensive, so it should not run on an Angular-only change.
+  # Deciding that from the diff rather than from a label matters: a label is a
+  # step someone has to remember, and the one time it is forgotten is the time
+  # the portability claim goes unverified.
+  changes:
+    name: what changed
+    runs-on: ubuntu-latest
+    outputs:
+      database: ${{ steps.filter.outputs.database }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - id: filter
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        run: |
+          base="${BASE_SHA:-HEAD~1}"
+          if ! git cat-file -e "${base}" 2>/dev/null; then
+            echo "database=true" >> "${GITHUB_OUTPUT}"
+            echo "cannot resolve ${base}; assuming the database changed"
+            exit 0
+          fi
+
+          if git diff --name-only "${base}" HEAD | grep -qE \
+              '^(deploy/liquibase/|libs/assignmentstore/|scripts/liquibase\.sh|scripts/oracle-wait\.sh|scripts/tests/(migration|store)-contract\.sh|docker-compose\.yml|\.github/workflows/ci\.yml)'; then
+            echo "database=true" >> "${GITHUB_OUTPUT}"
+          else
+            echo "database=false" >> "${GITHUB_OUTPUT}"
+          fi
+          echo "changed files:"
+          git diff --name-only "${base}" HEAD
+
+  # Portability is proven by execution: the same changelog set and the same
+  # assertions against Oracle as against PostgreSQL.
+  #
+  # Oracle 23ai Free is a large image and slow to start, so this runs when the
+  # schema or the store changed, and on every push to main regardless. The PRD's
+  # risk register accepts that this is the slowest job in CI.
+  dual-dialect:
+    name: dual dialect portability
+    runs-on: ubuntu-latest
+    needs: changes
+    if: needs.changes.outputs.database == 'true' || github.event_name == 'push'
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Start both engines
+        run: |
+          cp .env.example .env
+          docker compose up --detach postgres
+          docker compose --profile oracle up --detach oracle
+          bash scripts/compose-wait.sh postgres
+
+      - name: Wait for Oracle to create its pluggable database
+        run: bash scripts/oracle-wait.sh
+
+      - name: The same changelog set applies to PostgreSQL
+        run: bash scripts/tests/migration-contract.sh postgres
+
+      - name: The same changelog set applies to Oracle
+        run: bash scripts/tests/migration-contract.sh oracle
+
+      # REQUIRE_ENGINES makes a skipped engine a failure, so this step cannot
+      # pass by quietly not running.
+      - name: One contract suite, both engines
+        run: bash scripts/tests/store-contract.sh dual
+
+      - name: Database logs
+        if: failure()
+        run: docker compose --profile oracle logs --no-color
+
+      - name: Tear everything down
+        if: always()
+        run: make clean
+
   compose:
     name: docker compose walking skeleton
     runs-on: ubuntu-latest

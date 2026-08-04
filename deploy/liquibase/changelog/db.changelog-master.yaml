@@ -1,0 +1,23 @@
+# The authorization schema (§8.1, §8.2), as one changelog set for every engine.
+#
+# Portability rules this set follows, and the reasons they matter:
+#
+#   * Generic Liquibase types only. Liquibase maps them per engine, so BOOLEAN
+#     becomes NUMBER(1) on Oracle and CLOB becomes TEXT on PostgreSQL without
+#     either being named here.
+#   * `dbms`-qualified changesets only where the dialects genuinely diverge, and
+#     each one carries a comment saying why. There are none in this set.
+#   * JSON columns are CLOB rather than a native JSON type. The two engines'
+#     JSON types differ in what they normalise away - key order and whitespace -
+#     and no application query looks inside these documents, so storing them as
+#     text is what makes them round-trip identically. See the JSON round-trip
+#     case in the store contract.
+#   * Timestamps are TIMESTAMP WITH TIME ZONE, which both engines support
+#     natively, so an instant keeps its meaning rather than being reinterpreted
+#     in the session zone.
+#   * Identifiers stay within 30 characters, the tightest limit any supported
+#     Oracle release imposes, so nothing has to be renamed for an older target.
+databaseChangeLog:
+  - includeAll:
+      path: tables
+      relativeToChangelogFile: true

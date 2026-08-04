@@ -1,5 +1,12 @@
 #!/usr/bin/env bash
-# Block until every compose container reports healthy.
+# Block until compose containers report healthy.
+#
+#   scripts/compose-wait.sh [service...]
+#
+# With no arguments it waits for every container the project owns. Naming
+# services waits for only those, which matters when a slow optional service is
+# running alongside: waiting for Oracle under a timeout meant for the control
+# plane would report a broken stack when it is merely still starting.
 #
 # `docker compose up --wait` only exists in Compose v2; this works on both v1
 # and v2 by inspecting the containers the project owns.
@@ -10,12 +17,17 @@ COMPOSE="${COMPOSE:-${DOCKER} compose}"
 TIMEOUT_SECONDS="${COMPOSE_WAIT_TIMEOUT:-300}"
 
 deadline=$(( SECONDS + TIMEOUT_SECONDS ))
+services=("$@")
 
 while :; do
-  mapfile -t containers < <(${COMPOSE} ps -q | tr -d '\r' | grep -v '^$' || true)
+  mapfile -t containers < <(${COMPOSE} ps -q "${services[@]}" | tr -d '\r' | grep -v '^$' || true)
 
   if (( ${#containers[@]} == 0 )); then
-    echo "compose-wait: no containers are running" >&2
+    if (( ${#services[@]} > 0 )); then
+      echo "compose-wait: none of these services are running: ${services[*]}" >&2
+    else
+      echo "compose-wait: no containers are running" >&2
+    fi
     exit 1
   fi
 

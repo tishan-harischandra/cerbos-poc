@@ -4,6 +4,11 @@
 #   scripts/go.sh <module-dir> <go-args...>
 #
 # Example: scripts/go.sh apps/ads test ./...
+#
+# GO_NETWORK attaches the container to a container network, which is how the
+# database contract suite reaches Postgres and Oracle: neither is published to
+# the host, so a test process outside the compose network cannot see them.
+# GO_ENV_PASS names extra environment variables to forward, space separated.
 set -euo pipefail
 
 GO_IMAGE="${GO_IMAGE:-docker.io/library/golang:1.25-alpine}"
@@ -42,8 +47,22 @@ elif ! "${DOCKER}" info 2>/dev/null | grep -qiE 'rootless:[[:space:]]*true|name=
   user_args=(--user "$(id -u):$(id -g)")
 fi
 
+network_args=()
+if [[ -n "${GO_NETWORK:-}" ]]; then
+  network_args=(--network "${GO_NETWORK}")
+fi
+
+env_args=()
+for name in ${GO_ENV_PASS:-}; do
+  if [[ -n "${!name:-}" ]]; then
+    env_args+=(-e "${name}=${!name}")
+  fi
+done
+
 exec "${DOCKER}" run --rm \
   "${user_args[@]}" \
+  "${network_args[@]}" \
+  "${env_args[@]}" \
   -v "${repo_root}:/workspace:z" \
   -v "${cache_dir}/build:/gocache:z" \
   -v "${cache_dir}/mod:/gomodcache:z" \

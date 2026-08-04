@@ -1,0 +1,29 @@
+databaseChangeLog:
+  - changeSet:
+      id: 001-installation-config
+      author: cerbos-poc
+      comment: Per-installation identity provider selection and active root tag.
+      changes:
+        - createTable:
+            tableName: installation_config
+            columns:
+              - column:
+                  name: installation_id
+                  type: VARCHAR(64)
+                  constraints:
+                    primaryKey: true
+                    primaryKeyName: pk_installation_config
+                    nullable: false
+              - column:
+                  name: idp_type
+                  type: VARCHAR(32)
+                  constraints:
+                    nullable: false
+              # The provider's own configuration document. CLOB, like every other
+              # JSON column here, so both engines return exactly what was stored.
+              - column:
+                  name: idp_config
+                  type: CLOB
+              - column:
+                  name: active_root_tag
+                  type: VARCHAR(128)
