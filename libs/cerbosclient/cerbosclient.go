@@ -152,6 +152,12 @@ func (c *Client) Check(ctx context.Context, req Request) (Result, error) {
 
 	principal := cerbos.NewPrincipal(req.Principal.ID, EvaluationRole).
 		WithAttributes(req.Principal.Attr)
+	// Err() reports attribute values the wire format cannot carry. The SDK
+	// records them here and otherwise drops them silently, which is how a
+	// missing permissionContext once turned into a PDP that denied everything.
+	if err := principal.Err(); err != nil {
+		return Result{}, fmt.Errorf("cerbosclient: encoding principal attributes: %w", err)
+	}
 	if err := principal.Validate(); err != nil {
 		return Result{}, fmt.Errorf("cerbosclient: invalid principal: %w", err)
 	}
@@ -165,6 +171,10 @@ func (c *Client) Check(ctx context.Context, req Request) (Result, error) {
 		resource := cerbos.NewResource(check.Resource.Kind, check.Resource.ID).
 			WithPolicyVersion(c.policyVersion).
 			WithAttributes(check.Attr)
+		if err := resource.Err(); err != nil {
+			return Result{}, fmt.Errorf("cerbosclient: encoding attributes of %s/%s: %w",
+				check.Resource.Kind, check.Resource.ID, err)
+		}
 		batch = batch.Add(resource, check.Actions...)
 	}
 	if err := batch.Validate(); err != nil {

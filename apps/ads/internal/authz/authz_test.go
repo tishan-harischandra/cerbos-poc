@@ -6,6 +6,7 @@ import (
 	"errors"
 	"net/http"
 	"net/http/httptest"
+	"reflect"
 	"strings"
 	"testing"
 
@@ -135,18 +136,25 @@ func TestTheAssembledPermissionContextIsSentToThePDP(t *testing.T) {
 		t.Fatalf("resources sent to the PDP = %d, want 1", len(pdp.request.Resources))
 	}
 	attr := pdp.request.Resources[0].Attr
-	ctx, ok := attr["permissionContext"].(permissioncontext.Context)
+	// The PDP receives the wire form, not the Go struct: a struct is silently
+	// dropped in transit and the resource then fails schema validation.
+	sent, ok := attr["permissionContext"].(map[string]any)
 	if !ok {
-		t.Fatalf("permissionContext attribute = %#v, want a permissioncontext.Context", attr["permissionContext"])
+		t.Fatalf("permissionContext attribute = %#v, want map[string]any", attr["permissionContext"])
 	}
-	if len(ctx.RoleGrantedActions) != 1 || ctx.RoleGrantedActions[0] != "read" {
-		t.Errorf("roleGrantedActions = %v, want [read]", ctx.RoleGrantedActions)
+	if want := permissioncontext.Assemble(permissioncontext.Input{
+		Revision: 184,
+		RolePermissions: []permissioncontext.RolePermission{
+			{Role: "doctor", Action: "read", Enabled: true},
+		},
+		UserOverrides: []permissioncontext.UserOverride{
+			{Action: "update", State: permissioncontext.Revoke},
+		},
+	}).AsMap(); !reflect.DeepEqual(sent, want) {
+		t.Errorf("permissionContext sent to the PDP = %v, want %v", sent, want)
 	}
-	if len(ctx.UserRevokedActions) != 1 || ctx.UserRevokedActions[0] != "update" {
-		t.Errorf("userRevokedActions = %v, want [update]", ctx.UserRevokedActions)
-	}
-	if ctx.PermissionRevision != 184 {
-		t.Errorf("permissionRevision = %d, want 184", ctx.PermissionRevision)
+	if got := attr["status"]; got != "ACTIVE" {
+		t.Errorf("the caller's resource attributes were not forwarded: status = %v", got)
 	}
 }
 

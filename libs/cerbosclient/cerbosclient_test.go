@@ -160,6 +160,51 @@ func TestNewRejectsAnEmptyAddress(t *testing.T) {
 	}
 }
 
+// An attribute the wire format cannot carry must fail loudly. The Cerbos SDK
+// drops such values silently, which produced a PDP that answered "denied" for
+// everything because permissionContext never arrived.
+func TestAnAttributeThatCannotBeSentIsReportedRatherThanDropped(t *testing.T) {
+	pdp := startFakePDP(t, func(req *requestv1.CheckResourcesRequest) *responsev1.CheckResourcesResponse {
+		t.Error("the PDP was called with an attribute that could not be encoded")
+		return &responsev1.CheckResourcesResponse{}
+	})
+
+	type unencodable struct{ Actions []string }
+
+	_, err := dial(t, pdp.address).Check(context.Background(), cerbosclient.Request{
+		Principal: cerbosclient.Principal{ID: "user-123"},
+		Resources: []cerbosclient.ResourceCheck{{
+			Resource: cerbosclient.ResourceRef{Kind: "patient_record", ID: "patient-456"},
+			Attr:     map[string]any{"permissionContext": unencodable{Actions: []string{"read"}}},
+			Actions:  []string{"read"},
+		}},
+	})
+	if err == nil {
+		t.Fatal("Check accepted an attribute that cannot be encoded")
+	}
+}
+
+func TestAnUnencodablePrincipalAttributeIsReported(t *testing.T) {
+	pdp := startFakePDP(t, func(*requestv1.CheckResourcesRequest) *responsev1.CheckResourcesResponse {
+		t.Error("the PDP was called with an attribute that could not be encoded")
+		return &responsev1.CheckResourcesResponse{}
+	})
+
+	_, err := dial(t, pdp.address).Check(context.Background(), cerbosclient.Request{
+		Principal: cerbosclient.Principal{
+			ID:   "user-123",
+			Attr: map[string]any{"idpRoles": make(chan int)},
+		},
+		Resources: []cerbosclient.ResourceCheck{{
+			Resource: cerbosclient.ResourceRef{Kind: "patient_record", ID: "patient-456"},
+			Actions:  []string{"read"},
+		}},
+	})
+	if err == nil {
+		t.Fatal("Check accepted a principal attribute that cannot be encoded")
+	}
+}
+
 func TestCheckRejectsARequestWithNoResources(t *testing.T) {
 	pdp := startFakePDP(t, func(*requestv1.CheckResourcesRequest) *responsev1.CheckResourcesResponse {
 		t.Error("the PDP was called for a request with no resources")

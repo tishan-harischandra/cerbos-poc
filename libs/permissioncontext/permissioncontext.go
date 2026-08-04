@@ -85,6 +85,31 @@ func Assemble(in Input) Context {
 	}
 }
 
+// AsMap renders the context as the value Cerbos will carry in
+// request.resource.attr.permissionContext.
+//
+// Cerbos transports attributes as protobuf Struct values, which accept only
+// JSON-shaped Go values. A Go struct handed straight to the SDK is dropped
+// without an error, and a resource whose permissionContext never arrived is
+// denied for every action by schema enforcement. Converting here keeps that
+// knowledge in the package that owns the wire contract.
+func (c Context) AsMap() map[string]any {
+	return map[string]any{
+		"roleGrantedActions": asAnySlice(c.RoleGrantedActions),
+		"userGrantedActions": asAnySlice(c.UserGrantedActions),
+		"userRevokedActions": asAnySlice(c.UserRevokedActions),
+		"permissionRevision": c.PermissionRevision,
+	}
+}
+
+func asAnySlice(actions []string) []any {
+	values := make([]any, 0, len(actions))
+	for _, action := range actions {
+		values = append(values, action)
+	}
+	return values
+}
+
 func sortedActions(set map[string]struct{}) []string {
 	actions := make([]string, 0, len(set))
 	for action := range set {

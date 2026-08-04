@@ -148,6 +148,74 @@ func TestEmptySetsEncodeAsEmptyArrays(t *testing.T) {
 	}
 }
 
+// Cerbos carries resource attributes as protobuf Struct values, which accept
+// only JSON-shaped Go values. Handing the struct across directly means the SDK
+// drops it and the PDP denies everything, so the owning package converts it.
+func TestTheContextConvertsToWireSafeValues(t *testing.T) {
+	assembled := permissioncontext.Assemble(permissioncontext.Input{
+		Revision: 184,
+		RolePermissions: []permissioncontext.RolePermission{
+			{Role: "doctor", Action: "read", Enabled: true},
+		},
+		UserOverrides: []permissioncontext.UserOverride{
+			{Action: "update", State: permissioncontext.Revoke},
+		},
+	})
+
+	wire := assembled.AsMap()
+
+	roleGranted, ok := wire["roleGrantedActions"].([]any)
+	if !ok {
+		t.Fatalf("roleGrantedActions = %#v, want []any", wire["roleGrantedActions"])
+	}
+	if len(roleGranted) != 1 || roleGranted[0] != "read" {
+		t.Errorf("roleGrantedActions = %v, want [read]", roleGranted)
+	}
+
+	userRevoked, ok := wire["userRevokedActions"].([]any)
+	if !ok {
+		t.Fatalf("userRevokedActions = %#v, want []any", wire["userRevokedActions"])
+	}
+	if len(userRevoked) != 1 || userRevoked[0] != "update" {
+		t.Errorf("userRevokedActions = %v, want [update]", userRevoked)
+	}
+
+	if got, ok := wire["permissionRevision"].(int64); !ok || got != 184 {
+		t.Errorf("permissionRevision = %#v, want int64 184", wire["permissionRevision"])
+	}
+
+	// The schema types these as arrays, so an absent set must still be an
+	// empty array rather than a missing key or a nil.
+	userGranted, ok := wire["userGrantedActions"].([]any)
+	if !ok {
+		t.Fatalf("userGrantedActions = %#v, want []any", wire["userGrantedActions"])
+	}
+	if len(userGranted) != 0 {
+		t.Errorf("userGrantedActions = %v, want empty", userGranted)
+	}
+}
+
+// The schema is closed: an extra key would be rejected by the PDP, and a key
+// like a decision would be a verdict leaking out of Go.
+func TestTheWireMapCarriesExactlyTheSchemaFields(t *testing.T) {
+	wire := permissioncontext.Assemble(permissioncontext.Input{}).AsMap()
+
+	want := map[string]bool{
+		"roleGrantedActions": true,
+		"userGrantedActions": true,
+		"userRevokedActions": true,
+		"permissionRevision": true,
+	}
+	if len(wire) != len(want) {
+		t.Errorf("wire map has %d keys, want %d: %v", len(wire), len(want), wire)
+	}
+	for key := range wire {
+		if !want[key] {
+			t.Errorf("unexpected key %q in the wire map", key)
+		}
+	}
+}
+
 func assertActions(t *testing.T, field string, want, got []string) {
 	t.Helper()
 	if len(want) != len(got) {

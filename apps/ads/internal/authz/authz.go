@@ -157,7 +157,9 @@ func NewHandler(cfg Config) http.Handler {
 			for name, value := range resource.Attributes {
 				attr[name] = value
 			}
-			attr["permissionContext"] = assembled
+			// AsMap, not the struct: Cerbos carries attributes as protobuf
+			// Struct values and a Go struct would be dropped in transit.
+			attr["permissionContext"] = assembled.AsMap()
 
 			checkReq.Resources = append(checkReq.Resources, cerbosclient.ResourceCheck{
 				Resource: ref,
