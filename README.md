@@ -5,9 +5,13 @@ A working prototype of the design in
 The product requirements live in
 [`docs/PRD_Cerbos_Authorization_Prototype.md`](docs/PRD_Cerbos_Authorization_Prototype.md).
 
-This is the walking skeleton: an Nx workspace driving Go and Angular in one
-dependency graph, one Go service, one Angular app, and a `docker compose` stack
-with PostgreSQL and the Cerbos PDP. There is no authorization logic yet.
+The workspace is an Nx monorepo driving Go and Angular in one dependency graph,
+running as a `docker compose` stack with PostgreSQL and the Cerbos PDP.
+
+The ADS serves real authorization decisions on `POST /internal/authz/check`,
+decided by a hand-authored `patient_record` policy through the single synthetic
+evaluation role. Permission assignments are seeded in process; the authorization
+database arrives with the role matrix slice.
 
 ## Prerequisites
 
@@ -49,6 +53,7 @@ only from inside the compose network, which is what keeps the PDP private.
 | Admin Console | <http://localhost:4200> | `admin-console:80` | yes (`ADMIN_CONSOLE_PORT`) |
 | ADS health | <http://localhost:4200/api/ads/healthz> | `ads:8080/healthz` | via the console proxy only |
 | ADS readiness | <http://localhost:4200/api/ads/readyz> | `ads:8080/readyz` | via the console proxy only |
+| ADS decisions | `POST /api/ads/internal/authz/check` | `ads:8080/internal/authz/check` | via the console proxy only |
 | Cerbos PDP (gRPC) | not reachable | `cerbos:3593` | no |
 | Cerbos PDP (HTTP) | not reachable | `cerbos:3592` | no |
 | PostgreSQL | not reachable | `postgres:5432` | no |
@@ -75,16 +80,21 @@ introduce those services.
 ## Workspace layout
 
 ```
-apps/ads              Go service: /healthz and /readyz
+apps/ads              Go service: health, readiness and the decision endpoint
 apps/admin-console    Angular app: live platform status
+libs/permissioncontext  Assembles permissionContext data; never a verdict
+libs/cerbosclient     Long-lived gRPC channel to the PDP
 deploy/cerbos         Cerbos config and the policy directory (one file per resource)
+tests/architecture    Executable checks for constraints no compiler enforces
 scripts/              Container-backed toolchain helpers and infrastructure tests
 ```
 
 ## Development
 
 ```bash
-make test          # every project's tests plus the compose topology contract
+make test          # every project's tests, the policy suite, the compose contract
+make policy-test   # compile the policies and run the precedence matrix alone
+make smoke         # health checks and real decisions against a running stack
 make graph         # the single Go + Angular dependency graph
 make gen           # every project's code generators
 npx nx affected --target=test --base=main
@@ -107,3 +117,18 @@ role grant beats default deny — lives **exclusively** in Cerbos policy, under
 the single synthetic role `sys:permission-evaluator`. The ADS assembles
 `permissionContext` data and never computes a verdict. Any Go code that orders
 deny above grant is a defect.
+
+Three layers hold that line:
+
+- **The policy suite** (`make policy-test`) states the rules and proves all seven
+  §19.1 cases for `read`, `update` and `delete`, plus tenant and hospital
+  isolation. `deploy/cerbos/policies/resources/multirole_control.yaml` is a
+  deliberate counter-example: it shows an allow on one role defeating a deny on
+  another, which is the hazard the synthetic role exists to remove.
+- **The architecture test** (`tests/architecture`) parses every Go file and fails
+  on any read of `roleGrantedActions`, `userGrantedActions` or
+  `userRevokedActions` outside the package that defines them, because that is
+  where a Go-side precedence implementation would begin.
+- **The end-to-end decision test** (`scripts/tests/decision-e2e.sh`, part of
+  `make smoke`) drives the matrix through the running ADS into a real PDP, so a
+  policy that never loaded or a context that never arrived cannot pass.

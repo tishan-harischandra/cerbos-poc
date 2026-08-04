@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"log/slog"
 	"net/http"
 	"net/http/httptest"
 	"reflect"
@@ -155,6 +156,49 @@ func TestTheAssembledPermissionContextIsSentToThePDP(t *testing.T) {
 	}
 	if got := attr["status"]; got != "ACTIVE" {
 		t.Errorf("the caller's resource attributes were not forwarded: status = %v", got)
+	}
+}
+
+// §11.3: a decision must be traceable from the caller's correlation ID into the
+// PDP's own audit log, which means both IDs on one log record.
+func TestTheDecisionIsLoggedWithBothCorrelationIDs(t *testing.T) {
+	pdp := &recordingPDP{result: cerbosclient.Result{CallID: "01HZY2CALLID"}}
+
+	var logged strings.Builder
+	handler := authz.NewHandler(authz.Config{
+		PDP:         pdp,
+		Assignments: emptyAssignments{},
+		Logger:      slog.New(slog.NewJSONHandler(&logged, nil)),
+	})
+
+	request := post(validRequest)
+	request.Header.Set("X-Correlation-Id", "corr-42")
+	handler.ServeHTTP(httptest.NewRecorder(), request)
+
+	var record struct {
+		Message       string `json:"msg"`
+		CorrelationID string `json:"correlationId"`
+		CerbosCallID  string `json:"cerbosCallId"`
+	}
+	found := false
+	for _, line := range strings.Split(strings.TrimSpace(logged.String()), "\n") {
+		if err := json.Unmarshal([]byte(line), &record); err != nil {
+			t.Fatalf("log line is not JSON: %v", err)
+		}
+		if record.CerbosCallID != "" {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Fatalf("no log record carried a cerbosCallId; log was:\n%s", logged.String())
+	}
+
+	if record.CorrelationID != "corr-42" {
+		t.Errorf("correlationId = %q, want the inbound header value", record.CorrelationID)
+	}
+	if record.CerbosCallID != "01HZY2CALLID" {
+		t.Errorf("cerbosCallId = %q, want the ID the PDP reported", record.CerbosCallID)
 	}
 }
 
