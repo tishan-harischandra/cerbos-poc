@@ -8,5 +8,12 @@ storage:
     directory: /policies
     watchForChanges: true
 
+schema:
+  # `cerbos compile` validates schemas while running policy tests, so without
+  # this the served PDP would be more permissive than the suite that proves it:
+  # a request missing permissionContext would only warn instead of being
+  # rejected ([R10]).
+  enforcement: reject
+
 audit:
   enabled: false
