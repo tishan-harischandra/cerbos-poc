@@ -1,0 +1,328 @@
+---
+# The §19.1 minimum policy test matrix, expressed against the single synthetic
+# evaluation role. This suite is the proof of ADR-003: every rule in the
+# patient_record policy evaluates against `sys:permission-evaluator`, so a
+# user revoke must beat a role grant deterministically rather than losing to
+# Cerbos' cross-role allow-wins semantics.
+name: PatientRecordPrecedence
+description: Mandatory deny > user REVOKE > user GRANT > role grant > default deny
+
+principals:
+  doctor:
+    id: idp-user-123
+    roles:
+      - "sys:permission-evaluator"
+    attr:
+      tenantId: tenant-a
+      hospitalId: hospital-1
+      idpRoles:
+        - "kc:realm:patient-app:doctor"
+
+  doctor_of_other_tenant:
+    id: idp-user-999
+    roles:
+      - "sys:permission-evaluator"
+    attr:
+      tenantId: tenant-b
+      hospitalId: hospital-1
+      idpRoles:
+        - "kc:realm:patient-app:doctor"
+
+  doctor_of_other_hospital:
+    id: idp-user-888
+    roles:
+      - "sys:permission-evaluator"
+    attr:
+      tenantId: tenant-a
+      hospitalId: hospital-2
+      idpRoles:
+        - "kc:realm:patient-app:doctor"
+
+resources:
+  # Row 2: mandatory passes, user revokes, role grants.
+  revoked_over_role_grant:
+    kind: patient_record
+    policyVersion: v1
+    id: patient-456
+    attr: &revoked_over_role_grant
+      tenantId: tenant-a
+      hospitalId: hospital-1
+      status: ACTIVE
+      permissionContext:
+        roleGrantedActions: ["read", "update", "delete"]
+        userGrantedActions: []
+        userRevokedActions: ["read", "update", "delete"]
+        permissionRevision: 184
+
+  # Row 3: mandatory passes, user revokes, no role grant.
+  revoked_without_role_grant:
+    kind: patient_record
+    policyVersion: v1
+    id: patient-456
+    attr:
+      tenantId: tenant-a
+      hospitalId: hospital-1
+      status: ACTIVE
+      permissionContext:
+        roleGrantedActions: []
+        userGrantedActions: []
+        userRevokedActions: ["read", "update", "delete"]
+        permissionRevision: 184
+
+  # Row 4: mandatory passes, user grants, no role grant.
+  user_granted_without_role_grant:
+    kind: patient_record
+    policyVersion: v1
+    id: patient-456
+    attr:
+      tenantId: tenant-a
+      hospitalId: hospital-1
+      status: ACTIVE
+      permissionContext:
+        roleGrantedActions: []
+        userGrantedActions: ["read", "update", "delete"]
+        userRevokedActions: []
+        permissionRevision: 184
+
+  # Row 5: mandatory passes, user grants, role grants.
+  user_granted_with_role_grant:
+    kind: patient_record
+    policyVersion: v1
+    id: patient-456
+    attr:
+      tenantId: tenant-a
+      hospitalId: hospital-1
+      status: ACTIVE
+      permissionContext:
+        roleGrantedActions: ["read", "update", "delete"]
+        userGrantedActions: ["read", "update", "delete"]
+        userRevokedActions: []
+        permissionRevision: 184
+
+  # Row 6: mandatory passes, user inherits, role grants.
+  inherited_with_role_grant:
+    kind: patient_record
+    policyVersion: v1
+    id: patient-456
+    attr:
+      tenantId: tenant-a
+      hospitalId: hospital-1
+      status: ACTIVE
+      permissionContext:
+        roleGrantedActions: ["read", "update", "delete"]
+        userGrantedActions: []
+        userRevokedActions: []
+        permissionRevision: 184
+
+  # Row 7: mandatory passes, user inherits, no role grant.
+  inherited_without_role_grant:
+    kind: patient_record
+    policyVersion: v1
+    id: patient-456
+    attr:
+      tenantId: tenant-a
+      hospitalId: hospital-1
+      status: ACTIVE
+      permissionContext:
+        roleGrantedActions: []
+        userGrantedActions: []
+        userRevokedActions: []
+        permissionRevision: 184
+
+  # Row 1: a mandatory restriction denies regardless of role or user grant.
+  locked_with_every_grant:
+    kind: patient_record
+    policyVersion: v1
+    id: patient-456
+    attr:
+      tenantId: tenant-a
+      hospitalId: hospital-1
+      status: LOCKED
+      permissionContext:
+        roleGrantedActions: ["read", "update", "delete"]
+        userGrantedActions: ["read", "update", "delete"]
+        userRevokedActions: []
+        permissionRevision: 184
+
+  # Row 1 again, via the isolation invariant rather than resource state.
+  other_tenant_record:
+    kind: patient_record
+    policyVersion: v1
+    id: patient-777
+    attr:
+      tenantId: tenant-b
+      hospitalId: hospital-1
+      status: ACTIVE
+      permissionContext:
+        roleGrantedActions: ["read", "update", "delete"]
+        userGrantedActions: ["read", "update", "delete"]
+        userRevokedActions: []
+        permissionRevision: 184
+
+  other_hospital_record:
+    kind: patient_record
+    policyVersion: v1
+    id: patient-888
+    attr:
+      tenantId: tenant-a
+      hospitalId: hospital-2
+      status: ACTIVE
+      permissionContext:
+        roleGrantedActions: ["read", "update", "delete"]
+        userGrantedActions: ["read", "update", "delete"]
+        userRevokedActions: []
+        permissionRevision: 184
+
+tests:
+  - name: a user revoke denies even when a role grants the action
+    input:
+      principals: [doctor]
+      resources: [revoked_over_role_grant]
+      actions: ["read", "update", "delete"]
+    expected:
+      - principal: doctor
+        resource: revoked_over_role_grant
+        actions:
+          read: EFFECT_DENY
+          update: EFFECT_DENY
+          delete: EFFECT_DENY
+
+  - name: a user revoke denies when no role grants the action
+    input:
+      principals: [doctor]
+      resources: [revoked_without_role_grant]
+      actions: ["read", "update", "delete"]
+    expected:
+      - principal: doctor
+        resource: revoked_without_role_grant
+        actions:
+          read: EFFECT_DENY
+          update: EFFECT_DENY
+          delete: EFFECT_DENY
+
+  - name: a user grant allows when no role grants the action
+    input:
+      principals: [doctor]
+      resources: [user_granted_without_role_grant]
+      actions: ["read", "update", "delete"]
+    expected:
+      - principal: doctor
+        resource: user_granted_without_role_grant
+        actions:
+          read: EFFECT_ALLOW
+          update: EFFECT_ALLOW
+          delete: EFFECT_ALLOW
+
+  - name: a user grant allows when a role also grants the action
+    input:
+      principals: [doctor]
+      resources: [user_granted_with_role_grant]
+      actions: ["read", "update", "delete"]
+    expected:
+      - principal: doctor
+        resource: user_granted_with_role_grant
+        actions:
+          read: EFFECT_ALLOW
+          update: EFFECT_ALLOW
+          delete: EFFECT_ALLOW
+
+  - name: an inherited override falls through to the role grant
+    input:
+      principals: [doctor]
+      resources: [inherited_with_role_grant]
+      actions: ["read", "update", "delete"]
+    expected:
+      - principal: doctor
+        resource: inherited_with_role_grant
+        actions:
+          read: EFFECT_ALLOW
+          update: EFFECT_ALLOW
+          delete: EFFECT_ALLOW
+
+  - name: an inherited override with no role grant falls through to default deny
+    input:
+      principals: [doctor]
+      resources: [inherited_without_role_grant]
+      actions: ["read", "update", "delete"]
+    expected:
+      - principal: doctor
+        resource: inherited_without_role_grant
+        actions:
+          read: EFFECT_DENY
+          update: EFFECT_DENY
+          delete: EFFECT_DENY
+
+  - name: a locked record denies mutation regardless of role or user grant
+    input:
+      principals: [doctor]
+      resources: [locked_with_every_grant]
+      actions: ["update", "delete"]
+    expected:
+      - principal: doctor
+        resource: locked_with_every_grant
+        actions:
+          update: EFFECT_DENY
+          delete: EFFECT_DENY
+
+  - name: locking a record does not withdraw the right to read it
+    input:
+      principals: [doctor]
+      resources: [locked_with_every_grant]
+      actions: ["read"]
+    expected:
+      - principal: doctor
+        resource: locked_with_every_grant
+        actions:
+          read: EFFECT_ALLOW
+
+  - name: a record in another tenant is denied every action
+    input:
+      principals: [doctor]
+      resources: [other_tenant_record]
+      actions: ["read", "update", "delete"]
+    expected:
+      - principal: doctor
+        resource: other_tenant_record
+        actions:
+          read: EFFECT_DENY
+          update: EFFECT_DENY
+          delete: EFFECT_DENY
+
+  - name: a principal from another tenant is denied every action
+    input:
+      principals: [doctor_of_other_tenant]
+      resources: [inherited_with_role_grant]
+      actions: ["read", "update", "delete"]
+    expected:
+      - principal: doctor_of_other_tenant
+        resource: inherited_with_role_grant
+        actions:
+          read: EFFECT_DENY
+          update: EFFECT_DENY
+          delete: EFFECT_DENY
+
+  - name: a record in another hospital of the same tenant is denied every action
+    input:
+      principals: [doctor]
+      resources: [other_hospital_record]
+      actions: ["read", "update", "delete"]
+    expected:
+      - principal: doctor
+        resource: other_hospital_record
+        actions:
+          read: EFFECT_DENY
+          update: EFFECT_DENY
+          delete: EFFECT_DENY
+
+  - name: a principal from another hospital is denied every action
+    input:
+      principals: [doctor_of_other_hospital]
+      resources: [inherited_with_role_grant]
+      actions: ["read", "update", "delete"]
+    expected:
+      - principal: doctor_of_other_hospital
+        resource: inherited_with_role_grant
+        actions:
+          read: EFFECT_DENY
+          update: EFFECT_DENY
+          delete: EFFECT_DENY

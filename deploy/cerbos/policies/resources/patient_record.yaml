@@ -1,0 +1,124 @@
+---
+# Root resource policy for patient_record (ADR-006: one file per resource).
+#
+# Every rule binds to the single synthetic role `sys:permission-evaluator`
+# (§6.4, ADR-003). That is the whole point: Cerbos resolves deny-over-allow
+# within a role but lets an allow from one role defeat a deny from another, so
+# funnelling every rule through one role is what makes
+#
+#     mandatory deny > user REVOKE > user GRANT > role grant > default deny
+#
+# deterministic. The ADS supplies the three action sets as resource data and
+# never decides anything itself (§6.3, §21).
+apiVersion: api.cerbos.dev/v1
+resourcePolicy:
+  resource: patient_record
+  version: v1
+
+  variables:
+    local:
+      same_tenant: >-
+        request.principal.attr.tenantId == request.resource.attr.tenantId
+      same_hospital: >-
+        request.principal.attr.hospitalId == request.resource.attr.hospitalId
+      isolated: >-
+        request.principal.attr.tenantId == request.resource.attr.tenantId &&
+        request.principal.attr.hospitalId == request.resource.attr.hospitalId
+      role_actions: request.resource.attr.permissionContext.roleGrantedActions
+      user_grants: request.resource.attr.permissionContext.userGrantedActions
+      user_revokes: request.resource.attr.permissionContext.userRevokedActions
+      is_locked: request.resource.attr.status == "LOCKED"
+
+  rules:
+    # Mandatory restrictions first. These cannot be bypassed by any grant,
+    # which is why they are expressed as explicit denies rather than as
+    # conditions on the allow rules.
+    - name: locked_record_restriction
+      actions: ["update", "delete"]
+      effect: EFFECT_DENY
+      roles: ["sys:permission-evaluator"]
+      condition:
+        match:
+          expr: variables.is_locked
+
+    # User revocations outrank every grant below.
+    - name: revoke_read
+      actions: ["read"]
+      effect: EFFECT_DENY
+      roles: ["sys:permission-evaluator"]
+      condition:
+        match:
+          expr: '"read" in variables.user_revokes'
+
+    - name: revoke_update
+      actions: ["update"]
+      effect: EFFECT_DENY
+      roles: ["sys:permission-evaluator"]
+      condition:
+        match:
+          expr: '"update" in variables.user_revokes'
+
+    - name: revoke_delete
+      actions: ["delete"]
+      effect: EFFECT_DENY
+      roles: ["sys:permission-evaluator"]
+      condition:
+        match:
+          expr: '"delete" in variables.user_revokes'
+
+    # User grants. Kept separate from role grants so an audit trail records
+    # which source of authority allowed the action.
+    - name: grant_read_to_user
+      actions: ["read"]
+      effect: EFFECT_ALLOW
+      roles: ["sys:permission-evaluator"]
+      condition:
+        match:
+          expr: '"read" in variables.user_grants && variables.isolated'
+
+    - name: grant_update_to_user
+      actions: ["update"]
+      effect: EFFECT_ALLOW
+      roles: ["sys:permission-evaluator"]
+      condition:
+        match:
+          expr: '"update" in variables.user_grants && variables.isolated'
+
+    - name: grant_delete_to_user
+      actions: ["delete"]
+      effect: EFFECT_ALLOW
+      roles: ["sys:permission-evaluator"]
+      condition:
+        match:
+          expr: '"delete" in variables.user_grants && variables.isolated'
+
+    # Role grants, the default source of business capability.
+    - name: grant_read_to_role
+      actions: ["read"]
+      effect: EFFECT_ALLOW
+      roles: ["sys:permission-evaluator"]
+      condition:
+        match:
+          expr: '"read" in variables.role_actions && variables.isolated'
+
+    - name: grant_update_to_role
+      actions: ["update"]
+      effect: EFFECT_ALLOW
+      roles: ["sys:permission-evaluator"]
+      condition:
+        match:
+          expr: '"update" in variables.role_actions && variables.isolated'
+
+    - name: grant_delete_to_role
+      actions: ["delete"]
+      effect: EFFECT_ALLOW
+      roles: ["sys:permission-evaluator"]
+      condition:
+        match:
+          expr: '"delete" in variables.role_actions && variables.isolated'
+
+  schemas:
+    principalSchema:
+      ref: cerbos:///principal.json
+    resourceSchema:
+      ref: cerbos:///patient_record.json
