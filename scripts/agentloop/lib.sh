@@ -16,6 +16,32 @@ die() {
   exit 1
 }
 
+# Reads a GitHub statusCheckRollup array on stdin and prints one verdict:
+#   none | green | pending:<n> | red:<n>
+#
+# Judged from the rollup rather than `gh pr checks --required`, which exits
+# non-zero when a branch simply has no required checks configured. Treating that
+# as failure would block every merge on an unprotected repository.
+rollup_verdict() {
+  jq -r '
+    (. // []) as $checks
+    | ($checks | length) as $total
+    | if $total == 0 then "none"
+      else
+        ([ $checks[] | select(
+            (has("status") and .status != "COMPLETED")
+            or ((.state? // "") == "PENDING")
+          ) ] | length) as $pending
+        | ([ $checks[] | select(
+            ((.conclusion? // "") | IN("FAILURE","CANCELLED","TIMED_OUT","ACTION_REQUIRED","STARTUP_FAILURE"))
+            or ((.state? // "") | IN("FAILURE","ERROR"))
+          ) ] | length) as $failed
+        | if $failed > 0 then "red:\($failed)"
+          elif $pending > 0 then "pending:\($pending)"
+          else "green" end
+      end'
+}
+
 info() {
   echo "==> $*"
 }

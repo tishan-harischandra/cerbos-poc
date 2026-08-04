@@ -31,6 +31,51 @@ next_with() {
   "$NEXT" --issues-file "$1" "${@:2}" 2>/dev/null
 }
 
+# shellcheck source=../lib.sh
+source "$LOOP_DIR/lib.sh"
+
+verdict_of() {
+  printf '%s' "$1" | rollup_verdict
+}
+
+# --- merge gate: status check rollup -----------------------------------------
+
+check "a branch with no checks at all is not treated as a failure" \
+  "none" \
+  "$(verdict_of '[]')"
+
+check "all-successful check runs are green" \
+  "green" \
+  "$(verdict_of '[{"name":"ci","status":"COMPLETED","conclusion":"SUCCESS"},{"name":"e2e","status":"COMPLETED","conclusion":"SUCCESS"}]')"
+
+check "a failing check run is red even when another passes" \
+  "red:1" \
+  "$(verdict_of '[{"name":"ci","status":"COMPLETED","conclusion":"FAILURE"},{"name":"e2e","status":"COMPLETED","conclusion":"SUCCESS"}]')"
+
+check "a still-running check run blocks the merge" \
+  "pending:1" \
+  "$(verdict_of '[{"name":"ci","status":"IN_PROGRESS"},{"name":"e2e","status":"COMPLETED","conclusion":"SUCCESS"}]')"
+
+check "a red check outranks a pending one" \
+  "red:1" \
+  "$(verdict_of '[{"name":"ci","status":"IN_PROGRESS"},{"name":"e2e","status":"COMPLETED","conclusion":"FAILURE"}]')"
+
+check "a legacy status context failure is red" \
+  "red:1" \
+  "$(verdict_of '[{"context":"legacy","state":"FAILURE"}]')"
+
+check "a pending legacy status context blocks the merge" \
+  "pending:1" \
+  "$(verdict_of '[{"context":"legacy","state":"PENDING"}]')"
+
+check "a cancelled check run is red" \
+  "red:1" \
+  "$(verdict_of '[{"name":"ci","status":"COMPLETED","conclusion":"CANCELLED"}]')"
+
+check "a skipped or neutral check run does not block the merge" \
+  "green" \
+  "$(verdict_of '[{"name":"ci","status":"COMPLETED","conclusion":"SKIPPED"},{"name":"lint","status":"COMPLETED","conclusion":"NEUTRAL"}]')"
+
 # --- selection behaviour -----------------------------------------------------
 
 check "picks the lowest-numbered issue whose blockers are all closed" \
