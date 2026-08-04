@@ -38,7 +38,14 @@ check "the Cerbos PDP is not published to the host" "$?"
 # resolver the console proxies to a stale address the moment the ADS container is
 # recreated, and every decision request comes back 502. Assert the rendered
 # config still resolves at request time.
-rendered="$(docker exec cerbos-poc_admin-console_1 nginx -T 2>/dev/null)"
+# Ask compose for the container rather than guessing its name: Docker Compose
+# names it cerbos-poc-admin-console-1 and podman-compose cerbos-poc_admin-console_1.
+console="$(docker compose ps -q admin-console 2>/dev/null | head -1)"
+rendered=""
+if [[ -n "${console}" ]]; then
+  rendered="$(docker exec "${console}" nginx -T 2>/dev/null)"
+fi
+[[ -n "${rendered}" ]]
 check "the console's nginx config can be read" "$?"
 grep -q 'resolver ' <<<"${rendered}"
 check "the console proxy configures a DNS resolver" "$?"
