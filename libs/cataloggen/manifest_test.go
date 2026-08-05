@@ -9,12 +9,12 @@ import (
 
 func TestPascalToSnake(t *testing.T) {
 	cases := map[string]string{
-		"Patient":                  "patient",
-		"AllergyIntolerance":       "allergy_intolerance",
-		"ImagingStudy":             "imaging_study",
-		"MedicationRequest":        "medication_request",
-		"DeviceUsage":              "device_usage",
-		"OrganizationAffiliation":  "organization_affiliation",
+		"Patient":                 "patient",
+		"AllergyIntolerance":      "allergy_intolerance",
+		"ImagingStudy":            "imaging_study",
+		"MedicationRequest":       "medication_request",
+		"DeviceUsage":             "device_usage",
+		"OrganizationAffiliation": "organization_affiliation",
 	}
 	for input, want := range cases {
 		if got := cataloggen.PascalToSnake(input); got != want {

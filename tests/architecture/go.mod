@@ -1,6 +1,6 @@
 module github.com/tishan-harischandra/cerbos-poc/tests/architecture
 
-go 1.25
+go 1.25.11
 
 require github.com/tishan-harischandra/cerbos-poc/libs/cataloggen v0.0.0
 
