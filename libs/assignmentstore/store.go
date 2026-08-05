@@ -94,6 +94,28 @@ type UserOverride struct {
 	Revision   int64
 }
 
+// ActiveUserOverridesQuery asks for the user overrides in force for one
+// tenant, hospital, user and resource at one instant.
+//
+// Both a tenant/hospital-wide override and one scoped to a named resource
+// instance can exist for the same action (§6.2's "above key + resource
+// instance ID or selector"), so a query for one resource instance reads both:
+// the wide row applies to every instance, and the instance-scoped row narrows
+// further. Which of them the decision should honour is a §6.3 precedence
+// question for Cerbos policy, not a question this port answers.
+type ActiveUserOverridesQuery struct {
+	TenantID       string
+	HospitalID     string
+	UserExternalID string
+	ResourceKey    string
+	// ResourceInstanceID is the instance a decision is being taken about.
+	// Empty means only the tenant/hospital-wide overrides are wanted; a
+	// non-empty value also includes any row scoped to that exact instance.
+	ResourceInstanceID string
+	// At is the instant the validity windows are judged against.
+	At time.Time
+}
+
 // PermissionRevision is a tenant's current permission revision (§8.1).
 //
 // One row per tenant, advanced in place by every matrix save. The ADS reads it
@@ -191,6 +213,12 @@ type Store interface {
 
 	SaveUserOverride(ctx context.Context, override UserOverride) error
 	UserOverride(ctx context.Context, key UserOverrideKey) (UserOverride, bool, error)
+
+	// ActiveUserOverrides reads, in one round trip, every override in force
+	// for one principal and one resource. Rows outside their validity window
+	// are left out; disabled rows are returned marked disabled, for the same
+	// reason ActiveRolePermissions returns disabled role rows (§8.3).
+	ActiveUserOverrides(ctx context.Context, query ActiveUserOverridesQuery) ([]UserOverride, error)
 
 	SavePermissionRevision(ctx context.Context, revision PermissionRevision) error
 	PermissionRevision(ctx context.Context, tenantID string) (PermissionRevision, bool, error)

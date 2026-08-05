@@ -89,7 +89,7 @@ func main() {
 					Matrix: store,
 					TTL:    cfg.RoleMatrixCacheTTL,
 				}),
-				Overrides: assignments.NewSeededOverrides(),
+				Overrides: assignments.NewDBOverrides(store, nil),
 			}),
 			Logger: logger,
 		})),
@@ -128,7 +128,6 @@ func main() {
 		slog.String("idpType", string(idpConfig.Type)),
 		slog.String("idpIssuer", idpConfig.Issuer),
 		slog.Duration("roleMatrixCacheTtl", cfg.RoleMatrixCacheTTL),
-		slog.String("overridePrincipals", assignments.Describe()),
 	)
 
 	if err := httpServer.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {

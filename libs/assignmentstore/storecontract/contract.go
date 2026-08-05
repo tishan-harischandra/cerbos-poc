@@ -90,6 +90,9 @@ func Run(t *testing.T, newStore Factory) {
 	t.Run("a role permission with no end date stays active", func(t *testing.T) {
 		assertOpenEndedRolePermission(t, newStore(t))
 	})
+	t.Run("the active user overrides for one principal and resource are read in one call", func(t *testing.T) {
+		assertActiveUserOverrides(t, newStore(t))
+	})
 }
 
 // The hot path resolves every role a principal holds at once (§11.2). What that
@@ -230,6 +233,109 @@ func assertOpenEndedRolePermission(t *testing.T, store assignmentstore.Store) {
 	}
 	if len(active) != 1 {
 		t.Fatalf("an open-ended grant resolved %d permissions, want 1", len(active))
+	}
+}
+
+// The user override read is the same shape of question as the role matrix
+// read: everything in force for one lookup key, in one round trip. It adds two
+// dimensions the role matrix does not have: hospital scoping, and an optional
+// resource instance that narrows a tenant/hospital-wide override further.
+func assertActiveUserOverrides(t *testing.T, store assignmentstore.Store) {
+	t.Helper()
+	defer closeStore(t, store)
+	ctx := context.Background()
+	truncate(t, store, "user_permission_override")
+
+	now := time.Date(2026, 6, 1, 12, 0, 0, 0, time.UTC)
+	lastYear := now.AddDate(-1, 0, 0)
+	nextYear := now.AddDate(1, 0, 0)
+
+	save := func(tenant, hospital, user, action, instance string, effect assignmentstore.OverrideEffect, enabled bool, from, until time.Time) {
+		t.Helper()
+		if err := store.SaveUserOverride(ctx, assignmentstore.UserOverride{
+			Key: assignmentstore.UserOverrideKey{
+				TenantID: tenant, HospitalID: hospital, UserExternalID: user,
+				ResourceKey: "patient_record", ActionKey: action, ResourceInstanceID: instance,
+			},
+			Effect: effect, Enabled: enabled, ValidFrom: from, ValidUntil: until, Revision: 7,
+		}); err != nil {
+			t.Fatalf("saving %s/%s/%s/%s/%s: %v", tenant, hospital, user, action, instance, err)
+		}
+	}
+
+	// A tenant/hospital-wide revoke, in force.
+	save("tenant-a", "hospital-1", "user-1", "update", "", assignmentstore.EffectRevoke, true, lastYear, nextYear)
+	// Disabled: present, but INHERIT applies (§8.3), not a grant or a revoke.
+	save("tenant-a", "hospital-1", "user-1", "delete", "", assignmentstore.EffectGrant, false, lastYear, nextYear)
+	// Expired, so invisible to a decision taken now.
+	save("tenant-a", "hospital-1", "user-1", "read", "", assignmentstore.EffectGrant, true, lastYear, now.AddDate(0, -1, 0))
+	// Scoped to a resource instance the query below does not ask about.
+	save("tenant-a", "hospital-1", "user-1", "read", "patient-999", assignmentstore.EffectGrant, true, lastYear, nextYear)
+	// Scoped to the instance the query below does ask about.
+	save("tenant-a", "hospital-1", "user-1", "read", "patient-456", assignmentstore.EffectGrant, true, lastYear, nextYear)
+	// Another hospital's live grant, which must never reach a hospital-1 decision.
+	save("tenant-a", "hospital-2", "user-1", "update", "", assignmentstore.EffectGrant, true, lastYear, nextYear)
+	// Another tenant's live grant, same reasoning.
+	save("tenant-b", "hospital-1", "user-1", "update", "", assignmentstore.EffectGrant, true, lastYear, nextYear)
+	// Another user's live grant.
+	save("tenant-a", "hospital-1", "user-2", "update", "", assignmentstore.EffectGrant, true, lastYear, nextYear)
+
+	found, err := store.ActiveUserOverrides(ctx, assignmentstore.ActiveUserOverridesQuery{
+		TenantID: "tenant-a", HospitalID: "hospital-1", UserExternalID: "user-1",
+		ResourceKey: "patient_record", ResourceInstanceID: "patient-456", At: now,
+	})
+	if err != nil {
+		t.Fatalf("reading the active overrides: %v", err)
+	}
+
+	type observed struct {
+		effect  assignmentstore.OverrideEffect
+		enabled bool
+	}
+	got := make(map[string]observed, len(found))
+	for _, override := range found {
+		if override.Key.TenantID != "tenant-a" || override.Key.HospitalID != "hospital-1" {
+			t.Errorf("a %s/%s row reached a tenant-a/hospital-1 lookup",
+				override.Key.TenantID, override.Key.HospitalID)
+		}
+		got[override.Key.ActionKey+"/"+override.Key.ResourceInstanceID] =
+			observed{override.Effect, override.Enabled}
+	}
+
+	want := map[string]observed{
+		"update/" + assignmentstore.NoResourceInstance: {assignmentstore.EffectRevoke, true},
+		"delete/" + assignmentstore.NoResourceInstance: {assignmentstore.EffectGrant, false},
+		"read/patient-456":                             {assignmentstore.EffectGrant, true},
+	}
+	if len(got) != len(want) {
+		t.Fatalf("the active overrides are %+v, want %+v", got, want)
+	}
+	for key, want := range want {
+		stored, present := got[key]
+		if !present {
+			t.Errorf("%s is missing from the active overrides %+v", key, got)
+			continue
+		}
+		if stored != want {
+			t.Errorf("%s came back %+v, want %+v", key, stored, want)
+		}
+	}
+
+	// A query for no instance in particular must not pick up the row scoped
+	// to patient-456: an instance-scoped override applies only when the
+	// decision is actually about that instance.
+	wide, err := store.ActiveUserOverrides(ctx, assignmentstore.ActiveUserOverridesQuery{
+		TenantID: "tenant-a", HospitalID: "hospital-1", UserExternalID: "user-1",
+		ResourceKey: "patient_record", At: now,
+	})
+	if err != nil {
+		t.Fatalf("reading with no instance named: %v", err)
+	}
+	for _, override := range wide {
+		if override.Key.ResourceInstanceID != assignmentstore.NoResourceInstance {
+			t.Errorf("an instance-scoped %s row reached a query naming no instance",
+				override.Key.ActionKey)
+		}
 	}
 }
 

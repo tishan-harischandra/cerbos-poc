@@ -43,6 +43,26 @@ const (
 	// Revision is the demo tenant's permission revision, reported alongside
 	// every decision taken against this matrix.
 	Revision = 184
+
+	// HospitalID is the hospital every demo principal belongs to, per the
+	// realm import's user attributes.
+	HospitalID = "hospital-1"
+	// OtherHospitalID holds a user override that must never reach a
+	// HospitalID decision, even for the very same user (§6.2, §8.3).
+	OtherHospitalID = "hospital-2"
+
+	// DoctorWithRevokedUpdate is a real Keycloak user (§7.1's requirement
+	// that every seeded identity resolve through the real IdP) whose update
+	// grant is revoked by a user override - the case ADR-003 exists for.
+	DoctorWithRevokedUpdate = "user-doctor-revoked"
+	// ClerkWithGrantedRead holds a role that grants nothing and a user
+	// override that grants read on its own.
+	ClerkWithGrantedRead = "user-clerk-granted"
+
+	// InstanceScopedResourceID is the one resource instance a user override
+	// narrows to below, proving §6.2's optional resource_instance_id
+	// selector: the override must apply there and nowhere else.
+	InstanceScopedResourceID = "patient-777"
 )
 
 // Writer is the part of the store the seed needs. Narrow on purpose: a seeder
@@ -50,6 +70,7 @@ const (
 // surface.
 type Writer interface {
 	SaveRolePermission(ctx context.Context, permission assignmentstore.RolePermission) error
+	SaveUserOverride(ctx context.Context, override assignmentstore.UserOverride) error
 	SavePermissionRevision(ctx context.Context, revision assignmentstore.PermissionRevision) error
 }
 
@@ -84,6 +105,36 @@ func Apply(ctx context.Context, writer Writer, at time.Time) error {
 		}
 	}
 
+	overrides := []assignmentstore.UserOverride{
+		// The ADR-003 case: a user revoke beating a role grant, all the way
+		// through the real decision path rather than only inside a policy test.
+		userOverride(HospitalID, DoctorWithRevokedUpdate, "update", "",
+			assignmentstore.EffectRevoke, true, began, ends),
+		// A grant with no role grant behind it: an allow can only have come
+		// from the override.
+		userOverride(HospitalID, ClerkWithGrantedRead, "read", "",
+			assignmentstore.EffectGrant, true, began, ends),
+		// Enabled but out of date, so ignoring expiry would visibly grant.
+		userOverride(HospitalID, ClerkWithGrantedRead, "update", "",
+			assignmentstore.EffectGrant, true, began, expired),
+		// The same user's live grant in another hospital, which must never
+		// reach a hospital-1 decision.
+		userOverride(OtherHospitalID, DoctorWithRevokedUpdate, "delete", "",
+			assignmentstore.EffectGrant, true, began, ends),
+		// Scoped to one resource instance: it must apply there and nowhere
+		// else, which the wide rows above give something to leak into if the
+		// scoping were not honoured.
+		userOverride(HospitalID, ClerkWithGrantedRead, "delete", InstanceScopedResourceID,
+			assignmentstore.EffectGrant, true, began, ends),
+	}
+
+	for _, override := range overrides {
+		if err := writer.SaveUserOverride(ctx, override); err != nil {
+			return fmt.Errorf("seeding an override for %s/%s/%s: %w",
+				override.Key.HospitalID, override.Key.UserExternalID, override.Key.ActionKey, err)
+		}
+	}
+
 	if err := writer.SavePermissionRevision(ctx, assignmentstore.PermissionRevision{
 		TenantID:  TenantID,
 		Revision:  Revision,
@@ -103,6 +154,24 @@ func rolePermission(tenant, role, action string, enabled bool, from, until time.
 			ResourceKey:    ResourceKey,
 			ActionKey:      action,
 		},
+		Enabled:    enabled,
+		ValidFrom:  from,
+		ValidUntil: until,
+		Revision:   Revision,
+	}
+}
+
+func userOverride(hospital, user, action, instance string, effect assignmentstore.OverrideEffect, enabled bool, from, until time.Time) assignmentstore.UserOverride {
+	return assignmentstore.UserOverride{
+		Key: assignmentstore.UserOverrideKey{
+			TenantID:           TenantID,
+			HospitalID:         hospital,
+			UserExternalID:     user,
+			ResourceKey:        ResourceKey,
+			ActionKey:          action,
+			ResourceInstanceID: instance,
+		},
+		Effect:     effect,
 		Enabled:    enabled,
 		ValidFrom:  from,
 		ValidUntil: until,

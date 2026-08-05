@@ -255,6 +255,65 @@ func (s *Store) UserOverride(ctx context.Context, key assignmentstore.UserOverri
 	return override, true, nil
 }
 
+// ActiveUserOverrides reads every override in force for one principal and one
+// resource in one round trip, mirroring ActiveRolePermissions above.
+//
+// The instant is bound twice for the same reason ActiveRolePermissions binds
+// it twice: Oracle's driver binds by position, and reusing a placeholder for
+// both ends of the validity window would silently shift every later bind.
+func (s *Store) ActiveUserOverrides(ctx context.Context, query assignmentstore.ActiveUserOverridesQuery) ([]assignmentstore.UserOverride, error) {
+	instance := query.ResourceInstanceID
+	if instance == "" {
+		instance = assignmentstore.NoResourceInstance
+	}
+
+	const statement = `
+		SELECT action_key, resource_instance_id, effect, enabled, valid_from, valid_until, revision
+		FROM user_permission_override
+		WHERE tenant_id = :1
+		  AND hospital_id = :2
+		  AND user_external_id = :3
+		  AND resource_key = :4
+		  AND valid_from <= :5
+		  AND (valid_until IS NULL OR valid_until > :6)
+		  AND resource_instance_id IN (:7, :8)`
+
+	rows, err := s.db.QueryContext(ctx, statement,
+		query.TenantID, query.HospitalID, query.UserExternalID, query.ResourceKey,
+		query.At, query.At, assignmentstore.NoResourceInstance, instance)
+	if err != nil {
+		return nil, fmt.Errorf("oraclestore: reading the active user overrides: %w", err)
+	}
+	defer func() { _ = rows.Close() }()
+
+	var overrides []assignmentstore.UserOverride
+	for rows.Next() {
+		override := assignmentstore.UserOverride{
+			Key: assignmentstore.UserOverrideKey{
+				TenantID: query.TenantID, HospitalID: query.HospitalID,
+				UserExternalID: query.UserExternalID, ResourceKey: query.ResourceKey,
+			},
+		}
+		var effect string
+		var enabled int64
+		var validUntil *time.Time
+		if err := rows.Scan(&override.Key.ActionKey, &override.Key.ResourceInstanceID,
+			&effect, &enabled, &override.ValidFrom, &validUntil, &override.Revision); err != nil {
+			return nil, fmt.Errorf("oraclestore: scanning a user override: %w", err)
+		}
+		override.Effect = assignmentstore.OverrideEffect(effect)
+		override.Enabled = enabled != 0
+		if validUntil != nil {
+			override.ValidUntil = *validUntil
+		}
+		overrides = append(overrides, override)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("oraclestore: reading the active user overrides: %w", err)
+	}
+	return overrides, nil
+}
+
 // SavePermissionRevision advances a tenant's revision in place.
 func (s *Store) SavePermissionRevision(ctx context.Context, revision assignmentstore.PermissionRevision) error {
 	const statement = `

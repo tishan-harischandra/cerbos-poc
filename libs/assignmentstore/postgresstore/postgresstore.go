@@ -211,6 +211,65 @@ func (s *Store) UserOverride(ctx context.Context, key assignmentstore.UserOverri
 	return override, true, nil
 }
 
+// ActiveUserOverrides reads every override in force for one principal and one
+// resource in one round trip, the same shape of read as ActiveRolePermissions.
+//
+// A query naming a resource instance reads both the tenant/hospital-wide row
+// (the sentinel) and any row scoped to that exact instance; a query naming no
+// instance reads only the wide row. Passing the same value twice when no
+// instance is named keeps the statement identical either way, which is what
+// lets Postgres reuse one prepared plan for both shapes of call.
+func (s *Store) ActiveUserOverrides(ctx context.Context, query assignmentstore.ActiveUserOverridesQuery) ([]assignmentstore.UserOverride, error) {
+	instance := query.ResourceInstanceID
+	if instance == "" {
+		instance = assignmentstore.NoResourceInstance
+	}
+
+	const statement = `
+		SELECT action_key, resource_instance_id, effect, enabled, valid_from, valid_until, revision
+		FROM user_permission_override
+		WHERE tenant_id = $1
+		  AND hospital_id = $2
+		  AND user_external_id = $3
+		  AND resource_key = $4
+		  AND resource_instance_id = ANY($5)
+		  AND valid_from <= $6
+		  AND (valid_until IS NULL OR valid_until > $6)`
+
+	rows, err := s.pool.Query(ctx, statement,
+		query.TenantID, query.HospitalID, query.UserExternalID, query.ResourceKey,
+		[]string{assignmentstore.NoResourceInstance, instance}, query.At)
+	if err != nil {
+		return nil, fmt.Errorf("postgresstore: reading the active user overrides: %w", err)
+	}
+	defer rows.Close()
+
+	var overrides []assignmentstore.UserOverride
+	for rows.Next() {
+		override := assignmentstore.UserOverride{
+			Key: assignmentstore.UserOverrideKey{
+				TenantID: query.TenantID, HospitalID: query.HospitalID,
+				UserExternalID: query.UserExternalID, ResourceKey: query.ResourceKey,
+			},
+		}
+		var effect string
+		var validUntil *time.Time
+		if err := rows.Scan(&override.Key.ActionKey, &override.Key.ResourceInstanceID,
+			&effect, &override.Enabled, &override.ValidFrom, &validUntil, &override.Revision); err != nil {
+			return nil, fmt.Errorf("postgresstore: scanning a user override: %w", err)
+		}
+		override.Effect = assignmentstore.OverrideEffect(effect)
+		if validUntil != nil {
+			override.ValidUntil = *validUntil
+		}
+		overrides = append(overrides, override)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("postgresstore: reading the active user overrides: %w", err)
+	}
+	return overrides, nil
+}
+
 // SavePermissionRevision advances a tenant's revision in place.
 func (s *Store) SavePermissionRevision(ctx context.Context, revision assignmentstore.PermissionRevision) error {
 	const statement = `

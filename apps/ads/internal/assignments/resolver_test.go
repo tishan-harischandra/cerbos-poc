@@ -84,6 +84,15 @@ func newResolver(matrix assignments.RoleMatrix) *assignments.Resolver {
 	})
 }
 
+func contains(actions []string, action string) bool {
+	for _, candidate := range actions {
+		if candidate == action {
+			return true
+		}
+	}
+	return false
+}
+
 func doctorQuery(roles ...string) authz.AssignmentQuery {
 	return authz.AssignmentQuery{
 		TenantID:     "tenant-a",

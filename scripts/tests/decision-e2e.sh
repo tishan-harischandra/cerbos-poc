@@ -116,6 +116,55 @@ expect_decision() {
   fi
 }
 
+# decide_on <principal> <resource-id> <action> - the same shape of request as
+# decide, but naming which resource instance a user override might be scoped
+# to (§6.2). decide always asks about patient-456; this is only needed for the
+# instance-scoping case.
+decide_on() {
+  local principal="$1" resource_id="$2" action="$3"
+  local token
+  token="$(token_of "${principal}")"
+
+  jq -cn \
+    --arg id "${resource_id}" \
+    --arg action "${action}" \
+    '{
+      resources: [{
+        kind: "patient_record",
+        id: $id,
+        attributes: {tenantId: "tenant-a", hospitalId: "hospital-1", status: "ACTIVE"},
+        actions: [$action]
+      }]
+    }' \
+  | curl -sS -o /tmp/decision-body -w '%{http_code}' \
+      -H 'Content-Type: application/json' \
+      -H "Authorization: Bearer ${token}" \
+      -H 'X-Correlation-Id: decision-e2e' \
+      --data @- "${CHECK_URL}"
+}
+
+# expect_decision_on <description> <principal> <resource-id> <action> <allowed>
+expect_decision_on() {
+  local description="$1" principal="$2" resource_id="$3" action="$4" expected="$5"
+
+  local code
+  code="$(decide_on "${principal}" "${resource_id}" "${action}")"
+  if [[ "${code}" != "200" ]]; then
+    echo "FAIL ${description} (HTTP ${code}: $(cat /tmp/decision-body))"
+    failures=$((failures + 1))
+    return
+  fi
+
+  local actual
+  actual="$(jq -r --arg a "${action}" '.resources[0].actions[$a].allowed' /tmp/decision-body)"
+  if [[ "${actual}" == "${expected}" ]]; then
+    echo "ok   ${description}"
+  else
+    echo "FAIL ${description} (${action} allowed=${actual}, want ${expected})"
+    failures=$((failures + 1))
+  fi
+}
+
 echo "--- the seven-case matrix, end to end through a real PDP ---"
 
 # A seeded, enabled role permission allows, read from the database rather than
@@ -168,6 +217,19 @@ expect_decision "a locked record still allows read" \
 # Tenant isolation is mandatory too.
 expect_decision "a record in another tenant is denied" \
   user-doctor ACTIVE tenant-b read false
+
+# The seed also writes a live grant for user-doctor-revoked in hospital-2. The
+# token's hospital is hospital-1, so that grant must never be read: this is
+# the same principal, same action, only the hospital differs.
+expect_decision "an override in another hospital does not reach this decision" \
+  user-doctor-revoked ACTIVE tenant-a delete false
+
+# An override scoped to one resource instance (§6.2): user-clerk-granted has a
+# delete grant for patient-777 only, and no delete grant anywhere else.
+expect_decision_on "an instance-scoped grant allows the named instance" \
+  user-clerk-granted patient-777 delete true
+expect_decision_on "the same grant does not apply to a different instance" \
+  user-clerk-granted patient-456 delete false
 
 echo
 echo "--- the decision contract ---"
