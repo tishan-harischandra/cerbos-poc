@@ -338,18 +338,28 @@ func (v *Verifier) normaliseRoles(claims jwtClaims) ([]string, error) {
 		}
 	}
 
-	roles := make([]string, 0, len(raw))
-	for _, role := range raw {
+	return CanonicalRoles(v.cfg, raw), nil
+}
+
+// CanonicalRoles renders provider role names as canonical §7.5 identifiers.
+//
+// It is exported because the identity directory adapter has to produce exactly
+// the same strings for the same roles, and §7.5 makes that agreement a
+// requirement rather than a coincidence. Sharing this function is what makes it
+// structural: there is no second implementation to drift.
+func CanonicalRoles(cfg Config, names []string) []string {
+	roles := make([]string, 0, len(names))
+	for _, role := range names {
 		if role == "" {
 			continue
 		}
-		if v.cfg.RoleSource == RoleSourceRealm {
-			roles = append(roles, canonicalid.KeycloakRealmRole(v.cfg.Realm, role))
+		if cfg.RoleSource == RoleSourceRealm {
+			roles = append(roles, canonicalid.KeycloakRealmRole(cfg.Realm, role))
 			continue
 		}
-		roles = append(roles, canonicalid.KeycloakClientRole(v.cfg.Realm, v.cfg.ClientID, role))
+		roles = append(roles, canonicalid.KeycloakClientRole(cfg.Realm, cfg.ClientID, role))
 	}
-	return roles, nil
+	return roles
 }
 
 func (v *Verifier) tenantOf(claims jwtClaims) (string, error) {

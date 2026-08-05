@@ -5,6 +5,7 @@ use (
 ./libs/assignmentstore
 ./libs/canonicalid
 ./libs/cerbosclient
+./libs/idpdirectory
 ./libs/permissioncontext
 ./libs/tokenverifier
 ./tests/architecture
