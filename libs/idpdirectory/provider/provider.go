@@ -75,8 +75,14 @@ type Config struct {
 }
 
 // JWKSURL is where the issuer publishes its signing keys.
+//
+// It is built from the base URL rather than from the issuer. The two differ
+// whenever a browser and a backend reach the identity provider by different
+// names - which is the normal case, and is exactly the deployment where using
+// the issuer here would send a backend to an address only the browser can
+// resolve.
 func (c Config) JWKSURL() string {
-	return c.Issuer + "/protocol/openid-connect/certs"
+	return fmt.Sprintf("%s/realms/%s/protocol/openid-connect/certs", c.BaseURL, c.Realm)
 }
 
 // LookupFunc mirrors os.LookupEnv so configuration stays testable.

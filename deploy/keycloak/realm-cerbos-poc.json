@@ -1,0 +1,197 @@
+{
+  "realm": "cerbos-poc",
+  "enabled": true,
+  "sslRequired": "none",
+  "registrationAllowed": false,
+  "loginWithEmailAllowed": true,
+  "accessTokenLifespan": 900,
+  "clients": [
+    {
+      "clientId": "patient-app",
+      "name": "Patient application",
+      "description": "The browser-facing client. Public, so it holds no secret, and it has no administrative permission of any kind.",
+      "enabled": true,
+      "publicClient": true,
+      "standardFlowEnabled": true,
+      "directAccessGrantsEnabled": true,
+      "serviceAccountsEnabled": false,
+      "redirectUris": ["http://localhost:4200/*", "http://127.0.0.1:4200/*"],
+      "webOrigins": ["http://localhost:4200", "http://127.0.0.1:4200"],
+      "attributes": {
+        "post.logout.redirect.uris": "http://localhost:4200/*"
+      },
+      "defaultClientScopes": ["web-origins", "profile", "roles", "email"],
+      "protocolMappers": [
+        {
+          "name": "audience",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-audience-mapper",
+          "config": {
+            "included.client.audience": "patient-app",
+            "access.token.claim": "true"
+          }
+        },
+        {
+          "name": "tenant",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-usermodel-attribute-mapper",
+          "config": {
+            "user.attribute": "tenant_id",
+            "claim.name": "tenant_id",
+            "jsonType.label": "String",
+            "access.token.claim": "true",
+            "id.token.claim": "true"
+          }
+        },
+        {
+          "name": "hospital",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-usermodel-attribute-mapper",
+          "config": {
+            "user.attribute": "hospital_id",
+            "claim.name": "hospital_id",
+            "jsonType.label": "String",
+            "access.token.claim": "true",
+            "id.token.claim": "true"
+          }
+        }
+      ],
+      "roles": []
+    },
+    {
+      "clientId": "authorization-admin-service",
+      "name": "Authorization admin service",
+      "description": "The confidential service account the ADS reads the directory with. It is never used by a browser and never issued to one (7.3).",
+      "enabled": true,
+      "publicClient": false,
+      "standardFlowEnabled": false,
+      "directAccessGrantsEnabled": false,
+      "serviceAccountsEnabled": true,
+      "secret": "admin-service-secret",
+      "redirectUris": [],
+      "webOrigins": []
+    }
+  ],
+  "roles": {
+    "client": {
+      "patient-app": [
+        {
+          "name": "doctor",
+          "description": "Treating clinician"
+        },
+        {
+          "name": "auditor",
+          "description": "Read-only auditor"
+        },
+        {
+          "name": "clerk",
+          "description": "Records clerk"
+        },
+        {
+          "name": "administrator",
+          "description": "Authorization administrator"
+        }
+      ]
+    }
+  },
+  "users": [
+    {
+      "id": "user-doctor",
+      "username": "user-doctor",
+      "enabled": true,
+      "emailVerified": true,
+      "firstName": "Dana",
+      "lastName": "Doctor",
+      "email": "dana.doctor@example.test",
+      "attributes": {
+        "tenant_id": ["tenant-a"],
+        "hospital_id": ["hospital-1"]
+      },
+      "credentials": [{ "type": "password", "value": "demo-password", "temporary": false }],
+      "clientRoles": { "patient-app": ["doctor"] }
+    },
+    {
+      "id": "user-doctor-revoked",
+      "username": "user-doctor-revoked",
+      "enabled": true,
+      "emailVerified": true,
+      "firstName": "Ravi",
+      "lastName": "Doctor",
+      "email": "ravi.doctor@example.test",
+      "attributes": {
+        "tenant_id": ["tenant-a"],
+        "hospital_id": ["hospital-1"]
+      },
+      "credentials": [{ "type": "password", "value": "demo-password", "temporary": false }],
+      "clientRoles": { "patient-app": ["doctor"] }
+    },
+    {
+      "id": "user-auditor",
+      "username": "user-auditor",
+      "enabled": true,
+      "emailVerified": true,
+      "firstName": "Alex",
+      "lastName": "Auditor",
+      "email": "alex.auditor@example.test",
+      "attributes": {
+        "tenant_id": ["tenant-a"],
+        "hospital_id": ["hospital-1"]
+      },
+      "credentials": [{ "type": "password", "value": "demo-password", "temporary": false }],
+      "clientRoles": { "patient-app": ["auditor"] }
+    },
+    {
+      "id": "user-clerk-granted",
+      "username": "user-clerk-granted",
+      "enabled": true,
+      "emailVerified": true,
+      "firstName": "Chris",
+      "lastName": "Clerk",
+      "email": "chris.clerk@example.test",
+      "attributes": {
+        "tenant_id": ["tenant-a"],
+        "hospital_id": ["hospital-1"]
+      },
+      "credentials": [{ "type": "password", "value": "demo-password", "temporary": false }],
+      "clientRoles": { "patient-app": ["clerk"] }
+    },
+    {
+      "id": "user-unassigned",
+      "username": "user-unassigned",
+      "enabled": true,
+      "emailVerified": true,
+      "firstName": "Uma",
+      "lastName": "Unassigned",
+      "email": "uma.unassigned@example.test",
+      "attributes": {
+        "tenant_id": ["tenant-a"],
+        "hospital_id": ["hospital-1"]
+      },
+      "credentials": [{ "type": "password", "value": "demo-password", "temporary": false }],
+      "clientRoles": {}
+    },
+    {
+      "id": "user-admin",
+      "username": "user-admin",
+      "enabled": true,
+      "emailVerified": true,
+      "firstName": "Ada",
+      "lastName": "Admin",
+      "email": "ada.admin@example.test",
+      "attributes": {
+        "tenant_id": ["tenant-a"],
+        "hospital_id": ["hospital-1"]
+      },
+      "credentials": [{ "type": "password", "value": "demo-password", "temporary": false }],
+      "clientRoles": { "patient-app": ["administrator"] }
+    },
+    {
+      "username": "service-account-authorization-admin-service",
+      "enabled": true,
+      "serviceAccountClientId": "authorization-admin-service",
+      "clientRoles": {
+        "realm-management": ["view-users", "query-users", "view-clients", "view-realm"]
+      }
+    }
+  ]
+}

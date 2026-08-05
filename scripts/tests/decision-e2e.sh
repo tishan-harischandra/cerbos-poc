@@ -52,8 +52,8 @@ wait_for_decisions || exit 1
 # Canonical §7.5 role identifiers, matching the seeded role matrix exactly.
 # Token-to-role normalisation has to produce the same identifiers the matrix is
 # keyed by, so a second spelling here would resolve to no permissions at all.
-DOCTOR_ROLE="kc:realm:patient-app:doctor"
-AUDITOR_ROLE="kc:realm:patient-app:auditor"
+DOCTOR_ROLE="kc:cerbos-poc:patient-app:doctor"
+AUDITOR_ROLE="kc:cerbos-poc:patient-app:auditor"
 
 # Which roles each principal presents. Role grants now come from the database,
 # so a principal's roles are what decides its grants: giving every principal the

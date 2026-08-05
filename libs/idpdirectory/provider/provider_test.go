@@ -139,6 +139,38 @@ func TestTheIssuerAndKeySetAreDerivedFromTheRealm(t *testing.T) {
 	}
 }
 
+// A browser and a backend reach the identity provider by different names in
+// every deployment that publishes it. The issuer is what the browser's token
+// claims; the key set has to be fetched over the backend's own route, or the
+// service goes looking for the issuer at an address only a browser can resolve.
+func TestTheKeySetIsFetchedOverTheBackendRouteEvenWhenTheIssuerIsPublished(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "idp-admin-credentials")
+	if err := os.WriteFile(path, []byte(secret), 0o600); err != nil {
+		t.Fatalf("writing the secret file: %v", err)
+	}
+
+	cfg, err := provider.FromEnv(lookup(map[string]string{
+		"IDP_TYPE":                   "KEYCLOAK",
+		"IDP_BASE_URL":               "http://keycloak:8080",
+		"IDP_ISSUER":                 "http://localhost:8081/realms/cerbos-poc",
+		"IDP_REALM":                  "cerbos-poc",
+		"IDP_TENANT_ID":              "tenant-a",
+		"IDP_CLIENT_ID":              "patient-app",
+		"IDP_SERVICE_CLIENT_ID":      "authorization-admin-service",
+		"IDP_CREDENTIALS_SECRET_REF": path,
+	}))
+	if err != nil {
+		t.Fatalf("FromEnv: %v", err)
+	}
+
+	if cfg.Issuer != "http://localhost:8081/realms/cerbos-poc" {
+		t.Errorf("Issuer = %q, want the published address the token claims", cfg.Issuer)
+	}
+	if want := "http://keycloak:8080/realms/cerbos-poc/protocol/openid-connect/certs"; cfg.JWKSURL() != want {
+		t.Errorf("JWKSURL = %q, want %q", cfg.JWKSURL(), want)
+	}
+}
+
 // The verifier and the directory are built from one configuration, so an
 // installation cannot end up verifying tokens for one realm while reading roles
 // out of another.

@@ -7,6 +7,7 @@ reachable only from inside the compose network.
 """
 from __future__ import annotations
 
+import json
 import pathlib
 import sys
 
@@ -67,6 +68,60 @@ def check_images_carry_no_native_clients() -> None:
         )
         if offenders:
             print(f"     found: {', '.join(sorted(set(offenders)))}")
+
+
+def check_identity_provider(services: dict) -> None:
+    """The §7.1 installation selection, as the running stack expresses it."""
+    check("service 'keycloak' is defined", "keycloak" in services)
+    if "keycloak" not in services:
+        return
+
+    keycloak = services["keycloak"]
+    # Unlike the PDP and the database, Keycloak has to be reachable from the
+    # browser: an OIDC redirect the user cannot follow is not a login.
+    check("keycloak is published to the host so a browser can log in",
+          bool(keycloak.get("ports")))
+    check("keycloak imports a realm rather than being configured by hand",
+          "--import-realm" in (keycloak.get("command") or []))
+
+    realm_import = REPO_ROOT / "deploy" / "keycloak" / "realm-cerbos-poc.json"
+    check("the realm import exists", realm_import.exists())
+    if realm_import.exists():
+        realm = json.loads(realm_import.read_text())
+        clients = {client["clientId"]: client for client in realm.get("clients", [])}
+        check("the realm defines the browser-facing client", "patient-app" in clients)
+        check("the realm defines the confidential service account",
+              "authorization-admin-service" in clients)
+        if "patient-app" in clients:
+            # §7.3: the client a browser holds must not be able to read the
+            # directory. A public client with a service account would hand
+            # every browser session an administrative identity.
+            check("the browser-facing client is public and has no service account",
+                  clients["patient-app"].get("publicClient") is True
+                  and not clients["patient-app"].get("serviceAccountsEnabled"))
+        if "authorization-admin-service" in clients:
+            service = clients["authorization-admin-service"]
+            check("the service account client is confidential and browserless",
+                  service.get("publicClient") is False
+                  and service.get("serviceAccountsEnabled") is True
+                  and not service.get("redirectUris"))
+
+    ads = services.get("ads", {})
+    environment = ads.get("environment") or {}
+    check("the ads waits for a healthy keycloak",
+          (ads.get("depends_on") or {}).get("keycloak", {}).get("condition") == "service_healthy")
+    check("the ads is told which identity provider to use", "IDP_TYPE" in environment)
+
+    # §7.1's credentialsSecretRef. A secret passed by value would be readable
+    # through `docker inspect` and inherited by every child process.
+    check("the ads reads the service account secret by reference, not by value",
+          "IDP_CREDENTIALS_SECRET_REF" in environment
+          and not any(key.endswith("CLIENT_SECRET") for key in environment))
+
+    console_environment = services.get("admin-console", {}).get("environment") or {}
+    check("no identity provider credential reaches the browser-facing service",
+          not any("SECRET" in key.upper() or "PASSWORD" in key.upper()
+                  for key in console_environment))
 
 
 def main() -> int:
@@ -144,6 +199,7 @@ def main() -> int:
         check(f"service '{name}' is built from a Dockerfile in this repo", bool(build))
 
     check_images_carry_no_native_clients()
+    check_identity_provider(services)
 
     if failures:
         print(f"\n{len(failures)} contract failure(s)")
