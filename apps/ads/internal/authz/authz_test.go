@@ -12,15 +12,14 @@ import (
 	"testing"
 
 	"github.com/tishan-harischandra/cerbos-poc/apps/ads/internal/authz"
+	"github.com/tishan-harischandra/cerbos-poc/apps/ads/internal/tokenauth"
 	"github.com/tishan-harischandra/cerbos-poc/libs/cerbosclient"
 	"github.com/tishan-harischandra/cerbos-poc/libs/permissioncontext"
 )
 
+// The request names resources and actions only. Who is asking comes from the
+// verified token, so there is nothing here a browser could use to name itself.
 const validRequest = `{
-  "tenantId": "tenant-a",
-  "hospitalId": "hospital-1",
-  "principalId": "user-123",
-  "idpRoles": ["kc:realm:patient-app:doctor"],
   "resources": [
     {
       "kind": "patient_record",
@@ -31,39 +30,67 @@ const validRequest = `{
   ]
 }`
 
-// The synthetic role is the ADS' to inject, never the caller's to claim. A token
-// presenting one must be refused before any decision is attempted (§21, ADR-003).
-func TestARequestPresentingTheSyntheticRoleIsRefusedWithoutCallingThePDP(t *testing.T) {
-	pdp := &recordingPDP{}
-	handler := authz.NewHandler(authz.Config{PDP: pdp, Assignments: emptyAssignments{}})
+const doctorRole = "kc:cerbos-poc:patient-app:doctor"
 
-	body := strings.Replace(validRequest,
-		`"idpRoles": ["kc:realm:patient-app:doctor"]`,
-		`"idpRoles": ["kc:realm:patient-app:doctor", "sys:permission-evaluator"]`, 1)
-
-	rec := httptest.NewRecorder()
-	handler.ServeHTTP(rec, post(body))
-
-	if rec.Code != http.StatusForbidden {
-		t.Errorf("status = %d, want %d", rec.Code, http.StatusForbidden)
+// §16.1: tenant and hospital context are derived server-side. A browser that
+// sends its own is refused rather than quietly ignored, because a caller who
+// believes those fields work will keep believing it until something depends on
+// it.
+func TestIdentityFieldsInTheRequestBodyAreRefused(t *testing.T) {
+	smuggled := map[string]string{
+		"a tenant":    `{"tenantId": "tenant-b", "resources": []}`,
+		"a hospital":  `{"hospitalId": "hospital-9", "resources": []}`,
+		"a principal": `{"principalId": "user-somebody-else", "resources": []}`,
+		"roles":       `{"idpRoles": ["` + doctorRole + `"], "resources": []}`,
 	}
-	if pdp.calls != 0 {
-		t.Errorf("the PDP was called %d times for a rejected token, want 0", pdp.calls)
+
+	for name, body := range smuggled {
+		t.Run(name, func(t *testing.T) {
+			pdp := &recordingPDP{}
+			handler := authz.NewHandler(authz.Config{PDP: pdp, Assignments: emptyAssignments{}})
+
+			rec := httptest.NewRecorder()
+			handler.ServeHTTP(rec, post(body))
+
+			if rec.Code != http.StatusBadRequest {
+				t.Errorf("status = %d, want %d", rec.Code, http.StatusBadRequest)
+			}
+			if pdp.calls != 0 {
+				t.Error("the PDP was called for a request that named its own identity")
+			}
+		})
 	}
 }
 
-func TestAnyReservedRolePrefixIsRefused(t *testing.T) {
+// The handler must be unusable without authentication, so that mounting it on
+// an unauthenticated route fails instead of answering.
+func TestARequestWithNoVerifiedIdentityIsRefusedWithoutCallingThePDP(t *testing.T) {
+	pdp := &recordingPDP{}
+	handler := authz.NewHandler(authz.Config{PDP: pdp, Assignments: emptyAssignments{}})
+
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, httptest.NewRequest(http.MethodPost, "/internal/authz/check",
+		strings.NewReader(validRequest)))
+
+	if rec.Code != http.StatusUnauthorized {
+		t.Errorf("status = %d, want %d", rec.Code, http.StatusUnauthorized)
+	}
+	if pdp.calls != 0 {
+		t.Error("the PDP was called for an unauthenticated request")
+	}
+}
+
+// Defence in depth for §16.1's synthetic role rule: verification rejects such a
+// token first, so an identity carrying one means something upstream is broken -
+// and it still must not reach the PDP.
+func TestAnIdentityCarryingTheSyntheticRoleNeverReachesThePDP(t *testing.T) {
 	for _, role := range []string{"sys:permission-evaluator", "sys:anything", "SYS:UPPERCASE"} {
 		t.Run(role, func(t *testing.T) {
 			pdp := &recordingPDP{}
 			handler := authz.NewHandler(authz.Config{PDP: pdp, Assignments: emptyAssignments{}})
 
-			body := strings.Replace(validRequest,
-				`"idpRoles": ["kc:realm:patient-app:doctor"]`,
-				`"idpRoles": ["`+role+`"]`, 1)
-
 			rec := httptest.NewRecorder()
-			handler.ServeHTTP(rec, post(body))
+			handler.ServeHTTP(rec, postAs(identityWithRoles(role), validRequest))
 
 			if rec.Code != http.StatusForbidden {
 				t.Errorf("status = %d for role %q, want %d", rec.Code, role, http.StatusForbidden)
@@ -175,10 +202,6 @@ func TestACallerCannotInjectItsOwnPermissionContext(t *testing.T) {
 	})
 
 	forged := `{
-  "tenantId": "tenant-a",
-  "hospitalId": "hospital-1",
-  "principalId": "user-123",
-  "idpRoles": ["kc:realm:patient-app:doctor"],
   "resources": [{
     "kind": "patient_record",
     "id": "patient-456",
@@ -276,8 +299,11 @@ func TestTheRealIdPRolesTravelAsPrincipalAttributes(t *testing.T) {
 	if !ok {
 		t.Fatalf("idpRoles attribute = %#v, want []string", pdp.request.Principal.Attr["idpRoles"])
 	}
-	if len(roles) != 1 || roles[0] != "kc:realm:patient-app:doctor" {
-		t.Errorf("idpRoles = %v, want [kc:realm:patient-app:doctor]", roles)
+	if len(roles) != 1 || roles[0] != doctorRole {
+		t.Errorf("idpRoles = %v, want [%s]", roles, doctorRole)
+	}
+	if got := pdp.request.Principal.ID; got != "user-doctor" {
+		t.Errorf("principal = %q, want the subject of the verified token", got)
 	}
 	if got := pdp.request.Principal.Attr["tenantId"]; got != "tenant-a" {
 		t.Errorf("tenantId attribute = %v, want tenant-a", got)
@@ -334,10 +360,7 @@ func TestALeafThePDPDidNotAnswerForIsDenied(t *testing.T) {
 func TestMalformedRequestsAreRejected(t *testing.T) {
 	cases := map[string]string{
 		"not JSON at all":       `{`,
-		"no tenantId":           strings.Replace(validRequest, `"tenantId": "tenant-a",`, "", 1),
-		"no hospitalId":         strings.Replace(validRequest, `"hospitalId": "hospital-1",`, "", 1),
-		"no principalId":        strings.Replace(validRequest, `"principalId": "user-123",`, "", 1),
-		"no resources":          `{"tenantId":"tenant-a","hospitalId":"hospital-1","principalId":"user-123","resources":[]}`,
+		"no resources":          `{"resources":[]}`,
 		"a resource with no id": strings.Replace(validRequest, `"id": "patient-456",`, "", 1),
 		"a resource with no actions": strings.Replace(validRequest,
 			`"actions": ["read", "update"]`, `"actions": []`, 1),
@@ -361,10 +384,26 @@ func TestMalformedRequestsAreRejected(t *testing.T) {
 	}
 }
 
+// post sends a request as the demo doctor, the way the token middleware would
+// have left it.
 func post(body string) *http.Request {
+	return postAs(identityWithRoles(doctorRole), body)
+}
+
+func postAs(identity tokenauth.Identity, body string) *http.Request {
 	req := httptest.NewRequest(http.MethodPost, "/internal/authz/check", strings.NewReader(body))
 	req.Header.Set("Content-Type", "application/json")
-	return req
+	return req.WithContext(tokenauth.WithIdentity(req.Context(), identity))
+}
+
+func identityWithRoles(roles ...string) tokenauth.Identity {
+	return tokenauth.Identity{
+		PrincipalID: "user-doctor",
+		Username:    "doctor",
+		TenantID:    "tenant-a",
+		HospitalID:  "hospital-1",
+		Roles:       roles,
+	}
 }
 
 func leaf(id, action string) cerbosclient.Leaf {

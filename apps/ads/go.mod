@@ -71,7 +71,9 @@ require (
 require (
 	github.com/tishan-harischandra/cerbos-poc/libs/assignmentstore v0.0.0
 	github.com/tishan-harischandra/cerbos-poc/libs/cerbosclient v0.0.0
+	github.com/tishan-harischandra/cerbos-poc/libs/idpdirectory v0.0.0
 	github.com/tishan-harischandra/cerbos-poc/libs/permissioncontext v0.0.0
+	github.com/tishan-harischandra/cerbos-poc/libs/tokenverifier v0.0.0
 	golang.org/x/net v0.55.0 // indirect
 	golang.org/x/sys v0.46.0 // indirect
 	golang.org/x/text v0.38.0 // indirect
@@ -84,3 +86,9 @@ replace github.com/tishan-harischandra/cerbos-poc/libs/assignmentstore => ../../
 replace github.com/tishan-harischandra/cerbos-poc/libs/cerbosclient => ../../libs/cerbosclient
 
 replace github.com/tishan-harischandra/cerbos-poc/libs/permissioncontext => ../../libs/permissioncontext
+
+replace github.com/tishan-harischandra/cerbos-poc/libs/canonicalid => ../../libs/canonicalid
+
+replace github.com/tishan-harischandra/cerbos-poc/libs/tokenverifier => ../../libs/tokenverifier
+
+replace github.com/tishan-harischandra/cerbos-poc/libs/idpdirectory => ../../libs/idpdirectory
