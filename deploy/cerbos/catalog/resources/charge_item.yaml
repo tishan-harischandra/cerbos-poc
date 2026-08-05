@@ -1,0 +1,29 @@
+# GENERATED FILE - DO NOT EDIT BY HAND.
+#
+# Produced by libs/cataloggen from libs/cataloggen/manifest.yaml (catalog revision 1).
+# Edit the manifest and re-run `make catalog-gen`, or regenerate directly
+# with `go run ./libs/cataloggen/cmd/cataloggen -manifest libs/cataloggen/manifest.yaml`.
+resource: charge_item
+version: v1
+displayName: Charge item
+domain: financial
+fhirType: ChargeItem
+actions:
+  - key: create
+    displayName: Create charge item
+    context: COLLECTION
+  - key: list
+    displayName: List charge item
+    context: COLLECTION
+  - key: read
+    displayName: Read charge item
+    context: INSTANCE
+  - key: update
+    displayName: Update charge item
+    context: INSTANCE
+  - key: delete
+    displayName: Delete charge item
+    context: INSTANCE
+  - key: assign
+    displayName: Assign charge item
+    context: INSTANCE

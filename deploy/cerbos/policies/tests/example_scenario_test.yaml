@@ -1,0 +1,352 @@
+# GENERATED FILE - DO NOT EDIT BY HAND.
+#
+# Produced by libs/cataloggen from libs/cataloggen/manifest.yaml (catalog revision 1).
+# Edit the manifest and re-run `make catalog-gen`, or regenerate directly
+# with `go run ./libs/cataloggen/cmd/cataloggen -manifest libs/cataloggen/manifest.yaml`.
+name: ExampleScenarioPrecedence
+description: Mandatory deny > user REVOKE > user GRANT > role grant > default deny
+
+principals:
+  doctor:
+    id: idp-user-123
+    roles:
+      - "sys:permission-evaluator"
+    attr:
+      tenantId: tenant-a
+      hospitalId: hospital-1
+      idpRoles:
+        - "kc:cerbos-poc:patient-app:doctor"
+
+  doctor_of_other_tenant:
+    id: idp-user-999
+    roles:
+      - "sys:permission-evaluator"
+    attr:
+      tenantId: tenant-b
+      hospitalId: hospital-1
+      idpRoles:
+        - "kc:cerbos-poc:patient-app:doctor"
+
+  doctor_of_other_hospital:
+    id: idp-user-888
+    roles:
+      - "sys:permission-evaluator"
+    attr:
+      tenantId: tenant-a
+      hospitalId: hospital-2
+      idpRoles:
+        - "kc:cerbos-poc:patient-app:doctor"
+
+resources:
+  revoked_over_role_grant:
+    kind: example_scenario
+    policyVersion: v1
+    id: example_scenario-456
+    attr:
+      tenantId: tenant-a
+      hospitalId: hospital-1
+      status: ACTIVE
+      permissionContext:
+        roleGrantedActions: ["create", "list", "read", "update", "delete", "assign"]
+        userGrantedActions: []
+        userRevokedActions: ["create", "list", "read", "update", "delete", "assign"]
+        permissionRevision: 184
+
+  revoked_without_role_grant:
+    kind: example_scenario
+    policyVersion: v1
+    id: example_scenario-456
+    attr:
+      tenantId: tenant-a
+      hospitalId: hospital-1
+      status: ACTIVE
+      permissionContext:
+        roleGrantedActions: []
+        userGrantedActions: []
+        userRevokedActions: ["create", "list", "read", "update", "delete", "assign"]
+        permissionRevision: 184
+
+  user_granted_without_role_grant:
+    kind: example_scenario
+    policyVersion: v1
+    id: example_scenario-456
+    attr:
+      tenantId: tenant-a
+      hospitalId: hospital-1
+      status: ACTIVE
+      permissionContext:
+        roleGrantedActions: []
+        userGrantedActions: ["create", "list", "read", "update", "delete", "assign"]
+        userRevokedActions: []
+        permissionRevision: 184
+
+  user_granted_with_role_grant:
+    kind: example_scenario
+    policyVersion: v1
+    id: example_scenario-456
+    attr:
+      tenantId: tenant-a
+      hospitalId: hospital-1
+      status: ACTIVE
+      permissionContext:
+        roleGrantedActions: ["create", "list", "read", "update", "delete", "assign"]
+        userGrantedActions: ["create", "list", "read", "update", "delete", "assign"]
+        userRevokedActions: []
+        permissionRevision: 184
+
+  inherited_with_role_grant:
+    kind: example_scenario
+    policyVersion: v1
+    id: example_scenario-456
+    attr:
+      tenantId: tenant-a
+      hospitalId: hospital-1
+      status: ACTIVE
+      permissionContext:
+        roleGrantedActions: ["create", "list", "read", "update", "delete", "assign"]
+        userGrantedActions: []
+        userRevokedActions: []
+        permissionRevision: 184
+
+  inherited_without_role_grant:
+    kind: example_scenario
+    policyVersion: v1
+    id: example_scenario-456
+    attr:
+      tenantId: tenant-a
+      hospitalId: hospital-1
+      status: ACTIVE
+      permissionContext:
+        roleGrantedActions: []
+        userGrantedActions: []
+        userRevokedActions: []
+        permissionRevision: 184
+
+  locked_with_every_grant:
+    kind: example_scenario
+    policyVersion: v1
+    id: example_scenario-456
+    attr:
+      tenantId: tenant-a
+      hospitalId: hospital-1
+      status: LOCKED
+      permissionContext:
+        roleGrantedActions: ["create", "list", "read", "update", "delete", "assign"]
+        userGrantedActions: ["create", "list", "read", "update", "delete", "assign"]
+        userRevokedActions: []
+        permissionRevision: 184
+
+  other_tenant_record:
+    kind: example_scenario
+    policyVersion: v1
+    id: example_scenario-456
+    attr:
+      tenantId: tenant-b
+      hospitalId: hospital-1
+      status: ACTIVE
+      permissionContext:
+        roleGrantedActions: ["create", "list", "read", "update", "delete", "assign"]
+        userGrantedActions: ["create", "list", "read", "update", "delete", "assign"]
+        userRevokedActions: []
+        permissionRevision: 184
+
+  other_hospital_record:
+    kind: example_scenario
+    policyVersion: v1
+    id: example_scenario-456
+    attr:
+      tenantId: tenant-a
+      hospitalId: hospital-2
+      status: ACTIVE
+      permissionContext:
+        roleGrantedActions: ["create", "list", "read", "update", "delete", "assign"]
+        userGrantedActions: ["create", "list", "read", "update", "delete", "assign"]
+        userRevokedActions: []
+        permissionRevision: 184
+
+tests:
+  - name: a user revoke denies even when a role grants the action
+    input:
+      principals: [doctor]
+      resources: [revoked_over_role_grant]
+      actions: ["create", "list", "read", "update", "delete", "assign"]
+    expected:
+      - principal: doctor
+        resource: revoked_over_role_grant
+        actions:
+          create: EFFECT_DENY
+          list: EFFECT_DENY
+          read: EFFECT_DENY
+          update: EFFECT_DENY
+          delete: EFFECT_DENY
+          assign: EFFECT_DENY
+
+  - name: a user revoke denies when no role grants the action
+    input:
+      principals: [doctor]
+      resources: [revoked_without_role_grant]
+      actions: ["create", "list", "read", "update", "delete", "assign"]
+    expected:
+      - principal: doctor
+        resource: revoked_without_role_grant
+        actions:
+          create: EFFECT_DENY
+          list: EFFECT_DENY
+          read: EFFECT_DENY
+          update: EFFECT_DENY
+          delete: EFFECT_DENY
+          assign: EFFECT_DENY
+
+  - name: a user grant allows when no role grants the action
+    input:
+      principals: [doctor]
+      resources: [user_granted_without_role_grant]
+      actions: ["create", "list", "read", "update", "delete", "assign"]
+    expected:
+      - principal: doctor
+        resource: user_granted_without_role_grant
+        actions:
+          create: EFFECT_ALLOW
+          list: EFFECT_ALLOW
+          read: EFFECT_ALLOW
+          update: EFFECT_ALLOW
+          delete: EFFECT_ALLOW
+          assign: EFFECT_ALLOW
+
+  - name: a user grant allows when a role also grants the action
+    input:
+      principals: [doctor]
+      resources: [user_granted_with_role_grant]
+      actions: ["create", "list", "read", "update", "delete", "assign"]
+    expected:
+      - principal: doctor
+        resource: user_granted_with_role_grant
+        actions:
+          create: EFFECT_ALLOW
+          list: EFFECT_ALLOW
+          read: EFFECT_ALLOW
+          update: EFFECT_ALLOW
+          delete: EFFECT_ALLOW
+          assign: EFFECT_ALLOW
+
+  - name: an inherited override falls through to the role grant
+    input:
+      principals: [doctor]
+      resources: [inherited_with_role_grant]
+      actions: ["create", "list", "read", "update", "delete", "assign"]
+    expected:
+      - principal: doctor
+        resource: inherited_with_role_grant
+        actions:
+          create: EFFECT_ALLOW
+          list: EFFECT_ALLOW
+          read: EFFECT_ALLOW
+          update: EFFECT_ALLOW
+          delete: EFFECT_ALLOW
+          assign: EFFECT_ALLOW
+
+  - name: an inherited override with no role grant falls through to default deny
+    input:
+      principals: [doctor]
+      resources: [inherited_without_role_grant]
+      actions: ["create", "list", "read", "update", "delete", "assign"]
+    expected:
+      - principal: doctor
+        resource: inherited_without_role_grant
+        actions:
+          create: EFFECT_DENY
+          list: EFFECT_DENY
+          read: EFFECT_DENY
+          update: EFFECT_DENY
+          delete: EFFECT_DENY
+          assign: EFFECT_DENY
+
+  - name: a locked record denies mutation regardless of role or user grant
+    input:
+      principals: [doctor]
+      resources: [locked_with_every_grant]
+      actions: ["update", "delete", "assign"]
+    expected:
+      - principal: doctor
+        resource: locked_with_every_grant
+        actions:
+          update: EFFECT_DENY
+          delete: EFFECT_DENY
+          assign: EFFECT_DENY
+
+  - name: locking a record does not withdraw non-mutating actions
+    input:
+      principals: [doctor]
+      resources: [locked_with_every_grant]
+      actions: ["create", "list", "read"]
+    expected:
+      - principal: doctor
+        resource: locked_with_every_grant
+        actions:
+          create: EFFECT_ALLOW
+          list: EFFECT_ALLOW
+          read: EFFECT_ALLOW
+
+  - name: a record in another tenant is denied every action
+    input:
+      principals: [doctor]
+      resources: [other_tenant_record]
+      actions: ["create", "list", "read", "update", "delete", "assign"]
+    expected:
+      - principal: doctor
+        resource: other_tenant_record
+        actions:
+          create: EFFECT_DENY
+          list: EFFECT_DENY
+          read: EFFECT_DENY
+          update: EFFECT_DENY
+          delete: EFFECT_DENY
+          assign: EFFECT_DENY
+
+  - name: a principal from another tenant is denied every action
+    input:
+      principals: [doctor_of_other_tenant]
+      resources: [inherited_with_role_grant]
+      actions: ["create", "list", "read", "update", "delete", "assign"]
+    expected:
+      - principal: doctor_of_other_tenant
+        resource: inherited_with_role_grant
+        actions:
+          create: EFFECT_DENY
+          list: EFFECT_DENY
+          read: EFFECT_DENY
+          update: EFFECT_DENY
+          delete: EFFECT_DENY
+          assign: EFFECT_DENY
+
+  - name: a record in another hospital of the same tenant is denied every action
+    input:
+      principals: [doctor]
+      resources: [other_hospital_record]
+      actions: ["create", "list", "read", "update", "delete", "assign"]
+    expected:
+      - principal: doctor
+        resource: other_hospital_record
+        actions:
+          create: EFFECT_DENY
+          list: EFFECT_DENY
+          read: EFFECT_DENY
+          update: EFFECT_DENY
+          delete: EFFECT_DENY
+          assign: EFFECT_DENY
+
+  - name: a principal from another hospital is denied every action
+    input:
+      principals: [doctor_of_other_hospital]
+      resources: [inherited_with_role_grant]
+      actions: ["create", "list", "read", "update", "delete", "assign"]
+    expected:
+      - principal: doctor_of_other_hospital
+        resource: inherited_with_role_grant
+        actions:
+          create: EFFECT_DENY
+          list: EFFECT_DENY
+          read: EFFECT_DENY
+          update: EFFECT_DENY
+          delete: EFFECT_DENY
+          assign: EFFECT_DENY

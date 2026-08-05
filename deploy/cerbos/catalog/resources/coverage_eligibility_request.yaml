@@ -1,0 +1,29 @@
+# GENERATED FILE - DO NOT EDIT BY HAND.
+#
+# Produced by libs/cataloggen from libs/cataloggen/manifest.yaml (catalog revision 1).
+# Edit the manifest and re-run `make catalog-gen`, or regenerate directly
+# with `go run ./libs/cataloggen/cmd/cataloggen -manifest libs/cataloggen/manifest.yaml`.
+resource: coverage_eligibility_request
+version: v1
+displayName: Coverage eligibility request
+domain: financial
+fhirType: CoverageEligibilityRequest
+actions:
+  - key: create
+    displayName: Create coverage eligibility request
+    context: COLLECTION
+  - key: list
+    displayName: List coverage eligibility request
+    context: COLLECTION
+  - key: read
+    displayName: Read coverage eligibility request
+    context: INSTANCE
+  - key: update
+    displayName: Update coverage eligibility request
+    context: INSTANCE
+  - key: delete
+    displayName: Delete coverage eligibility request
+    context: INSTANCE
+  - key: assign
+    displayName: Assign coverage eligibility request
+    context: INSTANCE

@@ -1,0 +1,29 @@
+# GENERATED FILE - DO NOT EDIT BY HAND.
+#
+# Produced by libs/cataloggen from libs/cataloggen/manifest.yaml (catalog revision 1).
+# Edit the manifest and re-run `make catalog-gen`, or regenerate directly
+# with `go run ./libs/cataloggen/cmd/cataloggen -manifest libs/cataloggen/manifest.yaml`.
+resource: plan_definition
+version: v1
+displayName: Plan definition
+domain: definitional
+fhirType: PlanDefinition
+actions:
+  - key: create
+    displayName: Create plan definition
+    context: COLLECTION
+  - key: list
+    displayName: List plan definition
+    context: COLLECTION
+  - key: read
+    displayName: Read plan definition
+    context: INSTANCE
+  - key: update
+    displayName: Update plan definition
+    context: INSTANCE
+  - key: delete
+    displayName: Delete plan definition
+    context: INSTANCE
+  - key: assign
+    displayName: Assign plan definition
+    context: INSTANCE

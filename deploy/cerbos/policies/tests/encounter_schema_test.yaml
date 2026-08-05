@@ -1,0 +1,189 @@
+# GENERATED FILE - DO NOT EDIT BY HAND.
+#
+# Produced by libs/cataloggen from libs/cataloggen/manifest.yaml (catalog revision 1).
+# Edit the manifest and re-run `make catalog-gen`, or regenerate directly
+# with `go run ./libs/cataloggen/cmd/cataloggen -manifest libs/cataloggen/manifest.yaml`.
+name: EncounterSchemaValidation
+description: Malformed authorization attributes are rejected before a decision
+
+principals:
+  doctor:
+    id: idp-user-123
+    roles:
+      - "sys:permission-evaluator"
+    attr:
+      tenantId: tenant-a
+      hospitalId: hospital-1
+      idpRoles:
+        - "kc:cerbos-poc:patient-app:doctor"
+
+  principal_without_tenant:
+    id: idp-user-124
+    roles:
+      - "sys:permission-evaluator"
+    attr:
+      hospitalId: hospital-1
+
+  principal_without_hospital:
+    id: idp-user-125
+    roles:
+      - "sys:permission-evaluator"
+    attr:
+      tenantId: tenant-a
+
+resources:
+  fully_granted_record:
+    kind: encounter
+    policyVersion: v1
+    id: encounter-456
+    attr:
+      tenantId: tenant-a
+      hospitalId: hospital-1
+      status: ACTIVE
+      permissionContext:
+        roleGrantedActions: ["create", "list", "read", "update", "delete", "assign"]
+        userGrantedActions: ["create", "list", "read", "update", "delete", "assign"]
+        userRevokedActions: []
+        permissionRevision: 184
+
+  record_without_permission_context:
+    kind: encounter
+    policyVersion: v1
+    id: encounter-456
+    attr:
+      tenantId: tenant-a
+      hospitalId: hospital-1
+      status: ACTIVE
+
+  record_without_tenant:
+    kind: encounter
+    policyVersion: v1
+    id: encounter-456
+    attr:
+      hospitalId: hospital-1
+      status: ACTIVE
+      permissionContext:
+        roleGrantedActions: ["create", "list", "read", "update", "delete", "assign"]
+        userGrantedActions: ["create", "list", "read", "update", "delete", "assign"]
+        userRevokedActions: []
+        permissionRevision: 184
+
+  record_without_hospital:
+    kind: encounter
+    policyVersion: v1
+    id: encounter-456
+    attr:
+      tenantId: tenant-a
+      status: ACTIVE
+      permissionContext:
+        roleGrantedActions: ["create", "list", "read", "update", "delete", "assign"]
+        userGrantedActions: ["create", "list", "read", "update", "delete", "assign"]
+        userRevokedActions: []
+        permissionRevision: 184
+
+  record_with_unknown_attribute:
+    kind: encounter
+    policyVersion: v1
+    id: encounter-456
+    attr:
+      tenantId: tenant-a
+      hospitalId: hospital-1
+      status: ACTIVE
+      ownerId: idp-user-123
+      permissionContext:
+        roleGrantedActions: []
+        userGrantedActions: []
+        userRevokedActions: []
+        permissionRevision: 184
+
+  record_with_unknown_status:
+    kind: encounter
+    policyVersion: v1
+    id: encounter-456
+    attr:
+      tenantId: tenant-a
+      hospitalId: hospital-1
+      status: SUPERSEDED
+      permissionContext:
+        roleGrantedActions: []
+        userGrantedActions: []
+        userRevokedActions: []
+        permissionRevision: 184
+
+tests:
+  - name: a resource missing permissionContext is denied
+    input:
+      principals: [doctor]
+      resources: [record_without_permission_context]
+      actions: ["create"]
+    expected:
+      - principal: doctor
+        resource: record_without_permission_context
+        actions:
+          create: EFFECT_DENY
+
+  - name: a resource missing tenantId is denied
+    input:
+      principals: [doctor]
+      resources: [record_without_tenant]
+      actions: ["create"]
+    expected:
+      - principal: doctor
+        resource: record_without_tenant
+        actions:
+          create: EFFECT_DENY
+
+  - name: a resource missing hospitalId is denied
+    input:
+      principals: [doctor]
+      resources: [record_without_hospital]
+      actions: ["create"]
+    expected:
+      - principal: doctor
+        resource: record_without_hospital
+        actions:
+          create: EFFECT_DENY
+
+  - name: a principal missing tenantId is denied
+    input:
+      principals: [principal_without_tenant]
+      resources: [fully_granted_record]
+      actions: ["create"]
+    expected:
+      - principal: principal_without_tenant
+        resource: fully_granted_record
+        actions:
+          create: EFFECT_DENY
+
+  - name: a principal missing hospitalId is denied
+    input:
+      principals: [principal_without_hospital]
+      resources: [fully_granted_record]
+      actions: ["create"]
+    expected:
+      - principal: principal_without_hospital
+        resource: fully_granted_record
+        actions:
+          create: EFFECT_DENY
+
+  - name: a resource attribute the schema does not declare is denied
+    input:
+      principals: [doctor]
+      resources: [record_with_unknown_attribute]
+      actions: ["create"]
+    expected:
+      - principal: doctor
+        resource: record_with_unknown_attribute
+        actions:
+          create: EFFECT_DENY
+
+  - name: a status outside the declared set is denied
+    input:
+      principals: [doctor]
+      resources: [record_with_unknown_status]
+      actions: ["create"]
+    expected:
+      - principal: doctor
+        resource: record_with_unknown_status
+        actions:
+          create: EFFECT_DENY

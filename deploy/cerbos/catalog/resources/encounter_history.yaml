@@ -1,0 +1,29 @@
+# GENERATED FILE - DO NOT EDIT BY HAND.
+#
+# Produced by libs/cataloggen from libs/cataloggen/manifest.yaml (catalog revision 1).
+# Edit the manifest and re-run `make catalog-gen`, or regenerate directly
+# with `go run ./libs/cataloggen/cmd/cataloggen -manifest libs/cataloggen/manifest.yaml`.
+resource: encounter_history
+version: v1
+displayName: Encounter history
+domain: management
+fhirType: EncounterHistory
+actions:
+  - key: create
+    displayName: Create encounter history
+    context: COLLECTION
+  - key: list
+    displayName: List encounter history
+    context: COLLECTION
+  - key: read
+    displayName: Read encounter history
+    context: INSTANCE
+  - key: update
+    displayName: Update encounter history
+    context: INSTANCE
+  - key: delete
+    displayName: Delete encounter history
+    context: INSTANCE
+  - key: assign
+    displayName: Assign encounter history
+    context: INSTANCE

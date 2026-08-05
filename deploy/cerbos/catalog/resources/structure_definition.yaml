@@ -1,0 +1,29 @@
+# GENERATED FILE - DO NOT EDIT BY HAND.
+#
+# Produced by libs/cataloggen from libs/cataloggen/manifest.yaml (catalog revision 1).
+# Edit the manifest and re-run `make catalog-gen`, or regenerate directly
+# with `go run ./libs/cataloggen/cmd/cataloggen -manifest libs/cataloggen/manifest.yaml`.
+resource: structure_definition
+version: v1
+displayName: Structure definition
+domain: definitional
+fhirType: StructureDefinition
+actions:
+  - key: create
+    displayName: Create structure definition
+    context: COLLECTION
+  - key: list
+    displayName: List structure definition
+    context: COLLECTION
+  - key: read
+    displayName: Read structure definition
+    context: INSTANCE
+  - key: update
+    displayName: Update structure definition
+    context: INSTANCE
+  - key: delete
+    displayName: Delete structure definition
+    context: INSTANCE
+  - key: assign
+    displayName: Assign structure definition
+    context: INSTANCE

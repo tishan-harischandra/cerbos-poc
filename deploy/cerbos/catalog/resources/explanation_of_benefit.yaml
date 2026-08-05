@@ -1,0 +1,29 @@
+# GENERATED FILE - DO NOT EDIT BY HAND.
+#
+# Produced by libs/cataloggen from libs/cataloggen/manifest.yaml (catalog revision 1).
+# Edit the manifest and re-run `make catalog-gen`, or regenerate directly
+# with `go run ./libs/cataloggen/cmd/cataloggen -manifest libs/cataloggen/manifest.yaml`.
+resource: explanation_of_benefit
+version: v1
+displayName: Explanation of benefit
+domain: financial
+fhirType: ExplanationOfBenefit
+actions:
+  - key: create
+    displayName: Create explanation of benefit
+    context: COLLECTION
+  - key: list
+    displayName: List explanation of benefit
+    context: COLLECTION
+  - key: read
+    displayName: Read explanation of benefit
+    context: INSTANCE
+  - key: update
+    displayName: Update explanation of benefit
+    context: INSTANCE
+  - key: delete
+    displayName: Delete explanation of benefit
+    context: INSTANCE
+  - key: assign
+    displayName: Assign explanation of benefit
+    context: INSTANCE

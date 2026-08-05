@@ -1,0 +1,29 @@
+# GENERATED FILE - DO NOT EDIT BY HAND.
+#
+# Produced by libs/cataloggen from libs/cataloggen/manifest.yaml (catalog revision 1).
+# Edit the manifest and re-run `make catalog-gen`, or regenerate directly
+# with `go run ./libs/cataloggen/cmd/cataloggen -manifest libs/cataloggen/manifest.yaml`.
+resource: graph_definition
+version: v1
+displayName: Graph definition
+domain: definitional
+fhirType: GraphDefinition
+actions:
+  - key: create
+    displayName: Create graph definition
+    context: COLLECTION
+  - key: list
+    displayName: List graph definition
+    context: COLLECTION
+  - key: read
+    displayName: Read graph definition
+    context: INSTANCE
+  - key: update
+    displayName: Update graph definition
+    context: INSTANCE
+  - key: delete
+    displayName: Delete graph definition
+    context: INSTANCE
+  - key: assign
+    displayName: Assign graph definition
+    context: INSTANCE

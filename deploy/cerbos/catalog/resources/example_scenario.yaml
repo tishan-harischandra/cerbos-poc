@@ -1,0 +1,29 @@
+# GENERATED FILE - DO NOT EDIT BY HAND.
+#
+# Produced by libs/cataloggen from libs/cataloggen/manifest.yaml (catalog revision 1).
+# Edit the manifest and re-run `make catalog-gen`, or regenerate directly
+# with `go run ./libs/cataloggen/cmd/cataloggen -manifest libs/cataloggen/manifest.yaml`.
+resource: example_scenario
+version: v1
+displayName: Example scenario
+domain: definitional
+fhirType: ExampleScenario
+actions:
+  - key: create
+    displayName: Create example scenario
+    context: COLLECTION
+  - key: list
+    displayName: List example scenario
+    context: COLLECTION
+  - key: read
+    displayName: Read example scenario
+    context: INSTANCE
+  - key: update
+    displayName: Update example scenario
+    context: INSTANCE
+  - key: delete
+    displayName: Delete example scenario
+    context: INSTANCE
+  - key: assign
+    displayName: Assign example scenario
+    context: INSTANCE

@@ -1,0 +1,29 @@
+# GENERATED FILE - DO NOT EDIT BY HAND.
+#
+# Produced by libs/cataloggen from libs/cataloggen/manifest.yaml (catalog revision 1).
+# Edit the manifest and re-run `make catalog-gen`, or regenerate directly
+# with `go run ./libs/cataloggen/cmd/cataloggen -manifest libs/cataloggen/manifest.yaml`.
+resource: medication_administration
+version: v1
+displayName: Medication administration
+domain: medications
+fhirType: MedicationAdministration
+actions:
+  - key: create
+    displayName: Create medication administration
+    context: COLLECTION
+  - key: list
+    displayName: List medication administration
+    context: COLLECTION
+  - key: read
+    displayName: Read medication administration
+    context: INSTANCE
+  - key: update
+    displayName: Update medication administration
+    context: INSTANCE
+  - key: delete
+    displayName: Delete medication administration
+    context: INSTANCE
+  - key: assign
+    displayName: Assign medication administration
+    context: INSTANCE

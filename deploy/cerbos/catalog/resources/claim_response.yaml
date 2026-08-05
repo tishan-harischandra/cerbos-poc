@@ -1,0 +1,29 @@
+# GENERATED FILE - DO NOT EDIT BY HAND.
+#
+# Produced by libs/cataloggen from libs/cataloggen/manifest.yaml (catalog revision 1).
+# Edit the manifest and re-run `make catalog-gen`, or regenerate directly
+# with `go run ./libs/cataloggen/cmd/cataloggen -manifest libs/cataloggen/manifest.yaml`.
+resource: claim_response
+version: v1
+displayName: Claim response
+domain: financial
+fhirType: ClaimResponse
+actions:
+  - key: create
+    displayName: Create claim response
+    context: COLLECTION
+  - key: list
+    displayName: List claim response
+    context: COLLECTION
+  - key: read
+    displayName: Read claim response
+    context: INSTANCE
+  - key: update
+    displayName: Update claim response
+    context: INSTANCE
+  - key: delete
+    displayName: Delete claim response
+    context: INSTANCE
+  - key: assign
+    displayName: Assign claim response
+    context: INSTANCE

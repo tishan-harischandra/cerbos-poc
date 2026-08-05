@@ -1,0 +1,29 @@
+# GENERATED FILE - DO NOT EDIT BY HAND.
+#
+# Produced by libs/cataloggen from libs/cataloggen/manifest.yaml (catalog revision 1).
+# Edit the manifest and re-run `make catalog-gen`, or regenerate directly
+# with `go run ./libs/cataloggen/cmd/cataloggen -manifest libs/cataloggen/manifest.yaml`.
+resource: imaging_study
+version: v1
+displayName: Imaging study
+domain: diagnostics
+fhirType: ImagingStudy
+actions:
+  - key: create
+    displayName: Create imaging study
+    context: COLLECTION
+  - key: list
+    displayName: List imaging study
+    context: COLLECTION
+  - key: read
+    displayName: Read imaging study
+    context: INSTANCE
+  - key: update
+    displayName: Update imaging study
+    context: INSTANCE
+  - key: delete
+    displayName: Delete imaging study
+    context: INSTANCE
+  - key: assign
+    displayName: Assign imaging study
+    context: INSTANCE

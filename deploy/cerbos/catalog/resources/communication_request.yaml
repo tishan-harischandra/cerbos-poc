@@ -1,0 +1,29 @@
+# GENERATED FILE - DO NOT EDIT BY HAND.
+#
+# Produced by libs/cataloggen from libs/cataloggen/manifest.yaml (catalog revision 1).
+# Edit the manifest and re-run `make catalog-gen`, or regenerate directly
+# with `go run ./libs/cataloggen/cmd/cataloggen -manifest libs/cataloggen/manifest.yaml`.
+resource: communication_request
+version: v1
+displayName: Communication request
+domain: care_provision
+fhirType: CommunicationRequest
+actions:
+  - key: create
+    displayName: Create communication request
+    context: COLLECTION
+  - key: list
+    displayName: List communication request
+    context: COLLECTION
+  - key: read
+    displayName: Read communication request
+    context: INSTANCE
+  - key: update
+    displayName: Update communication request
+    context: INSTANCE
+  - key: delete
+    displayName: Delete communication request
+    context: INSTANCE
+  - key: assign
+    displayName: Assign communication request
+    context: INSTANCE

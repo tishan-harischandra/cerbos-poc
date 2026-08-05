@@ -1,0 +1,29 @@
+# GENERATED FILE - DO NOT EDIT BY HAND.
+#
+# Produced by libs/cataloggen from libs/cataloggen/manifest.yaml (catalog revision 1).
+# Edit the manifest and re-run `make catalog-gen`, or regenerate directly
+# with `go run ./libs/cataloggen/cmd/cataloggen -manifest libs/cataloggen/manifest.yaml`.
+resource: nutrition_product
+version: v1
+displayName: Nutrition product
+domain: substances
+fhirType: NutritionProduct
+actions:
+  - key: create
+    displayName: Create nutrition product
+    context: COLLECTION
+  - key: list
+    displayName: List nutrition product
+    context: COLLECTION
+  - key: read
+    displayName: Read nutrition product
+    context: INSTANCE
+  - key: update
+    displayName: Update nutrition product
+    context: INSTANCE
+  - key: delete
+    displayName: Delete nutrition product
+    context: INSTANCE
+  - key: assign
+    displayName: Assign nutrition product
+    context: INSTANCE

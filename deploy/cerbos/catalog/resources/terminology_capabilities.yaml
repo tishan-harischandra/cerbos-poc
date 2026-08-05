@@ -1,0 +1,29 @@
+# GENERATED FILE - DO NOT EDIT BY HAND.
+#
+# Produced by libs/cataloggen from libs/cataloggen/manifest.yaml (catalog revision 1).
+# Edit the manifest and re-run `make catalog-gen`, or regenerate directly
+# with `go run ./libs/cataloggen/cmd/cataloggen -manifest libs/cataloggen/manifest.yaml`.
+resource: terminology_capabilities
+version: v1
+displayName: Terminology capabilities
+domain: terminology
+fhirType: TerminologyCapabilities
+actions:
+  - key: create
+    displayName: Create terminology capabilities
+    context: COLLECTION
+  - key: list
+    displayName: List terminology capabilities
+    context: COLLECTION
+  - key: read
+    displayName: Read terminology capabilities
+    context: INSTANCE
+  - key: update
+    displayName: Update terminology capabilities
+    context: INSTANCE
+  - key: delete
+    displayName: Delete terminology capabilities
+    context: INSTANCE
+  - key: assign
+    displayName: Assign terminology capabilities
+    context: INSTANCE

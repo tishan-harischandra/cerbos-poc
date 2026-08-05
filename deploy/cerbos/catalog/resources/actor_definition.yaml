@@ -1,0 +1,29 @@
+# GENERATED FILE - DO NOT EDIT BY HAND.
+#
+# Produced by libs/cataloggen from libs/cataloggen/manifest.yaml (catalog revision 1).
+# Edit the manifest and re-run `make catalog-gen`, or regenerate directly
+# with `go run ./libs/cataloggen/cmd/cataloggen -manifest libs/cataloggen/manifest.yaml`.
+resource: actor_definition
+version: v1
+displayName: Actor definition
+domain: definitional
+fhirType: ActorDefinition
+actions:
+  - key: create
+    displayName: Create actor definition
+    context: COLLECTION
+  - key: list
+    displayName: List actor definition
+    context: COLLECTION
+  - key: read
+    displayName: Read actor definition
+    context: INSTANCE
+  - key: update
+    displayName: Update actor definition
+    context: INSTANCE
+  - key: delete
+    displayName: Delete actor definition
+    context: INSTANCE
+  - key: assign
+    displayName: Assign actor definition
+    context: INSTANCE

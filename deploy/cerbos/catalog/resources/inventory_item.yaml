@@ -1,0 +1,29 @@
+# GENERATED FILE - DO NOT EDIT BY HAND.
+#
+# Produced by libs/cataloggen from libs/cataloggen/manifest.yaml (catalog revision 1).
+# Edit the manifest and re-run `make catalog-gen`, or regenerate directly
+# with `go run ./libs/cataloggen/cmd/cataloggen -manifest libs/cataloggen/manifest.yaml`.
+resource: inventory_item
+version: v1
+displayName: Inventory item
+domain: inventory
+fhirType: InventoryItem
+actions:
+  - key: create
+    displayName: Create inventory item
+    context: COLLECTION
+  - key: list
+    displayName: List inventory item
+    context: COLLECTION
+  - key: read
+    displayName: Read inventory item
+    context: INSTANCE
+  - key: update
+    displayName: Update inventory item
+    context: INSTANCE
+  - key: delete
+    displayName: Delete inventory item
+    context: INSTANCE
+  - key: assign
+    displayName: Assign inventory item
+    context: INSTANCE

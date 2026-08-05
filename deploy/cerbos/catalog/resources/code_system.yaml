@@ -1,0 +1,29 @@
+# GENERATED FILE - DO NOT EDIT BY HAND.
+#
+# Produced by libs/cataloggen from libs/cataloggen/manifest.yaml (catalog revision 1).
+# Edit the manifest and re-run `make catalog-gen`, or regenerate directly
+# with `go run ./libs/cataloggen/cmd/cataloggen -manifest libs/cataloggen/manifest.yaml`.
+resource: code_system
+version: v1
+displayName: Code system
+domain: terminology
+fhirType: CodeSystem
+actions:
+  - key: create
+    displayName: Create code system
+    context: COLLECTION
+  - key: list
+    displayName: List code system
+    context: COLLECTION
+  - key: read
+    displayName: Read code system
+    context: INSTANCE
+  - key: update
+    displayName: Update code system
+    context: INSTANCE
+  - key: delete
+    displayName: Delete code system
+    context: INSTANCE
+  - key: assign
+    displayName: Assign code system
+    context: INSTANCE

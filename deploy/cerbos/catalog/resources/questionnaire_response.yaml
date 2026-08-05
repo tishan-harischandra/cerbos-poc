@@ -1,0 +1,29 @@
+# GENERATED FILE - DO NOT EDIT BY HAND.
+#
+# Produced by libs/cataloggen from libs/cataloggen/manifest.yaml (catalog revision 1).
+# Edit the manifest and re-run `make catalog-gen`, or regenerate directly
+# with `go run ./libs/cataloggen/cmd/cataloggen -manifest libs/cataloggen/manifest.yaml`.
+resource: questionnaire_response
+version: v1
+displayName: Questionnaire response
+domain: definitional
+fhirType: QuestionnaireResponse
+actions:
+  - key: create
+    displayName: Create questionnaire response
+    context: COLLECTION
+  - key: list
+    displayName: List questionnaire response
+    context: COLLECTION
+  - key: read
+    displayName: Read questionnaire response
+    context: INSTANCE
+  - key: update
+    displayName: Update questionnaire response
+    context: INSTANCE
+  - key: delete
+    displayName: Delete questionnaire response
+    context: INSTANCE
+  - key: assign
+    displayName: Assign questionnaire response
+    context: INSTANCE

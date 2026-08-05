@@ -1,0 +1,29 @@
+# GENERATED FILE - DO NOT EDIT BY HAND.
+#
+# Produced by libs/cataloggen from libs/cataloggen/manifest.yaml (catalog revision 1).
+# Edit the manifest and re-run `make catalog-gen`, or regenerate directly
+# with `go run ./libs/cataloggen/cmd/cataloggen -manifest libs/cataloggen/manifest.yaml`.
+resource: observation
+version: v1
+displayName: Observation
+domain: diagnostics
+fhirType: Observation
+actions:
+  - key: create
+    displayName: Create observation
+    context: COLLECTION
+  - key: list
+    displayName: List observation
+    context: COLLECTION
+  - key: read
+    displayName: Read observation
+    context: INSTANCE
+  - key: update
+    displayName: Update observation
+    context: INSTANCE
+  - key: delete
+    displayName: Delete observation
+    context: INSTANCE
+  - key: assign
+    displayName: Assign observation
+    context: INSTANCE

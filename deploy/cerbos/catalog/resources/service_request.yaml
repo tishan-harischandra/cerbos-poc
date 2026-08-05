@@ -1,0 +1,29 @@
+# GENERATED FILE - DO NOT EDIT BY HAND.
+#
+# Produced by libs/cataloggen from libs/cataloggen/manifest.yaml (catalog revision 1).
+# Edit the manifest and re-run `make catalog-gen`, or regenerate directly
+# with `go run ./libs/cataloggen/cmd/cataloggen -manifest libs/cataloggen/manifest.yaml`.
+resource: service_request
+version: v1
+displayName: Service request
+domain: care_provision
+fhirType: ServiceRequest
+actions:
+  - key: create
+    displayName: Create service request
+    context: COLLECTION
+  - key: list
+    displayName: List service request
+    context: COLLECTION
+  - key: read
+    displayName: Read service request
+    context: INSTANCE
+  - key: update
+    displayName: Update service request
+    context: INSTANCE
+  - key: delete
+    displayName: Delete service request
+    context: INSTANCE
+  - key: assign
+    displayName: Assign service request
+    context: INSTANCE

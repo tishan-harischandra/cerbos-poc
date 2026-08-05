@@ -1,0 +1,29 @@
+# GENERATED FILE - DO NOT EDIT BY HAND.
+#
+# Produced by libs/cataloggen from libs/cataloggen/manifest.yaml (catalog revision 1).
+# Edit the manifest and re-run `make catalog-gen`, or regenerate directly
+# with `go run ./libs/cataloggen/cmd/cataloggen -manifest libs/cataloggen/manifest.yaml`.
+resource: research_subject
+version: v1
+displayName: Research subject
+domain: research
+fhirType: ResearchSubject
+actions:
+  - key: create
+    displayName: Create research subject
+    context: COLLECTION
+  - key: list
+    displayName: List research subject
+    context: COLLECTION
+  - key: read
+    displayName: Read research subject
+    context: INSTANCE
+  - key: update
+    displayName: Update research subject
+    context: INSTANCE
+  - key: delete
+    displayName: Delete research subject
+    context: INSTANCE
+  - key: assign
+    displayName: Assign research subject
+    context: INSTANCE

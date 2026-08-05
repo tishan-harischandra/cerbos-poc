@@ -1,0 +1,29 @@
+# GENERATED FILE - DO NOT EDIT BY HAND.
+#
+# Produced by libs/cataloggen from libs/cataloggen/manifest.yaml (catalog revision 1).
+# Edit the manifest and re-run `make catalog-gen`, or regenerate directly
+# with `go run ./libs/cataloggen/cmd/cataloggen -manifest libs/cataloggen/manifest.yaml`.
+resource: audit_event
+version: v1
+displayName: Audit event
+domain: security
+fhirType: AuditEvent
+actions:
+  - key: create
+    displayName: Create audit event
+    context: COLLECTION
+  - key: list
+    displayName: List audit event
+    context: COLLECTION
+  - key: read
+    displayName: Read audit event
+    context: INSTANCE
+  - key: update
+    displayName: Update audit event
+    context: INSTANCE
+  - key: delete
+    displayName: Delete audit event
+    context: INSTANCE
+  - key: assign
+    displayName: Assign audit event
+    context: INSTANCE

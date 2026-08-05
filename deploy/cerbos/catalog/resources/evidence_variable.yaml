@@ -1,0 +1,29 @@
+# GENERATED FILE - DO NOT EDIT BY HAND.
+#
+# Produced by libs/cataloggen from libs/cataloggen/manifest.yaml (catalog revision 1).
+# Edit the manifest and re-run `make catalog-gen`, or regenerate directly
+# with `go run ./libs/cataloggen/cmd/cataloggen -manifest libs/cataloggen/manifest.yaml`.
+resource: evidence_variable
+version: v1
+displayName: Evidence variable
+domain: research
+fhirType: EvidenceVariable
+actions:
+  - key: create
+    displayName: Create evidence variable
+    context: COLLECTION
+  - key: list
+    displayName: List evidence variable
+    context: COLLECTION
+  - key: read
+    displayName: Read evidence variable
+    context: INSTANCE
+  - key: update
+    displayName: Update evidence variable
+    context: INSTANCE
+  - key: delete
+    displayName: Delete evidence variable
+    context: INSTANCE
+  - key: assign
+    displayName: Assign evidence variable
+    context: INSTANCE

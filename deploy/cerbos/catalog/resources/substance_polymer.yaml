@@ -1,0 +1,29 @@
+# GENERATED FILE - DO NOT EDIT BY HAND.
+#
+# Produced by libs/cataloggen from libs/cataloggen/manifest.yaml (catalog revision 1).
+# Edit the manifest and re-run `make catalog-gen`, or regenerate directly
+# with `go run ./libs/cataloggen/cmd/cataloggen -manifest libs/cataloggen/manifest.yaml`.
+resource: substance_polymer
+version: v1
+displayName: Substance polymer
+domain: substances
+fhirType: SubstancePolymer
+actions:
+  - key: create
+    displayName: Create substance polymer
+    context: COLLECTION
+  - key: list
+    displayName: List substance polymer
+    context: COLLECTION
+  - key: read
+    displayName: Read substance polymer
+    context: INSTANCE
+  - key: update
+    displayName: Update substance polymer
+    context: INSTANCE
+  - key: delete
+    displayName: Delete substance polymer
+    context: INSTANCE
+  - key: assign
+    displayName: Assign substance polymer
+    context: INSTANCE

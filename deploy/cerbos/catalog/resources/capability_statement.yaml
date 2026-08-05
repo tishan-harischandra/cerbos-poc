@@ -1,0 +1,29 @@
+# GENERATED FILE - DO NOT EDIT BY HAND.
+#
+# Produced by libs/cataloggen from libs/cataloggen/manifest.yaml (catalog revision 1).
+# Edit the manifest and re-run `make catalog-gen`, or regenerate directly
+# with `go run ./libs/cataloggen/cmd/cataloggen -manifest libs/cataloggen/manifest.yaml`.
+resource: capability_statement
+version: v1
+displayName: Capability statement
+domain: conformance
+fhirType: CapabilityStatement
+actions:
+  - key: create
+    displayName: Create capability statement
+    context: COLLECTION
+  - key: list
+    displayName: List capability statement
+    context: COLLECTION
+  - key: read
+    displayName: Read capability statement
+    context: INSTANCE
+  - key: update
+    displayName: Update capability statement
+    context: INSTANCE
+  - key: delete
+    displayName: Delete capability statement
+    context: INSTANCE
+  - key: assign
+    displayName: Assign capability statement
+    context: INSTANCE

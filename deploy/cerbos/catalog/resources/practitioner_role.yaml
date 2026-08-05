@@ -1,0 +1,29 @@
+# GENERATED FILE - DO NOT EDIT BY HAND.
+#
+# Produced by libs/cataloggen from libs/cataloggen/manifest.yaml (catalog revision 1).
+# Edit the manifest and re-run `make catalog-gen`, or regenerate directly
+# with `go run ./libs/cataloggen/cmd/cataloggen -manifest libs/cataloggen/manifest.yaml`.
+resource: practitioner_role
+version: v1
+displayName: Practitioner role
+domain: administrative
+fhirType: PractitionerRole
+actions:
+  - key: create
+    displayName: Create practitioner role
+    context: COLLECTION
+  - key: list
+    displayName: List practitioner role
+    context: COLLECTION
+  - key: read
+    displayName: Read practitioner role
+    context: INSTANCE
+  - key: update
+    displayName: Update practitioner role
+    context: INSTANCE
+  - key: delete
+    displayName: Delete practitioner role
+    context: INSTANCE
+  - key: assign
+    displayName: Assign practitioner role
+    context: INSTANCE

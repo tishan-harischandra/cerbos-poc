@@ -1,0 +1,29 @@
+# GENERATED FILE - DO NOT EDIT BY HAND.
+#
+# Produced by libs/cataloggen from libs/cataloggen/manifest.yaml (catalog revision 1).
+# Edit the manifest and re-run `make catalog-gen`, or regenerate directly
+# with `go run ./libs/cataloggen/cmd/cataloggen -manifest libs/cataloggen/manifest.yaml`.
+resource: provenance
+version: v1
+displayName: Provenance
+domain: security
+fhirType: Provenance
+actions:
+  - key: create
+    displayName: Create provenance
+    context: COLLECTION
+  - key: list
+    displayName: List provenance
+    context: COLLECTION
+  - key: read
+    displayName: Read provenance
+    context: INSTANCE
+  - key: update
+    displayName: Update provenance
+    context: INSTANCE
+  - key: delete
+    displayName: Delete provenance
+    context: INSTANCE
+  - key: assign
+    displayName: Assign provenance
+    context: INSTANCE
