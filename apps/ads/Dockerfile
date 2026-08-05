@@ -11,6 +11,9 @@ COPY apps/ads/go.mod apps/ads/go.sum ./apps/ads/
 COPY libs/assignmentstore/go.mod libs/assignmentstore/go.sum ./libs/assignmentstore/
 COPY libs/cerbosclient/go.mod libs/cerbosclient/go.sum ./libs/cerbosclient/
 COPY libs/permissioncontext/go.mod ./libs/permissioncontext/
+COPY libs/canonicalid/go.mod ./libs/canonicalid/
+COPY libs/tokenverifier/go.mod ./libs/tokenverifier/
+COPY libs/idpdirectory/go.mod ./libs/idpdirectory/
 WORKDIR /src/apps/ads
 RUN go mod download
 

@@ -139,11 +139,6 @@ func (d *Directory) SearchRoles(ctx context.Context, tenant idpdirectory.TenantI
 		return empty, err
 	}
 
-	path, err := d.rolesPath(ctx)
-	if err != nil {
-		return empty, err
-	}
-
 	page := query.Page.Normalised()
 	params := url.Values{}
 	if query.Query != "" {
@@ -152,7 +147,7 @@ func (d *Directory) SearchRoles(ctx context.Context, tenant idpdirectory.TenantI
 	applyWindow(params, page)
 
 	var found []roleRepresentation
-	if err := d.getJSON(ctx, path, params, &found); err != nil {
+	if err := d.getRoles(ctx, "", params, &found); err != nil {
 		return empty, err
 	}
 
@@ -184,12 +179,8 @@ func (d *Directory) GetRole(ctx context.Context, tenant idpdirectory.TenantID, e
 	if err := d.checkTenant(tenant); err != nil {
 		return idpdirectory.RoleRef{}, err
 	}
-	path, err := d.rolesPath(ctx)
-	if err != nil {
-		return idpdirectory.RoleRef{}, err
-	}
 	var representation roleRepresentation
-	if err := d.getJSON(ctx, path+"/"+url.PathEscape(externalID), nil, &representation); err != nil {
+	if err := d.getRoles(ctx, externalID, nil, &representation); err != nil {
 		return idpdirectory.RoleRef{}, err
 	}
 	return d.toRoleRef(representation), nil
@@ -234,6 +225,40 @@ func (d *Directory) toRoleRef(representation roleRepresentation) idpdirectory.Ro
 		ref.CanonicalID = canonical[0]
 	}
 	return ref
+}
+
+// getRoles reads from the authoritative role source, retrying once against a
+// freshly resolved client.
+//
+// The client's internal id is realm configuration, so it is cached - but a
+// realm can be rebuilt underneath a running service, and the cached id is then
+// a 404 for the rest of the process' life. Nothing about "no such identity"
+// would point an operator at a cache, so the recovery is automatic. One retry,
+// because a second failure is a real absence rather than a stale id.
+func (d *Directory) getRoles(ctx context.Context, roleName string, params url.Values, into any) error {
+	for attempt := range 2 {
+		path, err := d.rolesPath(ctx)
+		if err != nil {
+			return err
+		}
+		if roleName != "" {
+			path += "/" + url.PathEscape(roleName)
+		}
+
+		err = d.getJSON(ctx, path, params, into)
+		if err == nil || attempt == 1 || !errors.Is(err, idpdirectory.ErrNotFound) {
+			return err
+		}
+		d.forgetClient()
+	}
+	return nil
+}
+
+// forgetClient drops the cached client id so the next call resolves it again.
+func (d *Directory) forgetClient() {
+	d.mu.Lock()
+	d.clientUUID, d.clientUUIDSet = "", false
+	d.mu.Unlock()
 }
 
 // rolesPath resolves where the authoritative roles live, translating the

@@ -20,7 +20,7 @@
       "attributes": {
         "post.logout.redirect.uris": "http://localhost:4200/*"
       },
-      "defaultClientScopes": ["web-origins", "profile", "roles", "email"],
+      "defaultClientScopes": ["basic", "web-origins", "profile", "roles", "email"],
       "protocolMappers": [
         {
           "name": "audience",
@@ -55,8 +55,7 @@
             "id.token.claim": "true"
           }
         }
-      ],
-      "roles": []
+      ]
     },
     {
       "clientId": "reporting-app",
@@ -69,7 +68,7 @@
       "serviceAccountsEnabled": false,
       "redirectUris": [],
       "webOrigins": [],
-      "defaultClientScopes": ["web-origins", "profile", "roles", "email"],
+      "defaultClientScopes": ["basic", "web-origins", "profile", "roles", "email"],
       "protocolMappers": [
         {
           "name": "audience",

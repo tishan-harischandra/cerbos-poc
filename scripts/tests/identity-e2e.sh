@@ -90,13 +90,11 @@ other_audience_token="$(token_for user-doctor reporting-app)" || exit 1
 expect_status "a token minted for another client is refused" 401 \
   "$(decide_with "${other_audience_token}")"
 
-# The master realm is a different issuer with a different key set.
-master_token="$(token_for "${KEYCLOAK_ADMIN:-admin}" admin-cli master)" || master_token=""
-if [[ -n "${master_token}" ]]; then
-  expect_status "a token from another issuer is refused" 401 "$(decide_with "${master_token}")"
-else
-  fail "a token from another issuer is refused (could not obtain a master realm token)"
-fi
+# A second realm mints a token that is genuine in every respect - real user,
+# valid signature, right audience - and signed by a key set this ADS does not
+# trust. Only the issuer check stands between it and a decision.
+other_issuer_token="$(token_for user-doctor patient-app other-issuer)" || exit 1
+expect_status "a token from another issuer is refused" 401 "$(decide_with "${other_issuer_token}")"
 
 # §16.1: the synthetic role prefix is the platform's. The realm carries a
 # hostile fixture role so this is a token Keycloak really issued.

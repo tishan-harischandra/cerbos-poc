@@ -121,6 +121,33 @@ func TestRoleSearchProducesTheSameCanonicalIdentifiersAsTokenNormalisation(t *te
 	}
 }
 
+// The client's internal UUID is cached as realm configuration, but a realm can
+// be rebuilt underneath a running service - `make down && make up` does exactly
+// that to the development database. The cached UUID is then a 404 forever, and
+// role search stays broken until someone restarts the ADS. Recovering has to be
+// automatic, because nothing about the symptom points at a cache.
+func TestRoleSearchRecoversWhenTheRealmIsRebuiltUnderneathIt(t *testing.T) {
+	fake := newFakeKeycloak(t)
+	fake.clientRoles = []role{{ID: "58d1e7c8-role", Name: "doctor"}}
+	defer fake.Close()
+
+	directory := fake.directory(t)
+	if _, err := directory.SearchRoles(context.Background(), tenant, idpdirectory.RoleSearch{}); err != nil {
+		t.Fatalf("the first SearchRoles: %v", err)
+	}
+
+	// The realm comes back with the same client under a new internal id.
+	fake.clientUUID = "client-uuid-after-rebuild"
+
+	page, err := directory.SearchRoles(context.Background(), tenant, idpdirectory.RoleSearch{})
+	if err != nil {
+		t.Fatalf("SearchRoles after the realm was rebuilt: %v", err)
+	}
+	if len(page.Items) != 1 {
+		t.Errorf("returned %d roles after the rebuild, want 1", len(page.Items))
+	}
+}
+
 func TestGettingAUserThatDoesNotExistReportsNotFound(t *testing.T) {
 	fake := newFakeKeycloak(t)
 	defer fake.Close()
@@ -248,6 +275,9 @@ type fakeKeycloak struct {
 
 	users       []user
 	clientRoles []role
+	// clientUUID is the internal id the fake currently reports for the client.
+	// Changing it stands in for a realm that was rebuilt.
+	clientUUID string
 
 	tokenRequests     atomic.Int64
 	adminRequests     atomic.Int64
@@ -259,7 +289,7 @@ type fakeKeycloak struct {
 
 func newFakeKeycloak(t *testing.T) *fakeKeycloak {
 	t.Helper()
-	fake := &fakeKeycloak{t: t, queries: map[string]url.Values{}}
+	fake := &fakeKeycloak{t: t, queries: map[string]url.Values{}, clientUUID: "client-uuid"}
 	fake.Server = httptest.NewServer(http.HandlerFunc(fake.serve))
 	return fake
 }
@@ -299,17 +329,21 @@ func (f *fakeKeycloak) serve(w http.ResponseWriter, r *http.Request) {
 		}
 		w.WriteHeader(http.StatusNotFound)
 	case path == "/admin/realms/"+realm+"/clients":
-		writeJSON(f.t, w, []map[string]string{{"id": "client-uuid", "clientId": clientID}})
-	case path == "/admin/realms/"+realm+"/clients/client-uuid/roles":
+		writeJSON(f.t, w, []map[string]string{{"id": f.clientUUID, "clientId": clientID}})
+	case path == "/admin/realms/"+realm+"/clients/"+f.clientUUID+"/roles":
 		writeJSON(f.t, w, window(f.clientRoles, r))
-	case strings.HasPrefix(path, "/admin/realms/"+realm+"/clients/client-uuid/roles/"):
-		name := strings.TrimPrefix(path, "/admin/realms/"+realm+"/clients/client-uuid/roles/")
+	case strings.HasPrefix(path, "/admin/realms/"+realm+"/clients/"+f.clientUUID+"/roles/"):
+		name := strings.TrimPrefix(path, "/admin/realms/"+realm+"/clients/"+f.clientUUID+"/roles/")
 		for _, candidate := range f.clientRoles {
 			if candidate.Name == name || candidate.ID == name {
 				writeJSON(f.t, w, candidate)
 				return
 			}
 		}
+		w.WriteHeader(http.StatusNotFound)
+	// A client id the realm no longer knows: what a rebuilt realm answers to a
+	// cached UUID.
+	case strings.HasPrefix(path, "/admin/realms/"+realm+"/clients/"):
 		w.WriteHeader(http.StatusNotFound)
 	default:
 		f.t.Errorf("the adapter called an endpoint the fake does not model: %s", path)
