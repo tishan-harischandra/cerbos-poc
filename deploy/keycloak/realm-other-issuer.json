@@ -1,0 +1,44 @@
+{
+  "realm": "other-issuer",
+  "displayName": "Wrong issuer fixture: genuine tokens the ADS must still refuse",
+  "enabled": true,
+  "sslRequired": "none",
+  "clients": [
+    {
+      "clientId": "patient-app",
+      "name": "A client with the same name in a different realm",
+      "description": "Tokens from here are genuine - real user, valid signature, right audience - and must still be refused, because a key set the ADS does not trust signed them. A malformed token could not prove that.",
+      "enabled": true,
+      "publicClient": true,
+      "standardFlowEnabled": true,
+      "directAccessGrantsEnabled": true,
+      "serviceAccountsEnabled": false,
+      "redirectUris": [],
+      "webOrigins": [],
+      "defaultClientScopes": ["basic", "web-origins", "profile", "roles", "email"],
+      "protocolMappers": [
+        {
+          "name": "audience",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-audience-mapper",
+          "config": {
+            "included.client.audience": "patient-app",
+            "access.token.claim": "true"
+          }
+        }
+      ]
+    }
+  ],
+  "users": [
+    {
+      "username": "user-doctor",
+      "enabled": true,
+      "emailVerified": true,
+      "firstName": "Dana",
+      "lastName": "Elsewhere",
+      "email": "dana.doctor@elsewhere.test",
+      "requiredActions": [],
+      "credentials": [{ "type": "password", "value": "demo-password", "temporary": false }]
+    }
+  ]
+}

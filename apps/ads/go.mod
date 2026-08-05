@@ -2,7 +2,10 @@ module github.com/tishan-harischandra/cerbos-poc/apps/ads
 
 go 1.25.11
 
-require google.golang.org/grpc v1.82.1
+require (
+	github.com/tishan-harischandra/cerbos-poc/libs/canonicalid v0.0.0
+	google.golang.org/grpc v1.82.1
+)
 
 require (
 	buf.build/gen/go/bufbuild/protovalidate/protocolbuffers/go v1.36.11-20260415201107-50325440f8f2.1 // indirect
@@ -71,7 +74,9 @@ require (
 require (
 	github.com/tishan-harischandra/cerbos-poc/libs/assignmentstore v0.0.0
 	github.com/tishan-harischandra/cerbos-poc/libs/cerbosclient v0.0.0
+	github.com/tishan-harischandra/cerbos-poc/libs/idpdirectory v0.0.0
 	github.com/tishan-harischandra/cerbos-poc/libs/permissioncontext v0.0.0
+	github.com/tishan-harischandra/cerbos-poc/libs/tokenverifier v0.0.0
 	golang.org/x/net v0.55.0 // indirect
 	golang.org/x/sys v0.46.0 // indirect
 	golang.org/x/text v0.38.0 // indirect
@@ -84,3 +89,9 @@ replace github.com/tishan-harischandra/cerbos-poc/libs/assignmentstore => ../../
 replace github.com/tishan-harischandra/cerbos-poc/libs/cerbosclient => ../../libs/cerbosclient
 
 replace github.com/tishan-harischandra/cerbos-poc/libs/permissioncontext => ../../libs/permissioncontext
+
+replace github.com/tishan-harischandra/cerbos-poc/libs/canonicalid => ../../libs/canonicalid
+
+replace github.com/tishan-harischandra/cerbos-poc/libs/tokenverifier => ../../libs/tokenverifier
+
+replace github.com/tishan-harischandra/cerbos-poc/libs/idpdirectory => ../../libs/idpdirectory

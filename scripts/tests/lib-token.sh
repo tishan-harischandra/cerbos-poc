@@ -1,0 +1,75 @@
+#!/usr/bin/env bash
+# Shared helpers for obtaining real tokens from the running Keycloak.
+#
+# Everything the end-to-end suites send is a token the identity provider
+# actually minted. A hand-rolled JWT would prove only that the tests can build
+# one; these prove that a login, a signature, an audience and a role claim line
+# up all the way from Keycloak to a Cerbos decision.
+#
+# Source this file; it defines KEYCLOAK_URL, REALM and the helpers below.
+
+KEYCLOAK_URL="${KEYCLOAK_URL:-http://127.0.0.1:${KEYCLOAK_PORT:-8081}}"
+REALM="${IDP_REALM:-cerbos-poc}"
+DEMO_PASSWORD="${KEYCLOAK_DEMO_PASSWORD:-demo-password}"
+
+# token_for <username> [client-id] [realm]
+# Echoes an access token, or exits non-zero with the provider's message.
+token_for() {
+  local username="$1" client="${2:-patient-app}" realm="${3:-${REALM}}"
+  local response
+  response="$(curl -sS --max-time 10 \
+    -d "grant_type=password" \
+    -d "client_id=${client}" \
+    -d "username=${username}" \
+    -d "password=${DEMO_PASSWORD}" \
+    "${KEYCLOAK_URL}/realms/${realm}/protocol/openid-connect/token")" || return 1
+
+  local token
+  token="$(jq -r '.access_token // empty' <<<"${response}")"
+  if [[ -z "${token}" ]]; then
+    echo "token_for: ${username}@${client} did not receive a token: ${response}" >&2
+    return 1
+  fi
+  printf '%s' "${token}"
+}
+
+# claim_of <token> <jq-expression>
+# Reads a claim out of the payload segment without verifying anything: this is
+# for asserting what the identity provider put in the token, never for deciding
+# whether to trust it.
+claim_of() {
+  local token="$1" expression="$2" payload
+  payload="$(cut -d. -f2 <<<"${token}")"
+  # JWT uses base64url with the padding stripped; base64 wants both back.
+  payload="${payload//-/+}"
+  payload="${payload//_/\/}"
+  while (( ${#payload} % 4 )); do payload+="="; done
+  base64 -d <<<"${payload}" 2>/dev/null | jq -r "${expression}"
+}
+
+# tamper_with <token>
+# Returns the same token with one signature byte changed, which is the cheapest
+# possible forgery and must be refused.
+tamper_with() {
+  local token="$1" header payload signature
+  header="$(cut -d. -f1 <<<"${token}")"
+  payload="$(cut -d. -f2 <<<"${token}")"
+  signature="$(cut -d. -f3 <<<"${token}")"
+  local last="${signature: -1}"
+  local replacement="A"
+  [[ "${last}" == "A" ]] && replacement="B"
+  printf '%s.%s.%s%s' "${header}" "${payload}" "${signature%?}" "${replacement}"
+}
+
+# wait_for_keycloak waits until the realm's discovery document is served.
+wait_for_keycloak() {
+  for _ in $(seq 1 60); do
+    if curl -sS --max-time 5 -o /dev/null \
+      "${KEYCLOAK_URL}/realms/${REALM}/.well-known/openid-configuration"; then
+      return 0
+    fi
+    sleep 1
+  done
+  echo "keycloak never served the ${REALM} realm at ${KEYCLOAK_URL}" >&2
+  return 1
+}

@@ -30,7 +30,17 @@ type Config struct {
 	// AuthzHandler serves POST /internal/authz/check. When nil the route is
 	// not registered at all, so a misconfigured build fails with 404 rather
 	// than answering authorization questions from a stub.
+	//
+	// Every handler below arrives already wrapped in the token middleware.
+	// Authentication is not applied here: a route that forgot it would then
+	// look identical to one that did not need it.
 	AuthzHandler http.Handler
+
+	// DirectoryUsersHandler and DirectoryRolesHandler serve the Admin
+	// Console's identity directory reads. Nil when no identity provider is
+	// configured, in which case the routes do not exist.
+	DirectoryUsersHandler http.Handler
+	DirectoryRolesHandler http.Handler
 }
 
 // New builds the ADS HTTP handler.
@@ -41,6 +51,12 @@ func New(cfg Config) http.Handler {
 	})
 	if cfg.AuthzHandler != nil {
 		mux.Handle("POST /internal/authz/check", cfg.AuthzHandler)
+	}
+	if cfg.DirectoryUsersHandler != nil {
+		mux.Handle("GET /internal/directory/users", cfg.DirectoryUsersHandler)
+	}
+	if cfg.DirectoryRolesHandler != nil {
+		mux.Handle("GET /internal/directory/roles", cfg.DirectoryRolesHandler)
 	}
 
 	timeout := cfg.ReadinessTimeout

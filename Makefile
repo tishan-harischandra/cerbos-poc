@@ -84,6 +84,7 @@ db-test-dual: ## Prove portability: the same contract against both engines
 .PHONY: smoke
 smoke: ## Verify a running stack end to end
 	bash scripts/tests/stack-smoke.sh
+	bash scripts/tests/identity-e2e.sh
 	bash scripts/tests/decision-e2e.sh
 
 .PHONY: gen

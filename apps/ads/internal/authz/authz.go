@@ -14,15 +14,12 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
-	"strings"
 
+	"github.com/tishan-harischandra/cerbos-poc/apps/ads/internal/tokenauth"
+	"github.com/tishan-harischandra/cerbos-poc/libs/canonicalid"
 	"github.com/tishan-harischandra/cerbos-poc/libs/cerbosclient"
 	"github.com/tishan-harischandra/cerbos-poc/libs/permissioncontext"
 )
-
-// ReservedRolePrefix marks roles only the platform may assign. A token
-// presenting one is refused before a decision is attempted (§21).
-const ReservedRolePrefix = "sys:"
 
 // PDP is the policy decision point the handler asks.
 type PDP interface {
@@ -53,12 +50,13 @@ type Config struct {
 }
 
 // Request is the Appendix B decision request.
+//
+// It names resources and actions only. Principal, tenant, hospital and roles
+// are derived from the verified token (§16.1), so there is no field here for a
+// browser to put them in - and because unknown fields are refused, a caller
+// that tries is told rather than quietly ignored.
 type Request struct {
-	TenantID    string            `json:"tenantId"`
-	HospitalID  string            `json:"hospitalId"`
-	PrincipalID string            `json:"principalId"`
-	IdPRoles    []string          `json:"idpRoles"`
-	Resources   []RequestResource `json:"resources"`
+	Resources []RequestResource `json:"resources"`
 }
 
 // RequestResource is one resource and the actions asked about it.
@@ -97,6 +95,16 @@ func NewHandler(cfg Config) http.Handler {
 	}
 
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// The identity is the middleware's, never the body's. A handler
+		// reached without one has been mounted outside the authenticated
+		// routes, which is a wiring defect rather than a caller error.
+		identity, ok := tokenauth.From(r.Context())
+		if !ok {
+			logger.ErrorContext(r.Context(), "the decision endpoint was reached without a verified identity")
+			writeError(w, http.StatusUnauthorized, "a bearer token is required")
+			return
+		}
+
 		var req Request
 		decoder := json.NewDecoder(r.Body)
 		decoder.DisallowUnknownFields()
@@ -110,9 +118,13 @@ func NewHandler(cfg Config) http.Handler {
 			return
 		}
 
-		if role, found := reservedRole(req.IdPRoles); found {
-			logger.WarnContext(r.Context(), "rejected a token presenting a reserved role",
-				slog.String("principalId", req.PrincipalID),
+		// Defence in depth. Token verification already refuses a reserved
+		// role, so reaching this is a bug in the wiring rather than an
+		// attack that got through - but the synthetic role is the one claim
+		// that must never reach the PDP from outside.
+		if role, found := reservedRole(identity.Roles); found {
+			logger.ErrorContext(r.Context(), "a verified identity carried a reserved role",
+				slog.String("principalId", identity.PrincipalID),
 				slog.String("role", role))
 			writeError(w, http.StatusForbidden,
 				fmt.Sprintf("role %q is reserved for the platform", role))
@@ -121,11 +133,11 @@ func NewHandler(cfg Config) http.Handler {
 
 		checkReq := cerbosclient.Request{
 			Principal: cerbosclient.Principal{
-				ID: req.PrincipalID,
+				ID: identity.PrincipalID,
 				Attr: map[string]any{
-					"tenantId":   req.TenantID,
-					"hospitalId": req.HospitalID,
-					"idpRoles":   req.IdPRoles,
+					"tenantId":   identity.TenantID,
+					"hospitalId": identity.HospitalID,
+					"idpRoles":   identity.Roles,
 				},
 			},
 		}
@@ -133,16 +145,16 @@ func NewHandler(cfg Config) http.Handler {
 		revisions := make(map[cerbosclient.ResourceRef]int64, len(req.Resources))
 		for _, resource := range req.Resources {
 			input, err := cfg.Assignments.For(r.Context(), AssignmentQuery{
-				TenantID:     req.TenantID,
-				HospitalID:   req.HospitalID,
-				PrincipalID:  req.PrincipalID,
+				TenantID:     identity.TenantID,
+				HospitalID:   identity.HospitalID,
+				PrincipalID:  identity.PrincipalID,
 				ResourceKind: resource.Kind,
 				ResourceID:   resource.ID,
-				IdPRoles:     req.IdPRoles,
+				IdPRoles:     identity.Roles,
 			})
 			if err != nil {
 				logger.ErrorContext(r.Context(), "resolving assignments failed",
-					slog.String("principalId", req.PrincipalID),
+					slog.String("principalId", identity.PrincipalID),
 					slog.String("resourceId", resource.ID),
 					slog.Any("error", err))
 				writeError(w, http.StatusServiceUnavailable, "could not resolve permissions")
@@ -171,7 +183,7 @@ func NewHandler(cfg Config) http.Handler {
 		result, err := cfg.PDP.Check(r.Context(), checkReq)
 		if err != nil {
 			logger.ErrorContext(r.Context(), "the PDP could not be reached",
-				slog.String("principalId", req.PrincipalID),
+				slog.String("principalId", identity.PrincipalID),
 				slog.Any("error", err))
 			writeError(w, http.StatusServiceUnavailable, "could not reach the policy decision point")
 			return
@@ -199,22 +211,15 @@ func NewHandler(cfg Config) http.Handler {
 		logger.InfoContext(r.Context(), "authorization decision served",
 			slog.String("correlationId", correlationID(r)),
 			slog.String("cerbosCallId", result.CallID),
-			slog.String("principalId", req.PrincipalID),
-			slog.String("tenantId", req.TenantID))
+			slog.String("principalId", identity.PrincipalID),
+			slog.String("tenantId", identity.TenantID))
 
 		writeJSON(w, http.StatusOK, response)
 	})
 }
 
 func (r Request) validate() error {
-	switch {
-	case r.TenantID == "":
-		return errors.New("tenantId is required")
-	case r.HospitalID == "":
-		return errors.New("hospitalId is required")
-	case r.PrincipalID == "":
-		return errors.New("principalId is required")
-	case len(r.Resources) == 0:
+	if len(r.Resources) == 0 {
 		return errors.New("at least one resource is required")
 	}
 
@@ -233,7 +238,7 @@ func (r Request) validate() error {
 
 func reservedRole(roles []string) (string, bool) {
 	for _, role := range roles {
-		if strings.HasPrefix(strings.ToLower(role), ReservedRolePrefix) {
+		if canonicalid.IsReserved(role) {
 			return role, true
 		}
 	}

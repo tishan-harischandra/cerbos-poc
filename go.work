@@ -1,9 +1,12 @@
 go 1.25.11
 
 use (
-	./apps/ads
-	./libs/assignmentstore
-	./libs/cerbosclient
-	./libs/permissioncontext
-	./tests/architecture
+./apps/ads
+./libs/assignmentstore
+./libs/canonicalid
+./libs/cerbosclient
+./libs/idpdirectory
+./libs/permissioncontext
+./libs/tokenverifier
+./tests/architecture
 )

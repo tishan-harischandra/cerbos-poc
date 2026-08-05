@@ -59,6 +59,40 @@ services:
       timeout: 5s
       retries: 20
 
+  # Keycloak is the only service a browser authenticates against, so unlike the
+  # PDP and the database it is published to the host: an OIDC redirect the user
+  # cannot reach is not a login. Hostname and port are pinned so the issuer in a
+  # token is the same string whether it was minted for the browser or read by
+  # the ADS - a mismatch there rejects every token with a confusing message.
+  keycloak:
+    image: quay.io/keycloak/keycloak:26.4
+    command: ["start-dev", "--import-realm"]
+    environment:
+      KC_BOOTSTRAP_ADMIN_USERNAME: ${KEYCLOAK_ADMIN:-admin}
+      KC_BOOTSTRAP_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD:-change-me}
+      KC_HTTP_ENABLED: "true"
+      KC_HTTP_PORT: "8080"
+      KC_HOSTNAME: ${KEYCLOAK_HOSTNAME:-http://localhost:8081}
+      KC_HOSTNAME_BACKCHANNEL_DYNAMIC: "true"
+      KC_HEALTH_ENABLED: "true"
+    volumes:
+      - ./deploy/keycloak/realm-cerbos-poc.json:/opt/keycloak/data/import/realm-cerbos-poc.json:ro
+      - ./deploy/keycloak/realm-other-issuer.json:/opt/keycloak/data/import/realm-other-issuer.json:ro
+    ports:
+      - "${KEYCLOAK_PORT:-8081}:8080"
+    # The image ships no curl or wget, so readiness is probed over bash's own
+    # /dev/tcp against the management port health endpoint.
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "exec 3<>/dev/tcp/127.0.0.1/9000 && printf 'GET /health/ready HTTP/1.1\\r\\nHost: localhost\\r\\nConnection: close\\r\\n\\r\\n' >&3 && grep -q '\"status\": \"UP\"' <&3",
+        ]
+      interval: 5s
+      timeout: 5s
+      retries: 40
+      start_period: 20s
+
   ads:
     build:
       context: .
@@ -71,10 +105,31 @@ services:
       POSTGRES_ADDR: "postgres:5432"
       ASSIGNMENTSTORE_POSTGRES_DSN: "postgres://${POSTGRES_USER:-cerbos_poc}:${POSTGRES_PASSWORD:-change-me}@postgres:5432/${POSTGRES_DB:-cerbos_poc}?sslmode=disable"
       ADS_ROLE_MATRIX_CACHE_TTL: "${ADS_ROLE_MATRIX_CACHE_TTL:-30s}"
+      # §7.1's installation selection, in full. Changing IDP_TYPE to WSO2_IS
+      # selects the other adapter with no image rebuilt.
+      IDP_TYPE: "${IDP_TYPE:-KEYCLOAK}"
+      IDP_BASE_URL: "http://keycloak:8080"
+      IDP_ADDR: "keycloak:8080"
+      IDP_REALM: "${IDP_REALM:-cerbos-poc}"
+      IDP_TENANT_ID: "${IDP_TENANT_ID:-tenant-a}"
+      IDP_TENANT_MAPPING_MODE: "${IDP_TENANT_MAPPING_MODE:-CLAIM}"
+      IDP_ROLE_SOURCE: "${IDP_ROLE_SOURCE:-CLIENT}"
+      IDP_CLIENT_ID: "${IDP_CLIENT_ID:-patient-app}"
+      IDP_SERVICE_CLIENT_ID: "${IDP_SERVICE_CLIENT_ID:-authorization-admin-service}"
+      # The issuer is what the browser's token claims, so it is the published
+      # address rather than the compose-internal one.
+      IDP_ISSUER: "${KEYCLOAK_HOSTNAME:-http://localhost:8081}/realms/${IDP_REALM:-cerbos-poc}"
+      # By reference, never by value: a secret in an environment variable is
+      # visible in `docker inspect` and inherited by every child process.
+      IDP_CREDENTIALS_SECRET_REF: "/run/secrets/idp-admin-credentials"
+    volumes:
+      - ./deploy/secrets/idp-admin-credentials:/run/secrets/idp-admin-credentials:ro
     depends_on:
       cerbos:
         condition: service_healthy
       postgres:
+        condition: service_healthy
+      keycloak:
         condition: service_healthy
     healthcheck:
       test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://127.0.0.1:8080/readyz"]

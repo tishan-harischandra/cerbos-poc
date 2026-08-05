@@ -8,11 +8,29 @@
 # up here.
 set -uo pipefail
 
+cd "$(dirname "${BASH_SOURCE[0]}")/../.."
+# shellcheck source=scripts/tests/lib-token.sh
+source scripts/tests/lib-token.sh
+
 PORT="${ADMIN_CONSOLE_PORT:-4200}"
 CHECK_URL="http://127.0.0.1:${PORT}/api/ads/internal/authz/check"
 failures=0
 
 command -v jq >/dev/null 2>&1 || { echo "decision-e2e: jq is required" >&2; exit 1; }
+wait_for_keycloak || exit 1
+
+# Every principal below is a real Keycloak user, and every request carries the
+# token that user logged in with. Roles are therefore whatever the realm grants
+# them, which is the point: the identifiers in the seeded matrix have to be the
+# ones token normalisation produces, and a mismatch shows up here as a denial.
+declare -A TOKENS
+token_of() {
+  local principal="$1"
+  if [[ -z "${TOKENS[${principal}]:-}" ]]; then
+    TOKENS[${principal}]="$(token_for "${principal}")" || exit 1
+  fi
+  printf '%s' "${TOKENS[${principal}]}"
+}
 
 wait_for_decisions() {
   # Gate on the decision path itself rather than on /readyz. Readiness probes the
@@ -22,15 +40,16 @@ wait_for_decisions() {
   # is the only signal that means what this suite needs.
   #
   # Consecutive successes, because one success during a restart proves nothing.
-  local required=3 streak=0 code
-  local probe='{"tenantId":"tenant-a","hospitalId":"hospital-1","principalId":"user-unassigned",
-    "idpRoles":[],"resources":[{"kind":"patient_record","id":"patient-000",
+  local required=3 streak=0 code token
+  token="$(token_of user-unassigned)"
+  local probe='{"resources":[{"kind":"patient_record","id":"patient-000",
     "attributes":{"tenantId":"tenant-a","hospitalId":"hospital-1","status":"ACTIVE"},
     "actions":["read"]}]}'
 
   for _ in $(seq 1 60); do
     code="$(curl -sS -o /dev/null -w '%{http_code}' --max-time 5 \
-      -H 'Content-Type: application/json' --data "${probe}" "${CHECK_URL}" 2>/dev/null)"
+      -H 'Content-Type: application/json' -H "Authorization: Bearer ${token}" \
+      --data "${probe}" "${CHECK_URL}" 2>/dev/null)"
     if [[ "${code}" == "200" ]]; then
       streak=$((streak + 1))
       if (( streak >= required )); then
@@ -49,44 +68,18 @@ wait_for_decisions() {
 
 wait_for_decisions || exit 1
 
-# Canonical §7.5 role identifiers, matching the seeded role matrix exactly.
-# Token-to-role normalisation has to produce the same identifiers the matrix is
-# keyed by, so a second spelling here would resolve to no permissions at all.
-DOCTOR_ROLE="kc:realm:patient-app:doctor"
-AUDITOR_ROLE="kc:realm:patient-app:auditor"
-
-# Which roles each principal presents. Role grants now come from the database,
-# so a principal's roles are what decides its grants: giving every principal the
-# doctor role would make "a principal with no assignments is denied" untestable.
-roles_for() {
-  case "$1" in
-    user-doctor|user-doctor-revoked) jq -cn --arg r "${DOCTOR_ROLE}" '[$r]' ;;
-    user-auditor)                    jq -cn --arg r "${AUDITOR_ROLE}" '[$r]' ;;
-    *)                               echo '[]' ;;
-  esac
-}
-
-# decide <principal> <status> <resource-tenant> <actions-json> [extra-idp-role]
-# Echoes the decision response body.
+# decide <principal> <status> <resource-tenant> <actions-json>
+# Echoes the HTTP status, leaving the response body in /tmp/decision-body.
 decide() {
-  local principal="$1" status="$2" resource_tenant="$3" actions="$4" extra_role="${5:-}"
-  local roles
-  roles="$(roles_for "${principal}")"
-  if [[ -n "${extra_role}" ]]; then
-    roles="$(jq -cn --argjson base "${roles}" --arg extra "${extra_role}" '$base + [$extra]')"
-  fi
+  local principal="$1" status="$2" resource_tenant="$3" actions="$4"
+  local token
+  token="$(token_of "${principal}")"
 
   jq -cn \
-    --arg principal "${principal}" \
     --arg status "${status}" \
     --arg resourceTenant "${resource_tenant}" \
     --argjson actions "${actions}" \
-    --argjson idpRoles "${roles}" \
     '{
-      tenantId: "tenant-a",
-      hospitalId: "hospital-1",
-      principalId: $principal,
-      idpRoles: $idpRoles,
       resources: [{
         kind: "patient_record",
         id: "patient-456",
@@ -96,6 +89,7 @@ decide() {
     }' \
   | curl -sS -o /tmp/decision-body -w '%{http_code}' \
       -H 'Content-Type: application/json' \
+      -H "Authorization: Bearer ${token}" \
       -H 'X-Correlation-Id: decision-e2e' \
       --data @- "${CHECK_URL}"
 }
@@ -222,8 +216,9 @@ else
 fi
 
 # The synthetic role is the platform's to inject. A token claiming it must be
-# refused before a decision is attempted.
-code="$(decide user-doctor ACTIVE tenant-a '["read"]' "sys:permission-evaluator")"
+# refused before a decision is attempted; the realm carries a hostile fixture
+# user so this is a token Keycloak really minted.
+code="$(decide user-forger ACTIVE tenant-a '["read"]')"
 if [[ "${code}" == "403" ]]; then
   echo "ok   a token presenting the synthetic role is refused"
 else
@@ -237,7 +232,8 @@ fi
 # ADS refuses a structurally invalid request instead of forwarding it.
 code="$(curl -sS -o /tmp/decision-body -w '%{http_code}' \
   -H 'Content-Type: application/json' \
-  --data '{"tenantId":"tenant-a","hospitalId":"hospital-1","principalId":"user-doctor","resources":[]}' \
+  -H "Authorization: Bearer $(token_of user-doctor)" \
+  --data '{"resources":[]}' \
   "${CHECK_URL}")"
 if [[ "${code}" == "400" ]]; then
   echo "ok   a request with no resources is rejected"
