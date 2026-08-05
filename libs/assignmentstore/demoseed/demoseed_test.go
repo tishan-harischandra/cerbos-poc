@@ -13,6 +13,7 @@ var seededAt = time.Date(2026, 6, 1, 12, 0, 0, 0, time.UTC)
 
 type recordingWriter struct {
 	permissions map[assignmentstore.RolePermissionKey]assignmentstore.RolePermission
+	overrides   map[assignmentstore.UserOverrideKey]assignmentstore.UserOverride
 	revisions   map[string]assignmentstore.PermissionRevision
 	writes      int
 }
@@ -20,6 +21,7 @@ type recordingWriter struct {
 func newRecordingWriter() *recordingWriter {
 	return &recordingWriter{
 		permissions: make(map[assignmentstore.RolePermissionKey]assignmentstore.RolePermission),
+		overrides:   make(map[assignmentstore.UserOverrideKey]assignmentstore.UserOverride),
 		revisions:   make(map[string]assignmentstore.PermissionRevision),
 	}
 }
@@ -27,6 +29,12 @@ func newRecordingWriter() *recordingWriter {
 func (w *recordingWriter) SaveRolePermission(_ context.Context, permission assignmentstore.RolePermission) error {
 	w.writes++
 	w.permissions[permission.Key] = permission
+	return nil
+}
+
+func (w *recordingWriter) SaveUserOverride(_ context.Context, override assignmentstore.UserOverride) error {
+	w.writes++
+	w.overrides[assignmentstore.NormalizeOverrideKey(override.Key)] = override
 	return nil
 }
 
@@ -47,6 +55,19 @@ func (w *recordingWriter) permission(t *testing.T, tenant, role, action string) 
 		t.Fatalf("the seed wrote no %s/%s/%s row", tenant, role, action)
 	}
 	return permission
+}
+
+func (w *recordingWriter) override(t *testing.T, hospital, user, action, instance string) assignmentstore.UserOverride {
+	t.Helper()
+	key := assignmentstore.NormalizeOverrideKey(assignmentstore.UserOverrideKey{
+		TenantID: demoseed.TenantID, HospitalID: hospital, UserExternalID: user,
+		ResourceKey: demoseed.ResourceKey, ActionKey: action, ResourceInstanceID: instance,
+	})
+	override, found := w.overrides[key]
+	if !found {
+		t.Fatalf("the seed wrote no %s/%s/%s/%s override", hospital, user, action, instance)
+	}
+	return override
 }
 
 func applySeed(t *testing.T) *recordingWriter {
@@ -116,6 +137,79 @@ func TestTheOtherTenantHasAGrantThatMustNotLeak(t *testing.T) {
 	}
 	if permission.Key.TenantID == demoseed.TenantID {
 		t.Error("the other tenant's row is in the demo tenant")
+	}
+}
+
+// The ADR-003 case: a user revoke seeded in the database, not compiled into
+// the service, so the end-to-end suite proves it through the real decision
+// path rather than only through a policy test.
+func TestTheRevokedDoctorHasAUserRevokeOnUpdate(t *testing.T) {
+	override := applySeed(t).override(t, demoseed.HospitalID,
+		demoseed.DoctorWithRevokedUpdate, "update", assignmentstore.NoResourceInstance)
+
+	if override.Effect != assignmentstore.EffectRevoke {
+		t.Errorf("effect = %s, want %s", override.Effect, assignmentstore.EffectRevoke)
+	}
+	if !override.Enabled {
+		t.Error("the revoke row is disabled, so the ADR-003 case would pass vacuously")
+	}
+}
+
+// A grant with no role grant behind it: an allow can only have come from the
+// override.
+func TestTheGrantedClerkHasAUserGrantOnRead(t *testing.T) {
+	override := applySeed(t).override(t, demoseed.HospitalID,
+		demoseed.ClerkWithGrantedRead, "read", assignmentstore.NoResourceInstance)
+
+	if override.Effect != assignmentstore.EffectGrant {
+		t.Errorf("effect = %s, want %s", override.Effect, assignmentstore.EffectGrant)
+	}
+	if !override.Enabled {
+		t.Error("the grant row is disabled, so the case would pass vacuously")
+	}
+}
+
+// Enabled but out of date, the same reasoning as the expired role permission:
+// ignoring expiry would visibly grant.
+func TestTheClerksUpdateGrantIsEnabledButExpired(t *testing.T) {
+	override := applySeed(t).override(t, demoseed.HospitalID,
+		demoseed.ClerkWithGrantedRead, "update", assignmentstore.NoResourceInstance)
+
+	if !override.Enabled {
+		t.Error("the expired override is disabled, so the expiry case would pass for the wrong reason")
+	}
+	if !override.ValidUntil.Before(seededAt) {
+		t.Errorf("the override runs until %s, which has not passed at %s", override.ValidUntil, seededAt)
+	}
+}
+
+// The other hospital's row has to exist for the isolation case to mean
+// anything, and it has to belong to the very same user: proving isolation by
+// tenant or user alone would leave hospital scoping untested.
+func TestAnotherHospitalHasAGrantForTheSameUserThatMustNotLeak(t *testing.T) {
+	override := applySeed(t).override(t, demoseed.OtherHospitalID,
+		demoseed.DoctorWithRevokedUpdate, "delete", assignmentstore.NoResourceInstance)
+
+	if !override.Enabled {
+		t.Error("the other hospital's row is disabled, so the isolation case would pass vacuously")
+	}
+	if override.Key.HospitalID == demoseed.HospitalID {
+		t.Error("the other hospital's row is in the demo hospital")
+	}
+}
+
+// Scoped to one resource instance (§6.2's optional selector): it must apply
+// there and, per the seed rows above, nowhere else.
+func TestTheInstanceScopedGrantNamesOneResource(t *testing.T) {
+	override := applySeed(t).override(t, demoseed.HospitalID,
+		demoseed.ClerkWithGrantedRead, "delete", demoseed.InstanceScopedResourceID)
+
+	if !override.Enabled {
+		t.Error("the instance-scoped grant is disabled, so the case would pass vacuously")
+	}
+	if override.Key.ResourceInstanceID != demoseed.InstanceScopedResourceID {
+		t.Errorf("resourceInstanceId = %q, want %q",
+			override.Key.ResourceInstanceID, demoseed.InstanceScopedResourceID)
 	}
 }
 
