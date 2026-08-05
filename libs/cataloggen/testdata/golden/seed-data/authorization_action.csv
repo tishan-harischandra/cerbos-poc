@@ -1,0 +1,3 @@
+resource_key,action_key,display_name,context_type,risk_level
+condition,read,Read condition,INSTANCE,STANDARD
+condition,update,Update condition,INSTANCE,ELEVATED

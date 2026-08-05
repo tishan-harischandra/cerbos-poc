@@ -1,0 +1,25 @@
+# A small fixture manifest for the generator's golden-file tests. Two
+# actions and two resources keep the golden files small enough to read as
+# part of a code review while still exercising every code path: an included
+# resource, an excluded one, and the lockable-action restriction.
+sourceNote: Fixture manifest for cataloggen unit tests, not part of the real catalog.
+catalogRevision: 7
+
+actions:
+  - key: read
+    displayName: Read
+    context: INSTANCE
+  - key: update
+    displayName: Update
+    context: INSTANCE
+
+lockableActions: [update]
+
+resources:
+  - fhirType: Condition
+    domain: clinical
+
+  - fhirType: Practitioner
+    domain: administrative
+    included: false
+    reason: Excluded by the fixture on purpose, to exercise the exclusion path.

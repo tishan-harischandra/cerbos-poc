@@ -1,0 +1,17 @@
+# GENERATED FILE - DO NOT EDIT BY HAND.
+#
+# Produced by libs/cataloggen from libs/cataloggen/manifest.yaml (catalog revision 7).
+# Edit the manifest and re-run `make catalog-gen`, or regenerate directly
+# with `go run ./libs/cataloggen/cmd/cataloggen -manifest libs/cataloggen/manifest.yaml`.
+resource: condition
+version: v1
+displayName: Condition
+domain: clinical
+fhirType: Condition
+actions:
+  - key: read
+    displayName: Read condition
+    context: INSTANCE
+  - key: update
+    displayName: Update condition
+    context: INSTANCE
