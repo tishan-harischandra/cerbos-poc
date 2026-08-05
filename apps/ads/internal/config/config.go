@@ -20,6 +20,9 @@ type Config struct {
 	// environment rather than being assembled from parts here.
 	PostgresDSN        string
 	RoleMatrixCacheTTL time.Duration
+	// IdPAddr is the host:port the readiness probe dials. Like PostgresAddr it
+	// carries no credential, because a readiness probe must not need one.
+	IdPAddr string
 }
 
 // LookupFunc mirrors os.LookupEnv so configuration stays testable.
@@ -34,6 +37,7 @@ func FromEnv(lookup LookupFunc) Config {
 		PostgresAddr:       valueOr(lookup, "POSTGRES_ADDR", "postgres:5432"),
 		PostgresDSN:        valueOr(lookup, "ASSIGNMENTSTORE_POSTGRES_DSN", ""),
 		RoleMatrixCacheTTL: durationOr(lookup, "ADS_ROLE_MATRIX_CACHE_TTL", DefaultRoleMatrixCacheTTL),
+		IdPAddr:            valueOr(lookup, "IDP_ADDR", "keycloak:8080"),
 	}
 }
 
