@@ -59,6 +59,30 @@
       "roles": []
     },
     {
+      "clientId": "reporting-app",
+      "name": "Reporting application",
+      "description": "A second client, present so the audience check has something real to reject. A token minted here is valid, signed by this realm, and still not for the ADS.",
+      "enabled": true,
+      "publicClient": true,
+      "standardFlowEnabled": true,
+      "directAccessGrantsEnabled": true,
+      "serviceAccountsEnabled": false,
+      "redirectUris": [],
+      "webOrigins": [],
+      "defaultClientScopes": ["web-origins", "profile", "roles", "email"],
+      "protocolMappers": [
+        {
+          "name": "audience",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-audience-mapper",
+          "config": {
+            "included.client.audience": "reporting-app",
+            "access.token.claim": "true"
+          }
+        }
+      ]
+    },
+    {
       "clientId": "authorization-admin-service",
       "name": "Authorization admin service",
       "description": "The confidential service account the ADS reads the directory with. It is never used by a browser and never issued to one (7.3).",
@@ -90,6 +114,10 @@
         {
           "name": "administrator",
           "description": "Authorization administrator"
+        },
+        {
+          "name": "sys:forged-evaluator",
+          "description": "A hostile fixture. The sys: prefix is the platform's, so a token carrying this role must be rejected outright (16.1). It exists to make that rejection provable end to end rather than only in a unit test."
         }
       ]
     }
@@ -184,6 +212,21 @@
       },
       "credentials": [{ "type": "password", "value": "demo-password", "temporary": false }],
       "clientRoles": { "patient-app": ["administrator"] }
+    },
+    {
+      "id": "user-forger",
+      "username": "user-forger",
+      "enabled": true,
+      "emailVerified": true,
+      "firstName": "Mal",
+      "lastName": "Forger",
+      "email": "mal.forger@example.test",
+      "attributes": {
+        "tenant_id": ["tenant-a"],
+        "hospital_id": ["hospital-1"]
+      },
+      "credentials": [{ "type": "password", "value": "demo-password", "temporary": false }],
+      "clientRoles": { "patient-app": ["sys:forged-evaluator"] }
     },
     {
       "username": "service-account-authorization-admin-service",
