@@ -1,0 +1,29 @@
+# GENERATED FILE - DO NOT EDIT BY HAND.
+#
+# Produced by libs/cataloggen from libs/cataloggen/manifest.yaml (catalog revision 1).
+# Edit the manifest and re-run `make catalog-gen`, or regenerate directly
+# with `go run ./libs/cataloggen/cmd/cataloggen -manifest libs/cataloggen/manifest.yaml`.
+resource: family_member_history
+version: v1
+displayName: Family member history
+domain: clinical
+fhirType: FamilyMemberHistory
+actions:
+  - key: create
+    displayName: Create family member history
+    context: COLLECTION
+  - key: list
+    displayName: List family member history
+    context: COLLECTION
+  - key: read
+    displayName: Read family member history
+    context: INSTANCE
+  - key: update
+    displayName: Update family member history
+    context: INSTANCE
+  - key: delete
+    displayName: Delete family member history
+    context: INSTANCE
+  - key: assign
+    displayName: Assign family member history
+    context: INSTANCE

@@ -1,0 +1,29 @@
+# GENERATED FILE - DO NOT EDIT BY HAND.
+#
+# Produced by libs/cataloggen from libs/cataloggen/manifest.yaml (catalog revision 1).
+# Edit the manifest and re-run `make catalog-gen`, or regenerate directly
+# with `go run ./libs/cataloggen/cmd/cataloggen -manifest libs/cataloggen/manifest.yaml`.
+resource: citation
+version: v1
+displayName: Citation
+domain: research
+fhirType: Citation
+actions:
+  - key: create
+    displayName: Create citation
+    context: COLLECTION
+  - key: list
+    displayName: List citation
+    context: COLLECTION
+  - key: read
+    displayName: Read citation
+    context: INSTANCE
+  - key: update
+    displayName: Update citation
+    context: INSTANCE
+  - key: delete
+    displayName: Delete citation
+    context: INSTANCE
+  - key: assign
+    displayName: Assign citation
+    context: INSTANCE

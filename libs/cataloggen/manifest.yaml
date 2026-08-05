@@ -1,0 +1,426 @@
+# The committed FHIR resource manifest (issue #8, §6.1, §8, §21).
+#
+# This is the single source of truth every downstream artifact is generated
+# from: the resource-action catalog, the Cerbos policies, the JSON schemas,
+# the Cerbos test suite and the database catalog seed. Nothing downstream is
+# hand-edited; a change here and a re-run of `libs/cataloggen/cmd/cataloggen`
+# is the only way the generated tree changes (see the golden-file test in
+# generator_test.go and the drift check in tests/architecture).
+#
+# sourceNote records where this list came from and its limitations, per the
+# PRD requirement that the manifest record why each entry is included or
+# excluded (PRD "Resource and action catalog" story 14).
+sourceNote: >-
+  FHIR R6 is still in ballot and its final resource list is not yet fixed.
+  With the user's explicit approval, this manifest uses the finalized FHIR R5
+  concrete resource list as a stand-in, compiled from the model's training
+  data rather than fetched from the live HL7 spec (the spec pages were too
+  large to retrieve reliably with the available tooling). It has NOT been
+  machine-verified against https://hl7.org/fhir/R5/resourcelist.html or the
+  eventual R6 ballot text. Treat resource inclusion, naming and grouping as
+  best-effort and subject to human review (this issue is labelled hitl for
+  exactly that reason). Abstract types `Resource` and `DomainResource` are
+  excluded by construction; they are not concrete resource kinds and cannot
+  be the `resource` of a Cerbos resource policy.
+
+catalogRevision: 1
+
+# Every resource gets the same six actions (PRD story 11). `assign` transfers
+# responsibility for a resource instance to a practitioner or team; it is
+# authorized independently of `update` (§6, issue #8).
+actions:
+  - key: create
+    displayName: Create
+    context: COLLECTION
+  - key: list
+    displayName: List
+    context: COLLECTION
+  - key: read
+    displayName: Read
+    context: INSTANCE
+  - key: update
+    displayName: Update
+    context: INSTANCE
+  - key: delete
+    displayName: Delete
+    context: INSTANCE
+  - key: assign
+    displayName: Assign
+    context: INSTANCE
+
+# Actions denied by the shared mandatory `status == "LOCKED"` restriction
+# (mirrors the ADR-006 pattern already proven by patient_record: §6.5,
+# deploy/liquibase/changelog/tables/006-fhir-resource.yaml). `create` and
+# `list` are collection-scoped and have no existing instance to lock.
+lockableActions: [update, delete, assign]
+
+resources:
+  # Hand-authored ahead of the generator as the ADR-006 reference pattern
+  # (deploy/cerbos/policies/resources/patient_record.yaml, issue #3). Excluded
+  # from generation in this slice: patient_record only implements three of the
+  # six actions and its own bespoke schema, and demoseed, the store contract,
+  # resolver tests and scripts/tests/decision-e2e.sh are all built against
+  # its exact shape. Regenerating it now would be a large, unrelated blast
+  # radius for this issue. A follow-up can fold Patient into the generator
+  # once the generated six-action shape has proven itself at catalog scale.
+  - fhirType: Patient
+    domain: administrative
+    included: false
+    reason: >-
+      Already hand-authored as the ADR-006 reference pattern ahead of the
+      generator; excluded here to avoid disrupting existing demo, store
+      contract and end-to-end test wiring built against patient_record.
+
+  # --- foundation -----------------------------------------------------------
+  - fhirType: Basic
+    domain: foundation
+  - fhirType: Binary
+    domain: foundation
+  - fhirType: Bundle
+    domain: foundation
+  - fhirType: OperationOutcome
+    domain: foundation
+  - fhirType: Parameters
+    domain: foundation
+
+  # --- administrative (individuals and entities) -----------------------------
+  - fhirType: Practitioner
+    domain: administrative
+  - fhirType: PractitionerRole
+    domain: administrative
+  - fhirType: RelatedPerson
+    domain: administrative
+  - fhirType: Person
+    domain: administrative
+  - fhirType: Group
+    domain: administrative
+  - fhirType: Organization
+    domain: administrative
+  - fhirType: OrganizationAffiliation
+    domain: administrative
+  - fhirType: HealthcareService
+    domain: administrative
+  - fhirType: Endpoint
+    domain: administrative
+  - fhirType: Location
+    domain: administrative
+
+  # --- devices ----------------------------------------------------------------
+  - fhirType: Device
+    domain: devices
+  - fhirType: DeviceDefinition
+    domain: devices
+  - fhirType: DeviceMetric
+    domain: devices
+  - fhirType: DeviceRequest
+    domain: devices
+  - fhirType: DeviceUsage
+    domain: devices
+  - fhirType: DeviceAssociation
+    domain: devices
+  - fhirType: DeviceDispense
+    domain: devices
+
+  # --- substances and products -------------------------------------------------
+  - fhirType: Substance
+    domain: substances
+  - fhirType: SubstanceDefinition
+    domain: substances
+  - fhirType: SubstanceNucleicAcid
+    domain: substances
+  - fhirType: SubstancePolymer
+    domain: substances
+  - fhirType: SubstanceProtein
+    domain: substances
+  - fhirType: SubstanceReferenceInformation
+    domain: substances
+  - fhirType: SubstanceSourceMaterial
+    domain: substances
+  - fhirType: BiologicallyDerivedProduct
+    domain: substances
+  - fhirType: BiologicallyDerivedProductDispense
+    domain: substances
+  - fhirType: NutritionProduct
+    domain: substances
+  - fhirType: Ingredient
+    domain: substances
+
+  # --- medicinal product definitions --------------------------------------------
+  - fhirType: MedicinalProductDefinition
+    domain: medicinal_products
+  - fhirType: PackagedProductDefinition
+    domain: medicinal_products
+  - fhirType: AdministrableProductDefinition
+    domain: medicinal_products
+  - fhirType: ManufacturedItemDefinition
+    domain: medicinal_products
+  - fhirType: RegulatedAuthorization
+    domain: medicinal_products
+  - fhirType: ClinicalUseDefinition
+    domain: medicinal_products
+
+  # --- workflow ----------------------------------------------------------------
+  - fhirType: Task
+    domain: workflow
+  - fhirType: Appointment
+    domain: workflow
+  - fhirType: AppointmentResponse
+    domain: workflow
+  - fhirType: Schedule
+    domain: workflow
+  - fhirType: Slot
+    domain: workflow
+  - fhirType: VerificationResult
+    domain: workflow
+  - fhirType: Requirements
+    domain: workflow
+  - fhirType: Transport
+    domain: workflow
+
+  # --- care management -----------------------------------------------------------
+  - fhirType: CareTeam
+    domain: management
+  - fhirType: Goal
+    domain: management
+  - fhirType: EpisodeOfCare
+    domain: management
+  - fhirType: Flag
+    domain: management
+  - fhirType: List
+    domain: management
+  - fhirType: Encounter
+    domain: management
+  - fhirType: EncounterHistory
+    domain: management
+
+  # --- clinical summary -----------------------------------------------------------
+  - fhirType: AllergyIntolerance
+    domain: clinical
+  - fhirType: AdverseEvent
+    domain: clinical
+  - fhirType: Condition
+    domain: clinical
+  - fhirType: Procedure
+    domain: clinical
+  - fhirType: FamilyMemberHistory
+    domain: clinical
+  - fhirType: ClinicalImpression
+    domain: clinical
+  - fhirType: DetectedIssue
+    domain: clinical
+
+  # --- diagnostics -----------------------------------------------------------
+  - fhirType: Observation
+    domain: diagnostics
+  - fhirType: Media
+    domain: diagnostics
+  - fhirType: DiagnosticReport
+    domain: diagnostics
+  - fhirType: Specimen
+    domain: diagnostics
+  - fhirType: BodyStructure
+    domain: diagnostics
+  - fhirType: ImagingStudy
+    domain: diagnostics
+  - fhirType: ImagingSelection
+    domain: diagnostics
+  - fhirType: MolecularSequence
+    domain: diagnostics
+  - fhirType: GenomicStudy
+    domain: diagnostics
+
+  # --- medications -----------------------------------------------------------
+  - fhirType: Medication
+    domain: medications
+  - fhirType: MedicationRequest
+    domain: medications
+  - fhirType: MedicationAdministration
+    domain: medications
+  - fhirType: MedicationDispense
+    domain: medications
+  - fhirType: MedicationStatement
+    domain: medications
+  - fhirType: MedicationKnowledge
+    domain: medications
+  - fhirType: Immunization
+    domain: medications
+  - fhirType: ImmunizationEvaluation
+    domain: medications
+  - fhirType: ImmunizationRecommendation
+    domain: medications
+
+  # --- care provision -----------------------------------------------------------
+  - fhirType: CarePlan
+    domain: care_provision
+  - fhirType: ServiceRequest
+    domain: care_provision
+  - fhirType: NutritionOrder
+    domain: care_provision
+  - fhirType: NutritionIntake
+    domain: care_provision
+  - fhirType: VisionPrescription
+    domain: care_provision
+  - fhirType: RiskAssessment
+    domain: care_provision
+  - fhirType: RequestOrchestration
+    domain: care_provision
+  - fhirType: Communication
+    domain: care_provision
+  - fhirType: CommunicationRequest
+    domain: care_provision
+  - fhirType: GuidanceResponse
+    domain: care_provision
+
+  # --- supply -----------------------------------------------------------
+  - fhirType: SupplyRequest
+    domain: supply
+  - fhirType: SupplyDelivery
+    domain: supply
+
+  # --- financial -----------------------------------------------------------
+  - fhirType: Coverage
+    domain: financial
+  - fhirType: CoverageEligibilityRequest
+    domain: financial
+  - fhirType: CoverageEligibilityResponse
+    domain: financial
+  - fhirType: EnrollmentRequest
+    domain: financial
+  - fhirType: EnrollmentResponse
+    domain: financial
+  - fhirType: Claim
+    domain: financial
+  - fhirType: ClaimResponse
+    domain: financial
+  - fhirType: Invoice
+    domain: financial
+  - fhirType: Account
+    domain: financial
+  - fhirType: ChargeItem
+    domain: financial
+  - fhirType: ChargeItemDefinition
+    domain: financial
+  - fhirType: Contract
+    domain: financial
+  - fhirType: ExplanationOfBenefit
+    domain: financial
+  - fhirType: InsurancePlan
+    domain: financial
+  - fhirType: PaymentNotice
+    domain: financial
+  - fhirType: PaymentReconciliation
+    domain: financial
+
+  # --- documents -----------------------------------------------------------
+  - fhirType: Composition
+    domain: documents
+  - fhirType: DocumentReference
+    domain: documents
+
+  # --- definitional artifacts -----------------------------------------------------------
+  - fhirType: ActivityDefinition
+    domain: definitional
+  - fhirType: PlanDefinition
+    domain: definitional
+  - fhirType: Measure
+    domain: definitional
+  - fhirType: MeasureReport
+    domain: definitional
+  - fhirType: Questionnaire
+    domain: definitional
+  - fhirType: QuestionnaireResponse
+    domain: definitional
+  - fhirType: OperationDefinition
+    domain: definitional
+  - fhirType: StructureDefinition
+    domain: definitional
+  - fhirType: StructureMap
+    domain: definitional
+  - fhirType: GraphDefinition
+    domain: definitional
+  - fhirType: ExampleScenario
+    domain: definitional
+  - fhirType: ObservationDefinition
+    domain: definitional
+  - fhirType: SpecimenDefinition
+    domain: definitional
+  - fhirType: ActorDefinition
+    domain: definitional
+
+  # --- terminology -----------------------------------------------------------
+  - fhirType: CodeSystem
+    domain: terminology
+  - fhirType: ValueSet
+    domain: terminology
+  - fhirType: ConceptMap
+    domain: terminology
+  - fhirType: NamingSystem
+    domain: terminology
+  - fhirType: TerminologyCapabilities
+    domain: terminology
+
+  # --- conformance -----------------------------------------------------------
+  - fhirType: CapabilityStatement
+    domain: conformance
+  - fhirType: CompartmentDefinition
+    domain: conformance
+  - fhirType: ImplementationGuide
+    domain: conformance
+  - fhirType: SearchParameter
+    domain: conformance
+  - fhirType: MessageDefinition
+    domain: conformance
+  - fhirType: MessageHeader
+    domain: conformance
+
+  # --- testing -----------------------------------------------------------
+  - fhirType: TestScript
+    domain: testing
+  - fhirType: TestReport
+    domain: testing
+  - fhirType: TestPlan
+    domain: testing
+
+  # --- security and provenance -----------------------------------------------------------
+  - fhirType: Provenance
+    domain: security
+  - fhirType: AuditEvent
+    domain: security
+  - fhirType: Consent
+    domain: security
+  - fhirType: Permission
+    domain: security
+
+  # --- research -----------------------------------------------------------
+  - fhirType: ResearchStudy
+    domain: research
+  - fhirType: ResearchSubject
+    domain: research
+  - fhirType: Citation
+    domain: research
+  - fhirType: Evidence
+    domain: research
+  - fhirType: EvidenceReport
+    domain: research
+  - fhirType: EvidenceVariable
+    domain: research
+  - fhirType: ArtifactAssessment
+    domain: research
+
+  # --- events -----------------------------------------------------------
+  - fhirType: Linkage
+    domain: events
+
+  # --- inventory -----------------------------------------------------------
+  - fhirType: InventoryItem
+    domain: inventory
+  - fhirType: InventoryReport
+    domain: inventory
+
+  # --- subscriptions -----------------------------------------------------------
+  - fhirType: Subscription
+    domain: subscriptions
+  - fhirType: SubscriptionStatus
+    domain: subscriptions
+  - fhirType: SubscriptionTopic
+    domain: subscriptions

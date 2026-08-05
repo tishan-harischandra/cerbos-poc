@@ -1,0 +1,29 @@
+# GENERATED FILE - DO NOT EDIT BY HAND.
+#
+# Produced by libs/cataloggen from libs/cataloggen/manifest.yaml (catalog revision 1).
+# Edit the manifest and re-run `make catalog-gen`, or regenerate directly
+# with `go run ./libs/cataloggen/cmd/cataloggen -manifest libs/cataloggen/manifest.yaml`.
+resource: device_metric
+version: v1
+displayName: Device metric
+domain: devices
+fhirType: DeviceMetric
+actions:
+  - key: create
+    displayName: Create device metric
+    context: COLLECTION
+  - key: list
+    displayName: List device metric
+    context: COLLECTION
+  - key: read
+    displayName: Read device metric
+    context: INSTANCE
+  - key: update
+    displayName: Update device metric
+    context: INSTANCE
+  - key: delete
+    displayName: Delete device metric
+    context: INSTANCE
+  - key: assign
+    displayName: Assign device metric
+    context: INSTANCE

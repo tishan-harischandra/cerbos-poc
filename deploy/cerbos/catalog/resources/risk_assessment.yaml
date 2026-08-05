@@ -1,0 +1,29 @@
+# GENERATED FILE - DO NOT EDIT BY HAND.
+#
+# Produced by libs/cataloggen from libs/cataloggen/manifest.yaml (catalog revision 1).
+# Edit the manifest and re-run `make catalog-gen`, or regenerate directly
+# with `go run ./libs/cataloggen/cmd/cataloggen -manifest libs/cataloggen/manifest.yaml`.
+resource: risk_assessment
+version: v1
+displayName: Risk assessment
+domain: care_provision
+fhirType: RiskAssessment
+actions:
+  - key: create
+    displayName: Create risk assessment
+    context: COLLECTION
+  - key: list
+    displayName: List risk assessment
+    context: COLLECTION
+  - key: read
+    displayName: Read risk assessment
+    context: INSTANCE
+  - key: update
+    displayName: Update risk assessment
+    context: INSTANCE
+  - key: delete
+    displayName: Delete risk assessment
+    context: INSTANCE
+  - key: assign
+    displayName: Assign risk assessment
+    context: INSTANCE

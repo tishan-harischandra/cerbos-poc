@@ -1,0 +1,29 @@
+# GENERATED FILE - DO NOT EDIT BY HAND.
+#
+# Produced by libs/cataloggen from libs/cataloggen/manifest.yaml (catalog revision 1).
+# Edit the manifest and re-run `make catalog-gen`, or regenerate directly
+# with `go run ./libs/cataloggen/cmd/cataloggen -manifest libs/cataloggen/manifest.yaml`.
+resource: clinical_use_definition
+version: v1
+displayName: Clinical use definition
+domain: medicinal_products
+fhirType: ClinicalUseDefinition
+actions:
+  - key: create
+    displayName: Create clinical use definition
+    context: COLLECTION
+  - key: list
+    displayName: List clinical use definition
+    context: COLLECTION
+  - key: read
+    displayName: Read clinical use definition
+    context: INSTANCE
+  - key: update
+    displayName: Update clinical use definition
+    context: INSTANCE
+  - key: delete
+    displayName: Delete clinical use definition
+    context: INSTANCE
+  - key: assign
+    displayName: Assign clinical use definition
+    context: INSTANCE

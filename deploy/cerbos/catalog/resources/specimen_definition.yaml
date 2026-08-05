@@ -1,0 +1,29 @@
+# GENERATED FILE - DO NOT EDIT BY HAND.
+#
+# Produced by libs/cataloggen from libs/cataloggen/manifest.yaml (catalog revision 1).
+# Edit the manifest and re-run `make catalog-gen`, or regenerate directly
+# with `go run ./libs/cataloggen/cmd/cataloggen -manifest libs/cataloggen/manifest.yaml`.
+resource: specimen_definition
+version: v1
+displayName: Specimen definition
+domain: definitional
+fhirType: SpecimenDefinition
+actions:
+  - key: create
+    displayName: Create specimen definition
+    context: COLLECTION
+  - key: list
+    displayName: List specimen definition
+    context: COLLECTION
+  - key: read
+    displayName: Read specimen definition
+    context: INSTANCE
+  - key: update
+    displayName: Update specimen definition
+    context: INSTANCE
+  - key: delete
+    displayName: Delete specimen definition
+    context: INSTANCE
+  - key: assign
+    displayName: Assign specimen definition
+    context: INSTANCE

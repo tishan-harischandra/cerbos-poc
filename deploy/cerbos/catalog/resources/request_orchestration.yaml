@@ -1,0 +1,29 @@
+# GENERATED FILE - DO NOT EDIT BY HAND.
+#
+# Produced by libs/cataloggen from libs/cataloggen/manifest.yaml (catalog revision 1).
+# Edit the manifest and re-run `make catalog-gen`, or regenerate directly
+# with `go run ./libs/cataloggen/cmd/cataloggen -manifest libs/cataloggen/manifest.yaml`.
+resource: request_orchestration
+version: v1
+displayName: Request orchestration
+domain: care_provision
+fhirType: RequestOrchestration
+actions:
+  - key: create
+    displayName: Create request orchestration
+    context: COLLECTION
+  - key: list
+    displayName: List request orchestration
+    context: COLLECTION
+  - key: read
+    displayName: Read request orchestration
+    context: INSTANCE
+  - key: update
+    displayName: Update request orchestration
+    context: INSTANCE
+  - key: delete
+    displayName: Delete request orchestration
+    context: INSTANCE
+  - key: assign
+    displayName: Assign request orchestration
+    context: INSTANCE

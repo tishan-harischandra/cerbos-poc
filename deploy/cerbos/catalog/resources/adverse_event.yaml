@@ -1,0 +1,29 @@
+# GENERATED FILE - DO NOT EDIT BY HAND.
+#
+# Produced by libs/cataloggen from libs/cataloggen/manifest.yaml (catalog revision 1).
+# Edit the manifest and re-run `make catalog-gen`, or regenerate directly
+# with `go run ./libs/cataloggen/cmd/cataloggen -manifest libs/cataloggen/manifest.yaml`.
+resource: adverse_event
+version: v1
+displayName: Adverse event
+domain: clinical
+fhirType: AdverseEvent
+actions:
+  - key: create
+    displayName: Create adverse event
+    context: COLLECTION
+  - key: list
+    displayName: List adverse event
+    context: COLLECTION
+  - key: read
+    displayName: Read adverse event
+    context: INSTANCE
+  - key: update
+    displayName: Update adverse event
+    context: INSTANCE
+  - key: delete
+    displayName: Delete adverse event
+    context: INSTANCE
+  - key: assign
+    displayName: Assign adverse event
+    context: INSTANCE

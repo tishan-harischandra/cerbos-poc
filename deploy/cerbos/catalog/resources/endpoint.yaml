@@ -1,0 +1,29 @@
+# GENERATED FILE - DO NOT EDIT BY HAND.
+#
+# Produced by libs/cataloggen from libs/cataloggen/manifest.yaml (catalog revision 1).
+# Edit the manifest and re-run `make catalog-gen`, or regenerate directly
+# with `go run ./libs/cataloggen/cmd/cataloggen -manifest libs/cataloggen/manifest.yaml`.
+resource: endpoint
+version: v1
+displayName: Endpoint
+domain: administrative
+fhirType: Endpoint
+actions:
+  - key: create
+    displayName: Create endpoint
+    context: COLLECTION
+  - key: list
+    displayName: List endpoint
+    context: COLLECTION
+  - key: read
+    displayName: Read endpoint
+    context: INSTANCE
+  - key: update
+    displayName: Update endpoint
+    context: INSTANCE
+  - key: delete
+    displayName: Delete endpoint
+    context: INSTANCE
+  - key: assign
+    displayName: Assign endpoint
+    context: INSTANCE

@@ -1,0 +1,29 @@
+# GENERATED FILE - DO NOT EDIT BY HAND.
+#
+# Produced by libs/cataloggen from libs/cataloggen/manifest.yaml (catalog revision 1).
+# Edit the manifest and re-run `make catalog-gen`, or regenerate directly
+# with `go run ./libs/cataloggen/cmd/cataloggen -manifest libs/cataloggen/manifest.yaml`.
+resource: schedule
+version: v1
+displayName: Schedule
+domain: workflow
+fhirType: Schedule
+actions:
+  - key: create
+    displayName: Create schedule
+    context: COLLECTION
+  - key: list
+    displayName: List schedule
+    context: COLLECTION
+  - key: read
+    displayName: Read schedule
+    context: INSTANCE
+  - key: update
+    displayName: Update schedule
+    context: INSTANCE
+  - key: delete
+    displayName: Delete schedule
+    context: INSTANCE
+  - key: assign
+    displayName: Assign schedule
+    context: INSTANCE

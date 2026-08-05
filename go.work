@@ -4,6 +4,7 @@ use (
 ./apps/ads
 ./libs/assignmentstore
 ./libs/canonicalid
+./libs/cataloggen
 ./libs/cerbosclient
 ./libs/idpdirectory
 ./libs/permissioncontext

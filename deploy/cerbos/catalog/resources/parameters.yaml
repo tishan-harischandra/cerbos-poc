@@ -1,0 +1,29 @@
+# GENERATED FILE - DO NOT EDIT BY HAND.
+#
+# Produced by libs/cataloggen from libs/cataloggen/manifest.yaml (catalog revision 1).
+# Edit the manifest and re-run `make catalog-gen`, or regenerate directly
+# with `go run ./libs/cataloggen/cmd/cataloggen -manifest libs/cataloggen/manifest.yaml`.
+resource: parameters
+version: v1
+displayName: Parameters
+domain: foundation
+fhirType: Parameters
+actions:
+  - key: create
+    displayName: Create parameters
+    context: COLLECTION
+  - key: list
+    displayName: List parameters
+    context: COLLECTION
+  - key: read
+    displayName: Read parameters
+    context: INSTANCE
+  - key: update
+    displayName: Update parameters
+    context: INSTANCE
+  - key: delete
+    displayName: Delete parameters
+    context: INSTANCE
+  - key: assign
+    displayName: Assign parameters
+    context: INSTANCE

@@ -1,0 +1,29 @@
+# GENERATED FILE - DO NOT EDIT BY HAND.
+#
+# Produced by libs/cataloggen from libs/cataloggen/manifest.yaml (catalog revision 1).
+# Edit the manifest and re-run `make catalog-gen`, or regenerate directly
+# with `go run ./libs/cataloggen/cmd/cataloggen -manifest libs/cataloggen/manifest.yaml`.
+resource: nutrition_order
+version: v1
+displayName: Nutrition order
+domain: care_provision
+fhirType: NutritionOrder
+actions:
+  - key: create
+    displayName: Create nutrition order
+    context: COLLECTION
+  - key: list
+    displayName: List nutrition order
+    context: COLLECTION
+  - key: read
+    displayName: Read nutrition order
+    context: INSTANCE
+  - key: update
+    displayName: Update nutrition order
+    context: INSTANCE
+  - key: delete
+    displayName: Delete nutrition order
+    context: INSTANCE
+  - key: assign
+    displayName: Assign nutrition order
+    context: INSTANCE

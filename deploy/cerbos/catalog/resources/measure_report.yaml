@@ -1,0 +1,29 @@
+# GENERATED FILE - DO NOT EDIT BY HAND.
+#
+# Produced by libs/cataloggen from libs/cataloggen/manifest.yaml (catalog revision 1).
+# Edit the manifest and re-run `make catalog-gen`, or regenerate directly
+# with `go run ./libs/cataloggen/cmd/cataloggen -manifest libs/cataloggen/manifest.yaml`.
+resource: measure_report
+version: v1
+displayName: Measure report
+domain: definitional
+fhirType: MeasureReport
+actions:
+  - key: create
+    displayName: Create measure report
+    context: COLLECTION
+  - key: list
+    displayName: List measure report
+    context: COLLECTION
+  - key: read
+    displayName: Read measure report
+    context: INSTANCE
+  - key: update
+    displayName: Update measure report
+    context: INSTANCE
+  - key: delete
+    displayName: Delete measure report
+    context: INSTANCE
+  - key: assign
+    displayName: Assign measure report
+    context: INSTANCE

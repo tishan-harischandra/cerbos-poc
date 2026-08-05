@@ -1,0 +1,29 @@
+# GENERATED FILE - DO NOT EDIT BY HAND.
+#
+# Produced by libs/cataloggen from libs/cataloggen/manifest.yaml (catalog revision 1).
+# Edit the manifest and re-run `make catalog-gen`, or regenerate directly
+# with `go run ./libs/cataloggen/cmd/cataloggen -manifest libs/cataloggen/manifest.yaml`.
+resource: composition
+version: v1
+displayName: Composition
+domain: documents
+fhirType: Composition
+actions:
+  - key: create
+    displayName: Create composition
+    context: COLLECTION
+  - key: list
+    displayName: List composition
+    context: COLLECTION
+  - key: read
+    displayName: Read composition
+    context: INSTANCE
+  - key: update
+    displayName: Update composition
+    context: INSTANCE
+  - key: delete
+    displayName: Delete composition
+    context: INSTANCE
+  - key: assign
+    displayName: Assign composition
+    context: INSTANCE

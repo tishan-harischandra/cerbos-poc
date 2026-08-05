@@ -1,0 +1,29 @@
+# GENERATED FILE - DO NOT EDIT BY HAND.
+#
+# Produced by libs/cataloggen from libs/cataloggen/manifest.yaml (catalog revision 1).
+# Edit the manifest and re-run `make catalog-gen`, or regenerate directly
+# with `go run ./libs/cataloggen/cmd/cataloggen -manifest libs/cataloggen/manifest.yaml`.
+resource: immunization_recommendation
+version: v1
+displayName: Immunization recommendation
+domain: medications
+fhirType: ImmunizationRecommendation
+actions:
+  - key: create
+    displayName: Create immunization recommendation
+    context: COLLECTION
+  - key: list
+    displayName: List immunization recommendation
+    context: COLLECTION
+  - key: read
+    displayName: Read immunization recommendation
+    context: INSTANCE
+  - key: update
+    displayName: Update immunization recommendation
+    context: INSTANCE
+  - key: delete
+    displayName: Delete immunization recommendation
+    context: INSTANCE
+  - key: assign
+    displayName: Assign immunization recommendation
+    context: INSTANCE

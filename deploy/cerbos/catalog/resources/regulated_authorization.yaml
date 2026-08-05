@@ -1,0 +1,29 @@
+# GENERATED FILE - DO NOT EDIT BY HAND.
+#
+# Produced by libs/cataloggen from libs/cataloggen/manifest.yaml (catalog revision 1).
+# Edit the manifest and re-run `make catalog-gen`, or regenerate directly
+# with `go run ./libs/cataloggen/cmd/cataloggen -manifest libs/cataloggen/manifest.yaml`.
+resource: regulated_authorization
+version: v1
+displayName: Regulated authorization
+domain: medicinal_products
+fhirType: RegulatedAuthorization
+actions:
+  - key: create
+    displayName: Create regulated authorization
+    context: COLLECTION
+  - key: list
+    displayName: List regulated authorization
+    context: COLLECTION
+  - key: read
+    displayName: Read regulated authorization
+    context: INSTANCE
+  - key: update
+    displayName: Update regulated authorization
+    context: INSTANCE
+  - key: delete
+    displayName: Delete regulated authorization
+    context: INSTANCE
+  - key: assign
+    displayName: Assign regulated authorization
+    context: INSTANCE

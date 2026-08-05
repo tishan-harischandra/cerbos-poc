@@ -1,0 +1,29 @@
+# GENERATED FILE - DO NOT EDIT BY HAND.
+#
+# Produced by libs/cataloggen from libs/cataloggen/manifest.yaml (catalog revision 1).
+# Edit the manifest and re-run `make catalog-gen`, or regenerate directly
+# with `go run ./libs/cataloggen/cmd/cataloggen -manifest libs/cataloggen/manifest.yaml`.
+resource: artifact_assessment
+version: v1
+displayName: Artifact assessment
+domain: research
+fhirType: ArtifactAssessment
+actions:
+  - key: create
+    displayName: Create artifact assessment
+    context: COLLECTION
+  - key: list
+    displayName: List artifact assessment
+    context: COLLECTION
+  - key: read
+    displayName: Read artifact assessment
+    context: INSTANCE
+  - key: update
+    displayName: Update artifact assessment
+    context: INSTANCE
+  - key: delete
+    displayName: Delete artifact assessment
+    context: INSTANCE
+  - key: assign
+    displayName: Assign artifact assessment
+    context: INSTANCE

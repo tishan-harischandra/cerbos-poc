@@ -1,0 +1,29 @@
+# GENERATED FILE - DO NOT EDIT BY HAND.
+#
+# Produced by libs/cataloggen from libs/cataloggen/manifest.yaml (catalog revision 1).
+# Edit the manifest and re-run `make catalog-gen`, or regenerate directly
+# with `go run ./libs/cataloggen/cmd/cataloggen -manifest libs/cataloggen/manifest.yaml`.
+resource: message_header
+version: v1
+displayName: Message header
+domain: conformance
+fhirType: MessageHeader
+actions:
+  - key: create
+    displayName: Create message header
+    context: COLLECTION
+  - key: list
+    displayName: List message header
+    context: COLLECTION
+  - key: read
+    displayName: Read message header
+    context: INSTANCE
+  - key: update
+    displayName: Update message header
+    context: INSTANCE
+  - key: delete
+    displayName: Delete message header
+    context: INSTANCE
+  - key: assign
+    displayName: Assign message header
+    context: INSTANCE

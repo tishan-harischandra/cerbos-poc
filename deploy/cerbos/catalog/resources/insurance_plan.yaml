@@ -1,0 +1,29 @@
+# GENERATED FILE - DO NOT EDIT BY HAND.
+#
+# Produced by libs/cataloggen from libs/cataloggen/manifest.yaml (catalog revision 1).
+# Edit the manifest and re-run `make catalog-gen`, or regenerate directly
+# with `go run ./libs/cataloggen/cmd/cataloggen -manifest libs/cataloggen/manifest.yaml`.
+resource: insurance_plan
+version: v1
+displayName: Insurance plan
+domain: financial
+fhirType: InsurancePlan
+actions:
+  - key: create
+    displayName: Create insurance plan
+    context: COLLECTION
+  - key: list
+    displayName: List insurance plan
+    context: COLLECTION
+  - key: read
+    displayName: Read insurance plan
+    context: INSTANCE
+  - key: update
+    displayName: Update insurance plan
+    context: INSTANCE
+  - key: delete
+    displayName: Delete insurance plan
+    context: INSTANCE
+  - key: assign
+    displayName: Assign insurance plan
+    context: INSTANCE

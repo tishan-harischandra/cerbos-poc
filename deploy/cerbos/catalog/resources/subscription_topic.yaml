@@ -1,0 +1,29 @@
+# GENERATED FILE - DO NOT EDIT BY HAND.
+#
+# Produced by libs/cataloggen from libs/cataloggen/manifest.yaml (catalog revision 1).
+# Edit the manifest and re-run `make catalog-gen`, or regenerate directly
+# with `go run ./libs/cataloggen/cmd/cataloggen -manifest libs/cataloggen/manifest.yaml`.
+resource: subscription_topic
+version: v1
+displayName: Subscription topic
+domain: subscriptions
+fhirType: SubscriptionTopic
+actions:
+  - key: create
+    displayName: Create subscription topic
+    context: COLLECTION
+  - key: list
+    displayName: List subscription topic
+    context: COLLECTION
+  - key: read
+    displayName: Read subscription topic
+    context: INSTANCE
+  - key: update
+    displayName: Update subscription topic
+    context: INSTANCE
+  - key: delete
+    displayName: Delete subscription topic
+    context: INSTANCE
+  - key: assign
+    displayName: Assign subscription topic
+    context: INSTANCE

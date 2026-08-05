@@ -1,0 +1,60 @@
+# GENERATED FILE - DO NOT EDIT BY HAND.
+#
+# Produced by libs/cataloggen from libs/cataloggen/manifest.yaml (catalog revision 1).
+# Edit the manifest and re-run `make catalog-gen`, or regenerate directly
+# with `go run ./libs/cataloggen/cmd/cataloggen -manifest libs/cataloggen/manifest.yaml`.
+databaseChangeLog:
+  - changeSet:
+      id: 007-authorization-resource-seed
+      author: cataloggen
+      comment: >-
+        The generated FHIR resource catalog (issue #8), loaded from CSV so the
+        same portable changeset works on both engines without one generated
+        insert changeset per row.
+      changes:
+        - loadData:
+            tableName: authorization_resource
+            file: ../data/authorization_resource.csv
+            relativeToChangelogFile: true
+            columns:
+              - column:
+                  name: resource_key
+                  type: STRING
+              - column:
+                  name: version
+                  type: STRING
+              - column:
+                  name: display_name
+                  type: STRING
+              - column:
+                  name: domain
+                  type: STRING
+              - column:
+                  name: catalog_revision
+                  type: NUMERIC
+
+  - changeSet:
+      id: 007-authorization-action-seed
+      author: cataloggen
+      comment: One row per (resource, action) pair in the generated catalog.
+      changes:
+        - loadData:
+            tableName: authorization_action
+            file: ../data/authorization_action.csv
+            relativeToChangelogFile: true
+            columns:
+              - column:
+                  name: resource_key
+                  type: STRING
+              - column:
+                  name: action_key
+                  type: STRING
+              - column:
+                  name: display_name
+                  type: STRING
+              - column:
+                  name: context_type
+                  type: STRING
+              - column:
+                  name: risk_level
+                  type: STRING

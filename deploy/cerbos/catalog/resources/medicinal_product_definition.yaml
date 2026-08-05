@@ -1,0 +1,29 @@
+# GENERATED FILE - DO NOT EDIT BY HAND.
+#
+# Produced by libs/cataloggen from libs/cataloggen/manifest.yaml (catalog revision 1).
+# Edit the manifest and re-run `make catalog-gen`, or regenerate directly
+# with `go run ./libs/cataloggen/cmd/cataloggen -manifest libs/cataloggen/manifest.yaml`.
+resource: medicinal_product_definition
+version: v1
+displayName: Medicinal product definition
+domain: medicinal_products
+fhirType: MedicinalProductDefinition
+actions:
+  - key: create
+    displayName: Create medicinal product definition
+    context: COLLECTION
+  - key: list
+    displayName: List medicinal product definition
+    context: COLLECTION
+  - key: read
+    displayName: Read medicinal product definition
+    context: INSTANCE
+  - key: update
+    displayName: Update medicinal product definition
+    context: INSTANCE
+  - key: delete
+    displayName: Delete medicinal product definition
+    context: INSTANCE
+  - key: assign
+    displayName: Assign medicinal product definition
+    context: INSTANCE

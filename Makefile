@@ -39,6 +39,14 @@ policy-test: ## Compile the Cerbos policies and run the policy test suite
 	# so it is compiled from its own directory and never served to the PDP.
 	POLICY_DIR=deploy/cerbos/control bash scripts/cerbos.sh compile --tests=/policies/tests /policies
 
+.PHONY: catalog-gen
+catalog-gen: ## Regenerate the FHIR catalog, policies, schemas, tests and DB seed from the manifest
+	bash scripts/go.sh libs/cataloggen run ./cmd/cataloggen -root /workspace
+
+.PHONY: catalog-check
+catalog-check: ## Fail if the committed catalog tree drifted from libs/cataloggen/manifest.yaml
+	bash scripts/go.sh libs/cataloggen run ./cmd/cataloggen -root /workspace -check
+
 .PHONY: test
 test: ## Run every project's tests, the policy suite and the compose contract
 	$(NX) run-many --target=test --all
@@ -50,6 +58,7 @@ ci: ## Run exactly what CI runs, so a green local run means a green pipeline
 	$(NX) run-many --target=lint --all
 	$(NX) run-many --target=test --all
 	$(NX) run-many --target=build --all
+	$(MAKE) catalog-check
 	$(MAKE) policy-test
 	python3 scripts/tests/compose-contract.py
 	bash scripts/tests/nx-affected-isolation.sh

@@ -1,0 +1,65 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Binary authorization attributes",
+  "description": "Server-loaded resource attributes plus the permissionContext the ADS assembles. permissionContext is data only: it carries the action sets and the revision they were resolved at, never a verdict (§6.3, §21).",
+  "type": "object",
+  "required": [
+    "tenantId",
+    "hospitalId",
+    "status",
+    "permissionContext"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "hospitalId": {
+      "minLength": 1,
+      "type": "string"
+    },
+    "permissionContext": {
+      "additionalProperties": false,
+      "properties": {
+        "permissionRevision": {
+          "minimum": 0,
+          "type": "integer"
+        },
+        "roleGrantedActions": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "userGrantedActions": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "userRevokedActions": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "roleGrantedActions",
+        "userGrantedActions",
+        "userRevokedActions",
+        "permissionRevision"
+      ],
+      "type": "object"
+    },
+    "status": {
+      "enum": [
+        "ACTIVE",
+        "LOCKED",
+        "ARCHIVED"
+      ],
+      "type": "string"
+    },
+    "tenantId": {
+      "minLength": 1,
+      "type": "string"
+    }
+  }
+}

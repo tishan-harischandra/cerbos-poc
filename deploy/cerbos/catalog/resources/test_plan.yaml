@@ -1,0 +1,29 @@
+# GENERATED FILE - DO NOT EDIT BY HAND.
+#
+# Produced by libs/cataloggen from libs/cataloggen/manifest.yaml (catalog revision 1).
+# Edit the manifest and re-run `make catalog-gen`, or regenerate directly
+# with `go run ./libs/cataloggen/cmd/cataloggen -manifest libs/cataloggen/manifest.yaml`.
+resource: test_plan
+version: v1
+displayName: Test plan
+domain: testing
+fhirType: TestPlan
+actions:
+  - key: create
+    displayName: Create test plan
+    context: COLLECTION
+  - key: list
+    displayName: List test plan
+    context: COLLECTION
+  - key: read
+    displayName: Read test plan
+    context: INSTANCE
+  - key: update
+    displayName: Update test plan
+    context: INSTANCE
+  - key: delete
+    displayName: Delete test plan
+    context: INSTANCE
+  - key: assign
+    displayName: Assign test plan
+    context: INSTANCE

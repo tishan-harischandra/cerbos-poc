@@ -49,11 +49,27 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # Fails fast if the committed catalog (policies, schemas, tests, DB
+      # seed) has drifted from libs/cataloggen/manifest.yaml, without waiting
+      # for the full Cerbos compile below (issue #8, §21).
+      - name: The generated catalog matches the manifest
+        run: make catalog-check
+
       # The policy suite is the authoritative statement of the precedence rules,
       # so it runs on every commit rather than only when Nx thinks it is
       # affected. It needs no Node, no Go and no running stack.
+      #
+      # Not yet sharded: at full catalog scale (~155 resources) this step
+      # takes well under a minute, so a single job is still fast feedback.
+      # The wall-clock time is recorded below so a future regression, or
+      # catalog growth that changes that, is visible before it needs
+      # sharding.
       - name: Compile the policies and run the precedence matrix
-        run: make policy-test
+        run: |
+          start="$(date +%s)"
+          make policy-test
+          duration=$(( $(date +%s) - start ))
+          echo "cerbos policy suite: ${duration}s wall clock" | tee -a "${GITHUB_STEP_SUMMARY}"
 
   # The migration and store contracts against the default engine. Fast enough to
   # run on every push, unlike the Oracle half below.

@@ -1,0 +1,29 @@
+# GENERATED FILE - DO NOT EDIT BY HAND.
+#
+# Produced by libs/cataloggen from libs/cataloggen/manifest.yaml (catalog revision 1).
+# Edit the manifest and re-run `make catalog-gen`, or regenerate directly
+# with `go run ./libs/cataloggen/cmd/cataloggen -manifest libs/cataloggen/manifest.yaml`.
+resource: structure_map
+version: v1
+displayName: Structure map
+domain: definitional
+fhirType: StructureMap
+actions:
+  - key: create
+    displayName: Create structure map
+    context: COLLECTION
+  - key: list
+    displayName: List structure map
+    context: COLLECTION
+  - key: read
+    displayName: Read structure map
+    context: INSTANCE
+  - key: update
+    displayName: Update structure map
+    context: INSTANCE
+  - key: delete
+    displayName: Delete structure map
+    context: INSTANCE
+  - key: assign
+    displayName: Assign structure map
+    context: INSTANCE

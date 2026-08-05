@@ -1,0 +1,155 @@
+resource_key,version,display_name,domain,catalog_revision
+basic,v1,Basic,foundation,1
+binary,v1,Binary,foundation,1
+bundle,v1,Bundle,foundation,1
+operation_outcome,v1,Operation outcome,foundation,1
+parameters,v1,Parameters,foundation,1
+practitioner,v1,Practitioner,administrative,1
+practitioner_role,v1,Practitioner role,administrative,1
+related_person,v1,Related person,administrative,1
+person,v1,Person,administrative,1
+group,v1,Group,administrative,1
+organization,v1,Organization,administrative,1
+organization_affiliation,v1,Organization affiliation,administrative,1
+healthcare_service,v1,Healthcare service,administrative,1
+endpoint,v1,Endpoint,administrative,1
+location,v1,Location,administrative,1
+device,v1,Device,devices,1
+device_definition,v1,Device definition,devices,1
+device_metric,v1,Device metric,devices,1
+device_request,v1,Device request,devices,1
+device_usage,v1,Device usage,devices,1
+device_association,v1,Device association,devices,1
+device_dispense,v1,Device dispense,devices,1
+substance,v1,Substance,substances,1
+substance_definition,v1,Substance definition,substances,1
+substance_nucleic_acid,v1,Substance nucleic acid,substances,1
+substance_polymer,v1,Substance polymer,substances,1
+substance_protein,v1,Substance protein,substances,1
+substance_reference_information,v1,Substance reference information,substances,1
+substance_source_material,v1,Substance source material,substances,1
+biologically_derived_product,v1,Biologically derived product,substances,1
+biologically_derived_product_dispense,v1,Biologically derived product dispense,substances,1
+nutrition_product,v1,Nutrition product,substances,1
+ingredient,v1,Ingredient,substances,1
+medicinal_product_definition,v1,Medicinal product definition,medicinal_products,1
+packaged_product_definition,v1,Packaged product definition,medicinal_products,1
+administrable_product_definition,v1,Administrable product definition,medicinal_products,1
+manufactured_item_definition,v1,Manufactured item definition,medicinal_products,1
+regulated_authorization,v1,Regulated authorization,medicinal_products,1
+clinical_use_definition,v1,Clinical use definition,medicinal_products,1
+task,v1,Task,workflow,1
+appointment,v1,Appointment,workflow,1
+appointment_response,v1,Appointment response,workflow,1
+schedule,v1,Schedule,workflow,1
+slot,v1,Slot,workflow,1
+verification_result,v1,Verification result,workflow,1
+requirements,v1,Requirements,workflow,1
+transport,v1,Transport,workflow,1
+care_team,v1,Care team,management,1
+goal,v1,Goal,management,1
+episode_of_care,v1,Episode of care,management,1
+flag,v1,Flag,management,1
+list,v1,List,management,1
+encounter,v1,Encounter,management,1
+encounter_history,v1,Encounter history,management,1
+allergy_intolerance,v1,Allergy intolerance,clinical,1
+adverse_event,v1,Adverse event,clinical,1
+condition,v1,Condition,clinical,1
+procedure,v1,Procedure,clinical,1
+family_member_history,v1,Family member history,clinical,1
+clinical_impression,v1,Clinical impression,clinical,1
+detected_issue,v1,Detected issue,clinical,1
+observation,v1,Observation,diagnostics,1
+media,v1,Media,diagnostics,1
+diagnostic_report,v1,Diagnostic report,diagnostics,1
+specimen,v1,Specimen,diagnostics,1
+body_structure,v1,Body structure,diagnostics,1
+imaging_study,v1,Imaging study,diagnostics,1
+imaging_selection,v1,Imaging selection,diagnostics,1
+molecular_sequence,v1,Molecular sequence,diagnostics,1
+genomic_study,v1,Genomic study,diagnostics,1
+medication,v1,Medication,medications,1
+medication_request,v1,Medication request,medications,1
+medication_administration,v1,Medication administration,medications,1
+medication_dispense,v1,Medication dispense,medications,1
+medication_statement,v1,Medication statement,medications,1
+medication_knowledge,v1,Medication knowledge,medications,1
+immunization,v1,Immunization,medications,1
+immunization_evaluation,v1,Immunization evaluation,medications,1
+immunization_recommendation,v1,Immunization recommendation,medications,1
+care_plan,v1,Care plan,care_provision,1
+service_request,v1,Service request,care_provision,1
+nutrition_order,v1,Nutrition order,care_provision,1
+nutrition_intake,v1,Nutrition intake,care_provision,1
+vision_prescription,v1,Vision prescription,care_provision,1
+risk_assessment,v1,Risk assessment,care_provision,1
+request_orchestration,v1,Request orchestration,care_provision,1
+communication,v1,Communication,care_provision,1
+communication_request,v1,Communication request,care_provision,1
+guidance_response,v1,Guidance response,care_provision,1
+supply_request,v1,Supply request,supply,1
+supply_delivery,v1,Supply delivery,supply,1
+coverage,v1,Coverage,financial,1
+coverage_eligibility_request,v1,Coverage eligibility request,financial,1
+coverage_eligibility_response,v1,Coverage eligibility response,financial,1
+enrollment_request,v1,Enrollment request,financial,1
+enrollment_response,v1,Enrollment response,financial,1
+claim,v1,Claim,financial,1
+claim_response,v1,Claim response,financial,1
+invoice,v1,Invoice,financial,1
+account,v1,Account,financial,1
+charge_item,v1,Charge item,financial,1
+charge_item_definition,v1,Charge item definition,financial,1
+contract,v1,Contract,financial,1
+explanation_of_benefit,v1,Explanation of benefit,financial,1
+insurance_plan,v1,Insurance plan,financial,1
+payment_notice,v1,Payment notice,financial,1
+payment_reconciliation,v1,Payment reconciliation,financial,1
+composition,v1,Composition,documents,1
+document_reference,v1,Document reference,documents,1
+activity_definition,v1,Activity definition,definitional,1
+plan_definition,v1,Plan definition,definitional,1
+measure,v1,Measure,definitional,1
+measure_report,v1,Measure report,definitional,1
+questionnaire,v1,Questionnaire,definitional,1
+questionnaire_response,v1,Questionnaire response,definitional,1
+operation_definition,v1,Operation definition,definitional,1
+structure_definition,v1,Structure definition,definitional,1
+structure_map,v1,Structure map,definitional,1
+graph_definition,v1,Graph definition,definitional,1
+example_scenario,v1,Example scenario,definitional,1
+observation_definition,v1,Observation definition,definitional,1
+specimen_definition,v1,Specimen definition,definitional,1
+actor_definition,v1,Actor definition,definitional,1
+code_system,v1,Code system,terminology,1
+value_set,v1,Value set,terminology,1
+concept_map,v1,Concept map,terminology,1
+naming_system,v1,Naming system,terminology,1
+terminology_capabilities,v1,Terminology capabilities,terminology,1
+capability_statement,v1,Capability statement,conformance,1
+compartment_definition,v1,Compartment definition,conformance,1
+implementation_guide,v1,Implementation guide,conformance,1
+search_parameter,v1,Search parameter,conformance,1
+message_definition,v1,Message definition,conformance,1
+message_header,v1,Message header,conformance,1
+test_script,v1,Test script,testing,1
+test_report,v1,Test report,testing,1
+test_plan,v1,Test plan,testing,1
+provenance,v1,Provenance,security,1
+audit_event,v1,Audit event,security,1
+consent,v1,Consent,security,1
+permission,v1,Permission,security,1
+research_study,v1,Research study,research,1
+research_subject,v1,Research subject,research,1
+citation,v1,Citation,research,1
+evidence,v1,Evidence,research,1
+evidence_report,v1,Evidence report,research,1
+evidence_variable,v1,Evidence variable,research,1
+artifact_assessment,v1,Artifact assessment,research,1
+linkage,v1,Linkage,events,1
+inventory_item,v1,Inventory item,inventory,1
+inventory_report,v1,Inventory report,inventory,1
+subscription,v1,Subscription,subscriptions,1
+subscription_status,v1,Subscription status,subscriptions,1
+subscription_topic,v1,Subscription topic,subscriptions,1

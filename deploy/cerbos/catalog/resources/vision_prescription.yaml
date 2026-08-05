@@ -1,0 +1,29 @@
+# GENERATED FILE - DO NOT EDIT BY HAND.
+#
+# Produced by libs/cataloggen from libs/cataloggen/manifest.yaml (catalog revision 1).
+# Edit the manifest and re-run `make catalog-gen`, or regenerate directly
+# with `go run ./libs/cataloggen/cmd/cataloggen -manifest libs/cataloggen/manifest.yaml`.
+resource: vision_prescription
+version: v1
+displayName: Vision prescription
+domain: care_provision
+fhirType: VisionPrescription
+actions:
+  - key: create
+    displayName: Create vision prescription
+    context: COLLECTION
+  - key: list
+    displayName: List vision prescription
+    context: COLLECTION
+  - key: read
+    displayName: Read vision prescription
+    context: INSTANCE
+  - key: update
+    displayName: Update vision prescription
+    context: INSTANCE
+  - key: delete
+    displayName: Delete vision prescription
+    context: INSTANCE
+  - key: assign
+    displayName: Assign vision prescription
+    context: INSTANCE

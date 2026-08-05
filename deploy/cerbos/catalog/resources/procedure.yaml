@@ -1,0 +1,29 @@
+# GENERATED FILE - DO NOT EDIT BY HAND.
+#
+# Produced by libs/cataloggen from libs/cataloggen/manifest.yaml (catalog revision 1).
+# Edit the manifest and re-run `make catalog-gen`, or regenerate directly
+# with `go run ./libs/cataloggen/cmd/cataloggen -manifest libs/cataloggen/manifest.yaml`.
+resource: procedure
+version: v1
+displayName: Procedure
+domain: clinical
+fhirType: Procedure
+actions:
+  - key: create
+    displayName: Create procedure
+    context: COLLECTION
+  - key: list
+    displayName: List procedure
+    context: COLLECTION
+  - key: read
+    displayName: Read procedure
+    context: INSTANCE
+  - key: update
+    displayName: Update procedure
+    context: INSTANCE
+  - key: delete
+    displayName: Delete procedure
+    context: INSTANCE
+  - key: assign
+    displayName: Assign procedure
+    context: INSTANCE

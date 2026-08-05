@@ -1,0 +1,29 @@
+# GENERATED FILE - DO NOT EDIT BY HAND.
+#
+# Produced by libs/cataloggen from libs/cataloggen/manifest.yaml (catalog revision 1).
+# Edit the manifest and re-run `make catalog-gen`, or regenerate directly
+# with `go run ./libs/cataloggen/cmd/cataloggen -manifest libs/cataloggen/manifest.yaml`.
+resource: concept_map
+version: v1
+displayName: Concept map
+domain: terminology
+fhirType: ConceptMap
+actions:
+  - key: create
+    displayName: Create concept map
+    context: COLLECTION
+  - key: list
+    displayName: List concept map
+    context: COLLECTION
+  - key: read
+    displayName: Read concept map
+    context: INSTANCE
+  - key: update
+    displayName: Update concept map
+    context: INSTANCE
+  - key: delete
+    displayName: Delete concept map
+    context: INSTANCE
+  - key: assign
+    displayName: Assign concept map
+    context: INSTANCE

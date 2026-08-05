@@ -1,0 +1,29 @@
+# GENERATED FILE - DO NOT EDIT BY HAND.
+#
+# Produced by libs/cataloggen from libs/cataloggen/manifest.yaml (catalog revision 1).
+# Edit the manifest and re-run `make catalog-gen`, or regenerate directly
+# with `go run ./libs/cataloggen/cmd/cataloggen -manifest libs/cataloggen/manifest.yaml`.
+resource: invoice
+version: v1
+displayName: Invoice
+domain: financial
+fhirType: Invoice
+actions:
+  - key: create
+    displayName: Create invoice
+    context: COLLECTION
+  - key: list
+    displayName: List invoice
+    context: COLLECTION
+  - key: read
+    displayName: Read invoice
+    context: INSTANCE
+  - key: update
+    displayName: Update invoice
+    context: INSTANCE
+  - key: delete
+    displayName: Delete invoice
+    context: INSTANCE
+  - key: assign
+    displayName: Assign invoice
+    context: INSTANCE

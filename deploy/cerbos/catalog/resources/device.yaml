@@ -1,0 +1,29 @@
+# GENERATED FILE - DO NOT EDIT BY HAND.
+#
+# Produced by libs/cataloggen from libs/cataloggen/manifest.yaml (catalog revision 1).
+# Edit the manifest and re-run `make catalog-gen`, or regenerate directly
+# with `go run ./libs/cataloggen/cmd/cataloggen -manifest libs/cataloggen/manifest.yaml`.
+resource: device
+version: v1
+displayName: Device
+domain: devices
+fhirType: Device
+actions:
+  - key: create
+    displayName: Create device
+    context: COLLECTION
+  - key: list
+    displayName: List device
+    context: COLLECTION
+  - key: read
+    displayName: Read device
+    context: INSTANCE
+  - key: update
+    displayName: Update device
+    context: INSTANCE
+  - key: delete
+    displayName: Delete device
+    context: INSTANCE
+  - key: assign
+    displayName: Assign device
+    context: INSTANCE

@@ -1,0 +1,29 @@
+# GENERATED FILE - DO NOT EDIT BY HAND.
+#
+# Produced by libs/cataloggen from libs/cataloggen/manifest.yaml (catalog revision 1).
+# Edit the manifest and re-run `make catalog-gen`, or regenerate directly
+# with `go run ./libs/cataloggen/cmd/cataloggen -manifest libs/cataloggen/manifest.yaml`.
+resource: transport
+version: v1
+displayName: Transport
+domain: workflow
+fhirType: Transport
+actions:
+  - key: create
+    displayName: Create transport
+    context: COLLECTION
+  - key: list
+    displayName: List transport
+    context: COLLECTION
+  - key: read
+    displayName: Read transport
+    context: INSTANCE
+  - key: update
+    displayName: Update transport
+    context: INSTANCE
+  - key: delete
+    displayName: Delete transport
+    context: INSTANCE
+  - key: assign
+    displayName: Assign transport
+    context: INSTANCE

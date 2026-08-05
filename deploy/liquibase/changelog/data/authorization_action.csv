@@ -1,0 +1,925 @@
+resource_key,action_key,display_name,context_type,risk_level
+basic,create,Create basic,COLLECTION,STANDARD
+basic,list,List basic,COLLECTION,STANDARD
+basic,read,Read basic,INSTANCE,STANDARD
+basic,update,Update basic,INSTANCE,ELEVATED
+basic,delete,Delete basic,INSTANCE,ELEVATED
+basic,assign,Assign basic,INSTANCE,ELEVATED
+binary,create,Create binary,COLLECTION,STANDARD
+binary,list,List binary,COLLECTION,STANDARD
+binary,read,Read binary,INSTANCE,STANDARD
+binary,update,Update binary,INSTANCE,ELEVATED
+binary,delete,Delete binary,INSTANCE,ELEVATED
+binary,assign,Assign binary,INSTANCE,ELEVATED
+bundle,create,Create bundle,COLLECTION,STANDARD
+bundle,list,List bundle,COLLECTION,STANDARD
+bundle,read,Read bundle,INSTANCE,STANDARD
+bundle,update,Update bundle,INSTANCE,ELEVATED
+bundle,delete,Delete bundle,INSTANCE,ELEVATED
+bundle,assign,Assign bundle,INSTANCE,ELEVATED
+operation_outcome,create,Create operation outcome,COLLECTION,STANDARD
+operation_outcome,list,List operation outcome,COLLECTION,STANDARD
+operation_outcome,read,Read operation outcome,INSTANCE,STANDARD
+operation_outcome,update,Update operation outcome,INSTANCE,ELEVATED
+operation_outcome,delete,Delete operation outcome,INSTANCE,ELEVATED
+operation_outcome,assign,Assign operation outcome,INSTANCE,ELEVATED
+parameters,create,Create parameters,COLLECTION,STANDARD
+parameters,list,List parameters,COLLECTION,STANDARD
+parameters,read,Read parameters,INSTANCE,STANDARD
+parameters,update,Update parameters,INSTANCE,ELEVATED
+parameters,delete,Delete parameters,INSTANCE,ELEVATED
+parameters,assign,Assign parameters,INSTANCE,ELEVATED
+practitioner,create,Create practitioner,COLLECTION,STANDARD
+practitioner,list,List practitioner,COLLECTION,STANDARD
+practitioner,read,Read practitioner,INSTANCE,STANDARD
+practitioner,update,Update practitioner,INSTANCE,ELEVATED
+practitioner,delete,Delete practitioner,INSTANCE,ELEVATED
+practitioner,assign,Assign practitioner,INSTANCE,ELEVATED
+practitioner_role,create,Create practitioner role,COLLECTION,STANDARD
+practitioner_role,list,List practitioner role,COLLECTION,STANDARD
+practitioner_role,read,Read practitioner role,INSTANCE,STANDARD
+practitioner_role,update,Update practitioner role,INSTANCE,ELEVATED
+practitioner_role,delete,Delete practitioner role,INSTANCE,ELEVATED
+practitioner_role,assign,Assign practitioner role,INSTANCE,ELEVATED
+related_person,create,Create related person,COLLECTION,STANDARD
+related_person,list,List related person,COLLECTION,STANDARD
+related_person,read,Read related person,INSTANCE,STANDARD
+related_person,update,Update related person,INSTANCE,ELEVATED
+related_person,delete,Delete related person,INSTANCE,ELEVATED
+related_person,assign,Assign related person,INSTANCE,ELEVATED
+person,create,Create person,COLLECTION,STANDARD
+person,list,List person,COLLECTION,STANDARD
+person,read,Read person,INSTANCE,STANDARD
+person,update,Update person,INSTANCE,ELEVATED
+person,delete,Delete person,INSTANCE,ELEVATED
+person,assign,Assign person,INSTANCE,ELEVATED
+group,create,Create group,COLLECTION,STANDARD
+group,list,List group,COLLECTION,STANDARD
+group,read,Read group,INSTANCE,STANDARD
+group,update,Update group,INSTANCE,ELEVATED
+group,delete,Delete group,INSTANCE,ELEVATED
+group,assign,Assign group,INSTANCE,ELEVATED
+organization,create,Create organization,COLLECTION,STANDARD
+organization,list,List organization,COLLECTION,STANDARD
+organization,read,Read organization,INSTANCE,STANDARD
+organization,update,Update organization,INSTANCE,ELEVATED
+organization,delete,Delete organization,INSTANCE,ELEVATED
+organization,assign,Assign organization,INSTANCE,ELEVATED
+organization_affiliation,create,Create organization affiliation,COLLECTION,STANDARD
+organization_affiliation,list,List organization affiliation,COLLECTION,STANDARD
+organization_affiliation,read,Read organization affiliation,INSTANCE,STANDARD
+organization_affiliation,update,Update organization affiliation,INSTANCE,ELEVATED
+organization_affiliation,delete,Delete organization affiliation,INSTANCE,ELEVATED
+organization_affiliation,assign,Assign organization affiliation,INSTANCE,ELEVATED
+healthcare_service,create,Create healthcare service,COLLECTION,STANDARD
+healthcare_service,list,List healthcare service,COLLECTION,STANDARD
+healthcare_service,read,Read healthcare service,INSTANCE,STANDARD
+healthcare_service,update,Update healthcare service,INSTANCE,ELEVATED
+healthcare_service,delete,Delete healthcare service,INSTANCE,ELEVATED
+healthcare_service,assign,Assign healthcare service,INSTANCE,ELEVATED
+endpoint,create,Create endpoint,COLLECTION,STANDARD
+endpoint,list,List endpoint,COLLECTION,STANDARD
+endpoint,read,Read endpoint,INSTANCE,STANDARD
+endpoint,update,Update endpoint,INSTANCE,ELEVATED
+endpoint,delete,Delete endpoint,INSTANCE,ELEVATED
+endpoint,assign,Assign endpoint,INSTANCE,ELEVATED
+location,create,Create location,COLLECTION,STANDARD
+location,list,List location,COLLECTION,STANDARD
+location,read,Read location,INSTANCE,STANDARD
+location,update,Update location,INSTANCE,ELEVATED
+location,delete,Delete location,INSTANCE,ELEVATED
+location,assign,Assign location,INSTANCE,ELEVATED
+device,create,Create device,COLLECTION,STANDARD
+device,list,List device,COLLECTION,STANDARD
+device,read,Read device,INSTANCE,STANDARD
+device,update,Update device,INSTANCE,ELEVATED
+device,delete,Delete device,INSTANCE,ELEVATED
+device,assign,Assign device,INSTANCE,ELEVATED
+device_definition,create,Create device definition,COLLECTION,STANDARD
+device_definition,list,List device definition,COLLECTION,STANDARD
+device_definition,read,Read device definition,INSTANCE,STANDARD
+device_definition,update,Update device definition,INSTANCE,ELEVATED
+device_definition,delete,Delete device definition,INSTANCE,ELEVATED
+device_definition,assign,Assign device definition,INSTANCE,ELEVATED
+device_metric,create,Create device metric,COLLECTION,STANDARD
+device_metric,list,List device metric,COLLECTION,STANDARD
+device_metric,read,Read device metric,INSTANCE,STANDARD
+device_metric,update,Update device metric,INSTANCE,ELEVATED
+device_metric,delete,Delete device metric,INSTANCE,ELEVATED
+device_metric,assign,Assign device metric,INSTANCE,ELEVATED
+device_request,create,Create device request,COLLECTION,STANDARD
+device_request,list,List device request,COLLECTION,STANDARD
+device_request,read,Read device request,INSTANCE,STANDARD
+device_request,update,Update device request,INSTANCE,ELEVATED
+device_request,delete,Delete device request,INSTANCE,ELEVATED
+device_request,assign,Assign device request,INSTANCE,ELEVATED
+device_usage,create,Create device usage,COLLECTION,STANDARD
+device_usage,list,List device usage,COLLECTION,STANDARD
+device_usage,read,Read device usage,INSTANCE,STANDARD
+device_usage,update,Update device usage,INSTANCE,ELEVATED
+device_usage,delete,Delete device usage,INSTANCE,ELEVATED
+device_usage,assign,Assign device usage,INSTANCE,ELEVATED
+device_association,create,Create device association,COLLECTION,STANDARD
+device_association,list,List device association,COLLECTION,STANDARD
+device_association,read,Read device association,INSTANCE,STANDARD
+device_association,update,Update device association,INSTANCE,ELEVATED
+device_association,delete,Delete device association,INSTANCE,ELEVATED
+device_association,assign,Assign device association,INSTANCE,ELEVATED
+device_dispense,create,Create device dispense,COLLECTION,STANDARD
+device_dispense,list,List device dispense,COLLECTION,STANDARD
+device_dispense,read,Read device dispense,INSTANCE,STANDARD
+device_dispense,update,Update device dispense,INSTANCE,ELEVATED
+device_dispense,delete,Delete device dispense,INSTANCE,ELEVATED
+device_dispense,assign,Assign device dispense,INSTANCE,ELEVATED
+substance,create,Create substance,COLLECTION,STANDARD
+substance,list,List substance,COLLECTION,STANDARD
+substance,read,Read substance,INSTANCE,STANDARD
+substance,update,Update substance,INSTANCE,ELEVATED
+substance,delete,Delete substance,INSTANCE,ELEVATED
+substance,assign,Assign substance,INSTANCE,ELEVATED
+substance_definition,create,Create substance definition,COLLECTION,STANDARD
+substance_definition,list,List substance definition,COLLECTION,STANDARD
+substance_definition,read,Read substance definition,INSTANCE,STANDARD
+substance_definition,update,Update substance definition,INSTANCE,ELEVATED
+substance_definition,delete,Delete substance definition,INSTANCE,ELEVATED
+substance_definition,assign,Assign substance definition,INSTANCE,ELEVATED
+substance_nucleic_acid,create,Create substance nucleic acid,COLLECTION,STANDARD
+substance_nucleic_acid,list,List substance nucleic acid,COLLECTION,STANDARD
+substance_nucleic_acid,read,Read substance nucleic acid,INSTANCE,STANDARD
+substance_nucleic_acid,update,Update substance nucleic acid,INSTANCE,ELEVATED
+substance_nucleic_acid,delete,Delete substance nucleic acid,INSTANCE,ELEVATED
+substance_nucleic_acid,assign,Assign substance nucleic acid,INSTANCE,ELEVATED
+substance_polymer,create,Create substance polymer,COLLECTION,STANDARD
+substance_polymer,list,List substance polymer,COLLECTION,STANDARD
+substance_polymer,read,Read substance polymer,INSTANCE,STANDARD
+substance_polymer,update,Update substance polymer,INSTANCE,ELEVATED
+substance_polymer,delete,Delete substance polymer,INSTANCE,ELEVATED
+substance_polymer,assign,Assign substance polymer,INSTANCE,ELEVATED
+substance_protein,create,Create substance protein,COLLECTION,STANDARD
+substance_protein,list,List substance protein,COLLECTION,STANDARD
+substance_protein,read,Read substance protein,INSTANCE,STANDARD
+substance_protein,update,Update substance protein,INSTANCE,ELEVATED
+substance_protein,delete,Delete substance protein,INSTANCE,ELEVATED
+substance_protein,assign,Assign substance protein,INSTANCE,ELEVATED
+substance_reference_information,create,Create substance reference information,COLLECTION,STANDARD
+substance_reference_information,list,List substance reference information,COLLECTION,STANDARD
+substance_reference_information,read,Read substance reference information,INSTANCE,STANDARD
+substance_reference_information,update,Update substance reference information,INSTANCE,ELEVATED
+substance_reference_information,delete,Delete substance reference information,INSTANCE,ELEVATED
+substance_reference_information,assign,Assign substance reference information,INSTANCE,ELEVATED
+substance_source_material,create,Create substance source material,COLLECTION,STANDARD
+substance_source_material,list,List substance source material,COLLECTION,STANDARD
+substance_source_material,read,Read substance source material,INSTANCE,STANDARD
+substance_source_material,update,Update substance source material,INSTANCE,ELEVATED
+substance_source_material,delete,Delete substance source material,INSTANCE,ELEVATED
+substance_source_material,assign,Assign substance source material,INSTANCE,ELEVATED
+biologically_derived_product,create,Create biologically derived product,COLLECTION,STANDARD
+biologically_derived_product,list,List biologically derived product,COLLECTION,STANDARD
+biologically_derived_product,read,Read biologically derived product,INSTANCE,STANDARD
+biologically_derived_product,update,Update biologically derived product,INSTANCE,ELEVATED
+biologically_derived_product,delete,Delete biologically derived product,INSTANCE,ELEVATED
+biologically_derived_product,assign,Assign biologically derived product,INSTANCE,ELEVATED
+biologically_derived_product_dispense,create,Create biologically derived product dispense,COLLECTION,STANDARD
+biologically_derived_product_dispense,list,List biologically derived product dispense,COLLECTION,STANDARD
+biologically_derived_product_dispense,read,Read biologically derived product dispense,INSTANCE,STANDARD
+biologically_derived_product_dispense,update,Update biologically derived product dispense,INSTANCE,ELEVATED
+biologically_derived_product_dispense,delete,Delete biologically derived product dispense,INSTANCE,ELEVATED
+biologically_derived_product_dispense,assign,Assign biologically derived product dispense,INSTANCE,ELEVATED
+nutrition_product,create,Create nutrition product,COLLECTION,STANDARD
+nutrition_product,list,List nutrition product,COLLECTION,STANDARD
+nutrition_product,read,Read nutrition product,INSTANCE,STANDARD
+nutrition_product,update,Update nutrition product,INSTANCE,ELEVATED
+nutrition_product,delete,Delete nutrition product,INSTANCE,ELEVATED
+nutrition_product,assign,Assign nutrition product,INSTANCE,ELEVATED
+ingredient,create,Create ingredient,COLLECTION,STANDARD
+ingredient,list,List ingredient,COLLECTION,STANDARD
+ingredient,read,Read ingredient,INSTANCE,STANDARD
+ingredient,update,Update ingredient,INSTANCE,ELEVATED
+ingredient,delete,Delete ingredient,INSTANCE,ELEVATED
+ingredient,assign,Assign ingredient,INSTANCE,ELEVATED
+medicinal_product_definition,create,Create medicinal product definition,COLLECTION,STANDARD
+medicinal_product_definition,list,List medicinal product definition,COLLECTION,STANDARD
+medicinal_product_definition,read,Read medicinal product definition,INSTANCE,STANDARD
+medicinal_product_definition,update,Update medicinal product definition,INSTANCE,ELEVATED
+medicinal_product_definition,delete,Delete medicinal product definition,INSTANCE,ELEVATED
+medicinal_product_definition,assign,Assign medicinal product definition,INSTANCE,ELEVATED
+packaged_product_definition,create,Create packaged product definition,COLLECTION,STANDARD
+packaged_product_definition,list,List packaged product definition,COLLECTION,STANDARD
+packaged_product_definition,read,Read packaged product definition,INSTANCE,STANDARD
+packaged_product_definition,update,Update packaged product definition,INSTANCE,ELEVATED
+packaged_product_definition,delete,Delete packaged product definition,INSTANCE,ELEVATED
+packaged_product_definition,assign,Assign packaged product definition,INSTANCE,ELEVATED
+administrable_product_definition,create,Create administrable product definition,COLLECTION,STANDARD
+administrable_product_definition,list,List administrable product definition,COLLECTION,STANDARD
+administrable_product_definition,read,Read administrable product definition,INSTANCE,STANDARD
+administrable_product_definition,update,Update administrable product definition,INSTANCE,ELEVATED
+administrable_product_definition,delete,Delete administrable product definition,INSTANCE,ELEVATED
+administrable_product_definition,assign,Assign administrable product definition,INSTANCE,ELEVATED
+manufactured_item_definition,create,Create manufactured item definition,COLLECTION,STANDARD
+manufactured_item_definition,list,List manufactured item definition,COLLECTION,STANDARD
+manufactured_item_definition,read,Read manufactured item definition,INSTANCE,STANDARD
+manufactured_item_definition,update,Update manufactured item definition,INSTANCE,ELEVATED
+manufactured_item_definition,delete,Delete manufactured item definition,INSTANCE,ELEVATED
+manufactured_item_definition,assign,Assign manufactured item definition,INSTANCE,ELEVATED
+regulated_authorization,create,Create regulated authorization,COLLECTION,STANDARD
+regulated_authorization,list,List regulated authorization,COLLECTION,STANDARD
+regulated_authorization,read,Read regulated authorization,INSTANCE,STANDARD
+regulated_authorization,update,Update regulated authorization,INSTANCE,ELEVATED
+regulated_authorization,delete,Delete regulated authorization,INSTANCE,ELEVATED
+regulated_authorization,assign,Assign regulated authorization,INSTANCE,ELEVATED
+clinical_use_definition,create,Create clinical use definition,COLLECTION,STANDARD
+clinical_use_definition,list,List clinical use definition,COLLECTION,STANDARD
+clinical_use_definition,read,Read clinical use definition,INSTANCE,STANDARD
+clinical_use_definition,update,Update clinical use definition,INSTANCE,ELEVATED
+clinical_use_definition,delete,Delete clinical use definition,INSTANCE,ELEVATED
+clinical_use_definition,assign,Assign clinical use definition,INSTANCE,ELEVATED
+task,create,Create task,COLLECTION,STANDARD
+task,list,List task,COLLECTION,STANDARD
+task,read,Read task,INSTANCE,STANDARD
+task,update,Update task,INSTANCE,ELEVATED
+task,delete,Delete task,INSTANCE,ELEVATED
+task,assign,Assign task,INSTANCE,ELEVATED
+appointment,create,Create appointment,COLLECTION,STANDARD
+appointment,list,List appointment,COLLECTION,STANDARD
+appointment,read,Read appointment,INSTANCE,STANDARD
+appointment,update,Update appointment,INSTANCE,ELEVATED
+appointment,delete,Delete appointment,INSTANCE,ELEVATED
+appointment,assign,Assign appointment,INSTANCE,ELEVATED
+appointment_response,create,Create appointment response,COLLECTION,STANDARD
+appointment_response,list,List appointment response,COLLECTION,STANDARD
+appointment_response,read,Read appointment response,INSTANCE,STANDARD
+appointment_response,update,Update appointment response,INSTANCE,ELEVATED
+appointment_response,delete,Delete appointment response,INSTANCE,ELEVATED
+appointment_response,assign,Assign appointment response,INSTANCE,ELEVATED
+schedule,create,Create schedule,COLLECTION,STANDARD
+schedule,list,List schedule,COLLECTION,STANDARD
+schedule,read,Read schedule,INSTANCE,STANDARD
+schedule,update,Update schedule,INSTANCE,ELEVATED
+schedule,delete,Delete schedule,INSTANCE,ELEVATED
+schedule,assign,Assign schedule,INSTANCE,ELEVATED
+slot,create,Create slot,COLLECTION,STANDARD
+slot,list,List slot,COLLECTION,STANDARD
+slot,read,Read slot,INSTANCE,STANDARD
+slot,update,Update slot,INSTANCE,ELEVATED
+slot,delete,Delete slot,INSTANCE,ELEVATED
+slot,assign,Assign slot,INSTANCE,ELEVATED
+verification_result,create,Create verification result,COLLECTION,STANDARD
+verification_result,list,List verification result,COLLECTION,STANDARD
+verification_result,read,Read verification result,INSTANCE,STANDARD
+verification_result,update,Update verification result,INSTANCE,ELEVATED
+verification_result,delete,Delete verification result,INSTANCE,ELEVATED
+verification_result,assign,Assign verification result,INSTANCE,ELEVATED
+requirements,create,Create requirements,COLLECTION,STANDARD
+requirements,list,List requirements,COLLECTION,STANDARD
+requirements,read,Read requirements,INSTANCE,STANDARD
+requirements,update,Update requirements,INSTANCE,ELEVATED
+requirements,delete,Delete requirements,INSTANCE,ELEVATED
+requirements,assign,Assign requirements,INSTANCE,ELEVATED
+transport,create,Create transport,COLLECTION,STANDARD
+transport,list,List transport,COLLECTION,STANDARD
+transport,read,Read transport,INSTANCE,STANDARD
+transport,update,Update transport,INSTANCE,ELEVATED
+transport,delete,Delete transport,INSTANCE,ELEVATED
+transport,assign,Assign transport,INSTANCE,ELEVATED
+care_team,create,Create care team,COLLECTION,STANDARD
+care_team,list,List care team,COLLECTION,STANDARD
+care_team,read,Read care team,INSTANCE,STANDARD
+care_team,update,Update care team,INSTANCE,ELEVATED
+care_team,delete,Delete care team,INSTANCE,ELEVATED
+care_team,assign,Assign care team,INSTANCE,ELEVATED
+goal,create,Create goal,COLLECTION,STANDARD
+goal,list,List goal,COLLECTION,STANDARD
+goal,read,Read goal,INSTANCE,STANDARD
+goal,update,Update goal,INSTANCE,ELEVATED
+goal,delete,Delete goal,INSTANCE,ELEVATED
+goal,assign,Assign goal,INSTANCE,ELEVATED
+episode_of_care,create,Create episode of care,COLLECTION,STANDARD
+episode_of_care,list,List episode of care,COLLECTION,STANDARD
+episode_of_care,read,Read episode of care,INSTANCE,STANDARD
+episode_of_care,update,Update episode of care,INSTANCE,ELEVATED
+episode_of_care,delete,Delete episode of care,INSTANCE,ELEVATED
+episode_of_care,assign,Assign episode of care,INSTANCE,ELEVATED
+flag,create,Create flag,COLLECTION,STANDARD
+flag,list,List flag,COLLECTION,STANDARD
+flag,read,Read flag,INSTANCE,STANDARD
+flag,update,Update flag,INSTANCE,ELEVATED
+flag,delete,Delete flag,INSTANCE,ELEVATED
+flag,assign,Assign flag,INSTANCE,ELEVATED
+list,create,Create list,COLLECTION,STANDARD
+list,list,List list,COLLECTION,STANDARD
+list,read,Read list,INSTANCE,STANDARD
+list,update,Update list,INSTANCE,ELEVATED
+list,delete,Delete list,INSTANCE,ELEVATED
+list,assign,Assign list,INSTANCE,ELEVATED
+encounter,create,Create encounter,COLLECTION,STANDARD
+encounter,list,List encounter,COLLECTION,STANDARD
+encounter,read,Read encounter,INSTANCE,STANDARD
+encounter,update,Update encounter,INSTANCE,ELEVATED
+encounter,delete,Delete encounter,INSTANCE,ELEVATED
+encounter,assign,Assign encounter,INSTANCE,ELEVATED
+encounter_history,create,Create encounter history,COLLECTION,STANDARD
+encounter_history,list,List encounter history,COLLECTION,STANDARD
+encounter_history,read,Read encounter history,INSTANCE,STANDARD
+encounter_history,update,Update encounter history,INSTANCE,ELEVATED
+encounter_history,delete,Delete encounter history,INSTANCE,ELEVATED
+encounter_history,assign,Assign encounter history,INSTANCE,ELEVATED
+allergy_intolerance,create,Create allergy intolerance,COLLECTION,STANDARD
+allergy_intolerance,list,List allergy intolerance,COLLECTION,STANDARD
+allergy_intolerance,read,Read allergy intolerance,INSTANCE,STANDARD
+allergy_intolerance,update,Update allergy intolerance,INSTANCE,ELEVATED
+allergy_intolerance,delete,Delete allergy intolerance,INSTANCE,ELEVATED
+allergy_intolerance,assign,Assign allergy intolerance,INSTANCE,ELEVATED
+adverse_event,create,Create adverse event,COLLECTION,STANDARD
+adverse_event,list,List adverse event,COLLECTION,STANDARD
+adverse_event,read,Read adverse event,INSTANCE,STANDARD
+adverse_event,update,Update adverse event,INSTANCE,ELEVATED
+adverse_event,delete,Delete adverse event,INSTANCE,ELEVATED
+adverse_event,assign,Assign adverse event,INSTANCE,ELEVATED
+condition,create,Create condition,COLLECTION,STANDARD
+condition,list,List condition,COLLECTION,STANDARD
+condition,read,Read condition,INSTANCE,STANDARD
+condition,update,Update condition,INSTANCE,ELEVATED
+condition,delete,Delete condition,INSTANCE,ELEVATED
+condition,assign,Assign condition,INSTANCE,ELEVATED
+procedure,create,Create procedure,COLLECTION,STANDARD
+procedure,list,List procedure,COLLECTION,STANDARD
+procedure,read,Read procedure,INSTANCE,STANDARD
+procedure,update,Update procedure,INSTANCE,ELEVATED
+procedure,delete,Delete procedure,INSTANCE,ELEVATED
+procedure,assign,Assign procedure,INSTANCE,ELEVATED
+family_member_history,create,Create family member history,COLLECTION,STANDARD
+family_member_history,list,List family member history,COLLECTION,STANDARD
+family_member_history,read,Read family member history,INSTANCE,STANDARD
+family_member_history,update,Update family member history,INSTANCE,ELEVATED
+family_member_history,delete,Delete family member history,INSTANCE,ELEVATED
+family_member_history,assign,Assign family member history,INSTANCE,ELEVATED
+clinical_impression,create,Create clinical impression,COLLECTION,STANDARD
+clinical_impression,list,List clinical impression,COLLECTION,STANDARD
+clinical_impression,read,Read clinical impression,INSTANCE,STANDARD
+clinical_impression,update,Update clinical impression,INSTANCE,ELEVATED
+clinical_impression,delete,Delete clinical impression,INSTANCE,ELEVATED
+clinical_impression,assign,Assign clinical impression,INSTANCE,ELEVATED
+detected_issue,create,Create detected issue,COLLECTION,STANDARD
+detected_issue,list,List detected issue,COLLECTION,STANDARD
+detected_issue,read,Read detected issue,INSTANCE,STANDARD
+detected_issue,update,Update detected issue,INSTANCE,ELEVATED
+detected_issue,delete,Delete detected issue,INSTANCE,ELEVATED
+detected_issue,assign,Assign detected issue,INSTANCE,ELEVATED
+observation,create,Create observation,COLLECTION,STANDARD
+observation,list,List observation,COLLECTION,STANDARD
+observation,read,Read observation,INSTANCE,STANDARD
+observation,update,Update observation,INSTANCE,ELEVATED
+observation,delete,Delete observation,INSTANCE,ELEVATED
+observation,assign,Assign observation,INSTANCE,ELEVATED
+media,create,Create media,COLLECTION,STANDARD
+media,list,List media,COLLECTION,STANDARD
+media,read,Read media,INSTANCE,STANDARD
+media,update,Update media,INSTANCE,ELEVATED
+media,delete,Delete media,INSTANCE,ELEVATED
+media,assign,Assign media,INSTANCE,ELEVATED
+diagnostic_report,create,Create diagnostic report,COLLECTION,STANDARD
+diagnostic_report,list,List diagnostic report,COLLECTION,STANDARD
+diagnostic_report,read,Read diagnostic report,INSTANCE,STANDARD
+diagnostic_report,update,Update diagnostic report,INSTANCE,ELEVATED
+diagnostic_report,delete,Delete diagnostic report,INSTANCE,ELEVATED
+diagnostic_report,assign,Assign diagnostic report,INSTANCE,ELEVATED
+specimen,create,Create specimen,COLLECTION,STANDARD
+specimen,list,List specimen,COLLECTION,STANDARD
+specimen,read,Read specimen,INSTANCE,STANDARD
+specimen,update,Update specimen,INSTANCE,ELEVATED
+specimen,delete,Delete specimen,INSTANCE,ELEVATED
+specimen,assign,Assign specimen,INSTANCE,ELEVATED
+body_structure,create,Create body structure,COLLECTION,STANDARD
+body_structure,list,List body structure,COLLECTION,STANDARD
+body_structure,read,Read body structure,INSTANCE,STANDARD
+body_structure,update,Update body structure,INSTANCE,ELEVATED
+body_structure,delete,Delete body structure,INSTANCE,ELEVATED
+body_structure,assign,Assign body structure,INSTANCE,ELEVATED
+imaging_study,create,Create imaging study,COLLECTION,STANDARD
+imaging_study,list,List imaging study,COLLECTION,STANDARD
+imaging_study,read,Read imaging study,INSTANCE,STANDARD
+imaging_study,update,Update imaging study,INSTANCE,ELEVATED
+imaging_study,delete,Delete imaging study,INSTANCE,ELEVATED
+imaging_study,assign,Assign imaging study,INSTANCE,ELEVATED
+imaging_selection,create,Create imaging selection,COLLECTION,STANDARD
+imaging_selection,list,List imaging selection,COLLECTION,STANDARD
+imaging_selection,read,Read imaging selection,INSTANCE,STANDARD
+imaging_selection,update,Update imaging selection,INSTANCE,ELEVATED
+imaging_selection,delete,Delete imaging selection,INSTANCE,ELEVATED
+imaging_selection,assign,Assign imaging selection,INSTANCE,ELEVATED
+molecular_sequence,create,Create molecular sequence,COLLECTION,STANDARD
+molecular_sequence,list,List molecular sequence,COLLECTION,STANDARD
+molecular_sequence,read,Read molecular sequence,INSTANCE,STANDARD
+molecular_sequence,update,Update molecular sequence,INSTANCE,ELEVATED
+molecular_sequence,delete,Delete molecular sequence,INSTANCE,ELEVATED
+molecular_sequence,assign,Assign molecular sequence,INSTANCE,ELEVATED
+genomic_study,create,Create genomic study,COLLECTION,STANDARD
+genomic_study,list,List genomic study,COLLECTION,STANDARD
+genomic_study,read,Read genomic study,INSTANCE,STANDARD
+genomic_study,update,Update genomic study,INSTANCE,ELEVATED
+genomic_study,delete,Delete genomic study,INSTANCE,ELEVATED
+genomic_study,assign,Assign genomic study,INSTANCE,ELEVATED
+medication,create,Create medication,COLLECTION,STANDARD
+medication,list,List medication,COLLECTION,STANDARD
+medication,read,Read medication,INSTANCE,STANDARD
+medication,update,Update medication,INSTANCE,ELEVATED
+medication,delete,Delete medication,INSTANCE,ELEVATED
+medication,assign,Assign medication,INSTANCE,ELEVATED
+medication_request,create,Create medication request,COLLECTION,STANDARD
+medication_request,list,List medication request,COLLECTION,STANDARD
+medication_request,read,Read medication request,INSTANCE,STANDARD
+medication_request,update,Update medication request,INSTANCE,ELEVATED
+medication_request,delete,Delete medication request,INSTANCE,ELEVATED
+medication_request,assign,Assign medication request,INSTANCE,ELEVATED
+medication_administration,create,Create medication administration,COLLECTION,STANDARD
+medication_administration,list,List medication administration,COLLECTION,STANDARD
+medication_administration,read,Read medication administration,INSTANCE,STANDARD
+medication_administration,update,Update medication administration,INSTANCE,ELEVATED
+medication_administration,delete,Delete medication administration,INSTANCE,ELEVATED
+medication_administration,assign,Assign medication administration,INSTANCE,ELEVATED
+medication_dispense,create,Create medication dispense,COLLECTION,STANDARD
+medication_dispense,list,List medication dispense,COLLECTION,STANDARD
+medication_dispense,read,Read medication dispense,INSTANCE,STANDARD
+medication_dispense,update,Update medication dispense,INSTANCE,ELEVATED
+medication_dispense,delete,Delete medication dispense,INSTANCE,ELEVATED
+medication_dispense,assign,Assign medication dispense,INSTANCE,ELEVATED
+medication_statement,create,Create medication statement,COLLECTION,STANDARD
+medication_statement,list,List medication statement,COLLECTION,STANDARD
+medication_statement,read,Read medication statement,INSTANCE,STANDARD
+medication_statement,update,Update medication statement,INSTANCE,ELEVATED
+medication_statement,delete,Delete medication statement,INSTANCE,ELEVATED
+medication_statement,assign,Assign medication statement,INSTANCE,ELEVATED
+medication_knowledge,create,Create medication knowledge,COLLECTION,STANDARD
+medication_knowledge,list,List medication knowledge,COLLECTION,STANDARD
+medication_knowledge,read,Read medication knowledge,INSTANCE,STANDARD
+medication_knowledge,update,Update medication knowledge,INSTANCE,ELEVATED
+medication_knowledge,delete,Delete medication knowledge,INSTANCE,ELEVATED
+medication_knowledge,assign,Assign medication knowledge,INSTANCE,ELEVATED
+immunization,create,Create immunization,COLLECTION,STANDARD
+immunization,list,List immunization,COLLECTION,STANDARD
+immunization,read,Read immunization,INSTANCE,STANDARD
+immunization,update,Update immunization,INSTANCE,ELEVATED
+immunization,delete,Delete immunization,INSTANCE,ELEVATED
+immunization,assign,Assign immunization,INSTANCE,ELEVATED
+immunization_evaluation,create,Create immunization evaluation,COLLECTION,STANDARD
+immunization_evaluation,list,List immunization evaluation,COLLECTION,STANDARD
+immunization_evaluation,read,Read immunization evaluation,INSTANCE,STANDARD
+immunization_evaluation,update,Update immunization evaluation,INSTANCE,ELEVATED
+immunization_evaluation,delete,Delete immunization evaluation,INSTANCE,ELEVATED
+immunization_evaluation,assign,Assign immunization evaluation,INSTANCE,ELEVATED
+immunization_recommendation,create,Create immunization recommendation,COLLECTION,STANDARD
+immunization_recommendation,list,List immunization recommendation,COLLECTION,STANDARD
+immunization_recommendation,read,Read immunization recommendation,INSTANCE,STANDARD
+immunization_recommendation,update,Update immunization recommendation,INSTANCE,ELEVATED
+immunization_recommendation,delete,Delete immunization recommendation,INSTANCE,ELEVATED
+immunization_recommendation,assign,Assign immunization recommendation,INSTANCE,ELEVATED
+care_plan,create,Create care plan,COLLECTION,STANDARD
+care_plan,list,List care plan,COLLECTION,STANDARD
+care_plan,read,Read care plan,INSTANCE,STANDARD
+care_plan,update,Update care plan,INSTANCE,ELEVATED
+care_plan,delete,Delete care plan,INSTANCE,ELEVATED
+care_plan,assign,Assign care plan,INSTANCE,ELEVATED
+service_request,create,Create service request,COLLECTION,STANDARD
+service_request,list,List service request,COLLECTION,STANDARD
+service_request,read,Read service request,INSTANCE,STANDARD
+service_request,update,Update service request,INSTANCE,ELEVATED
+service_request,delete,Delete service request,INSTANCE,ELEVATED
+service_request,assign,Assign service request,INSTANCE,ELEVATED
+nutrition_order,create,Create nutrition order,COLLECTION,STANDARD
+nutrition_order,list,List nutrition order,COLLECTION,STANDARD
+nutrition_order,read,Read nutrition order,INSTANCE,STANDARD
+nutrition_order,update,Update nutrition order,INSTANCE,ELEVATED
+nutrition_order,delete,Delete nutrition order,INSTANCE,ELEVATED
+nutrition_order,assign,Assign nutrition order,INSTANCE,ELEVATED
+nutrition_intake,create,Create nutrition intake,COLLECTION,STANDARD
+nutrition_intake,list,List nutrition intake,COLLECTION,STANDARD
+nutrition_intake,read,Read nutrition intake,INSTANCE,STANDARD
+nutrition_intake,update,Update nutrition intake,INSTANCE,ELEVATED
+nutrition_intake,delete,Delete nutrition intake,INSTANCE,ELEVATED
+nutrition_intake,assign,Assign nutrition intake,INSTANCE,ELEVATED
+vision_prescription,create,Create vision prescription,COLLECTION,STANDARD
+vision_prescription,list,List vision prescription,COLLECTION,STANDARD
+vision_prescription,read,Read vision prescription,INSTANCE,STANDARD
+vision_prescription,update,Update vision prescription,INSTANCE,ELEVATED
+vision_prescription,delete,Delete vision prescription,INSTANCE,ELEVATED
+vision_prescription,assign,Assign vision prescription,INSTANCE,ELEVATED
+risk_assessment,create,Create risk assessment,COLLECTION,STANDARD
+risk_assessment,list,List risk assessment,COLLECTION,STANDARD
+risk_assessment,read,Read risk assessment,INSTANCE,STANDARD
+risk_assessment,update,Update risk assessment,INSTANCE,ELEVATED
+risk_assessment,delete,Delete risk assessment,INSTANCE,ELEVATED
+risk_assessment,assign,Assign risk assessment,INSTANCE,ELEVATED
+request_orchestration,create,Create request orchestration,COLLECTION,STANDARD
+request_orchestration,list,List request orchestration,COLLECTION,STANDARD
+request_orchestration,read,Read request orchestration,INSTANCE,STANDARD
+request_orchestration,update,Update request orchestration,INSTANCE,ELEVATED
+request_orchestration,delete,Delete request orchestration,INSTANCE,ELEVATED
+request_orchestration,assign,Assign request orchestration,INSTANCE,ELEVATED
+communication,create,Create communication,COLLECTION,STANDARD
+communication,list,List communication,COLLECTION,STANDARD
+communication,read,Read communication,INSTANCE,STANDARD
+communication,update,Update communication,INSTANCE,ELEVATED
+communication,delete,Delete communication,INSTANCE,ELEVATED
+communication,assign,Assign communication,INSTANCE,ELEVATED
+communication_request,create,Create communication request,COLLECTION,STANDARD
+communication_request,list,List communication request,COLLECTION,STANDARD
+communication_request,read,Read communication request,INSTANCE,STANDARD
+communication_request,update,Update communication request,INSTANCE,ELEVATED
+communication_request,delete,Delete communication request,INSTANCE,ELEVATED
+communication_request,assign,Assign communication request,INSTANCE,ELEVATED
+guidance_response,create,Create guidance response,COLLECTION,STANDARD
+guidance_response,list,List guidance response,COLLECTION,STANDARD
+guidance_response,read,Read guidance response,INSTANCE,STANDARD
+guidance_response,update,Update guidance response,INSTANCE,ELEVATED
+guidance_response,delete,Delete guidance response,INSTANCE,ELEVATED
+guidance_response,assign,Assign guidance response,INSTANCE,ELEVATED
+supply_request,create,Create supply request,COLLECTION,STANDARD
+supply_request,list,List supply request,COLLECTION,STANDARD
+supply_request,read,Read supply request,INSTANCE,STANDARD
+supply_request,update,Update supply request,INSTANCE,ELEVATED
+supply_request,delete,Delete supply request,INSTANCE,ELEVATED
+supply_request,assign,Assign supply request,INSTANCE,ELEVATED
+supply_delivery,create,Create supply delivery,COLLECTION,STANDARD
+supply_delivery,list,List supply delivery,COLLECTION,STANDARD
+supply_delivery,read,Read supply delivery,INSTANCE,STANDARD
+supply_delivery,update,Update supply delivery,INSTANCE,ELEVATED
+supply_delivery,delete,Delete supply delivery,INSTANCE,ELEVATED
+supply_delivery,assign,Assign supply delivery,INSTANCE,ELEVATED
+coverage,create,Create coverage,COLLECTION,STANDARD
+coverage,list,List coverage,COLLECTION,STANDARD
+coverage,read,Read coverage,INSTANCE,STANDARD
+coverage,update,Update coverage,INSTANCE,ELEVATED
+coverage,delete,Delete coverage,INSTANCE,ELEVATED
+coverage,assign,Assign coverage,INSTANCE,ELEVATED
+coverage_eligibility_request,create,Create coverage eligibility request,COLLECTION,STANDARD
+coverage_eligibility_request,list,List coverage eligibility request,COLLECTION,STANDARD
+coverage_eligibility_request,read,Read coverage eligibility request,INSTANCE,STANDARD
+coverage_eligibility_request,update,Update coverage eligibility request,INSTANCE,ELEVATED
+coverage_eligibility_request,delete,Delete coverage eligibility request,INSTANCE,ELEVATED
+coverage_eligibility_request,assign,Assign coverage eligibility request,INSTANCE,ELEVATED
+coverage_eligibility_response,create,Create coverage eligibility response,COLLECTION,STANDARD
+coverage_eligibility_response,list,List coverage eligibility response,COLLECTION,STANDARD
+coverage_eligibility_response,read,Read coverage eligibility response,INSTANCE,STANDARD
+coverage_eligibility_response,update,Update coverage eligibility response,INSTANCE,ELEVATED
+coverage_eligibility_response,delete,Delete coverage eligibility response,INSTANCE,ELEVATED
+coverage_eligibility_response,assign,Assign coverage eligibility response,INSTANCE,ELEVATED
+enrollment_request,create,Create enrollment request,COLLECTION,STANDARD
+enrollment_request,list,List enrollment request,COLLECTION,STANDARD
+enrollment_request,read,Read enrollment request,INSTANCE,STANDARD
+enrollment_request,update,Update enrollment request,INSTANCE,ELEVATED
+enrollment_request,delete,Delete enrollment request,INSTANCE,ELEVATED
+enrollment_request,assign,Assign enrollment request,INSTANCE,ELEVATED
+enrollment_response,create,Create enrollment response,COLLECTION,STANDARD
+enrollment_response,list,List enrollment response,COLLECTION,STANDARD
+enrollment_response,read,Read enrollment response,INSTANCE,STANDARD
+enrollment_response,update,Update enrollment response,INSTANCE,ELEVATED
+enrollment_response,delete,Delete enrollment response,INSTANCE,ELEVATED
+enrollment_response,assign,Assign enrollment response,INSTANCE,ELEVATED
+claim,create,Create claim,COLLECTION,STANDARD
+claim,list,List claim,COLLECTION,STANDARD
+claim,read,Read claim,INSTANCE,STANDARD
+claim,update,Update claim,INSTANCE,ELEVATED
+claim,delete,Delete claim,INSTANCE,ELEVATED
+claim,assign,Assign claim,INSTANCE,ELEVATED
+claim_response,create,Create claim response,COLLECTION,STANDARD
+claim_response,list,List claim response,COLLECTION,STANDARD
+claim_response,read,Read claim response,INSTANCE,STANDARD
+claim_response,update,Update claim response,INSTANCE,ELEVATED
+claim_response,delete,Delete claim response,INSTANCE,ELEVATED
+claim_response,assign,Assign claim response,INSTANCE,ELEVATED
+invoice,create,Create invoice,COLLECTION,STANDARD
+invoice,list,List invoice,COLLECTION,STANDARD
+invoice,read,Read invoice,INSTANCE,STANDARD
+invoice,update,Update invoice,INSTANCE,ELEVATED
+invoice,delete,Delete invoice,INSTANCE,ELEVATED
+invoice,assign,Assign invoice,INSTANCE,ELEVATED
+account,create,Create account,COLLECTION,STANDARD
+account,list,List account,COLLECTION,STANDARD
+account,read,Read account,INSTANCE,STANDARD
+account,update,Update account,INSTANCE,ELEVATED
+account,delete,Delete account,INSTANCE,ELEVATED
+account,assign,Assign account,INSTANCE,ELEVATED
+charge_item,create,Create charge item,COLLECTION,STANDARD
+charge_item,list,List charge item,COLLECTION,STANDARD
+charge_item,read,Read charge item,INSTANCE,STANDARD
+charge_item,update,Update charge item,INSTANCE,ELEVATED
+charge_item,delete,Delete charge item,INSTANCE,ELEVATED
+charge_item,assign,Assign charge item,INSTANCE,ELEVATED
+charge_item_definition,create,Create charge item definition,COLLECTION,STANDARD
+charge_item_definition,list,List charge item definition,COLLECTION,STANDARD
+charge_item_definition,read,Read charge item definition,INSTANCE,STANDARD
+charge_item_definition,update,Update charge item definition,INSTANCE,ELEVATED
+charge_item_definition,delete,Delete charge item definition,INSTANCE,ELEVATED
+charge_item_definition,assign,Assign charge item definition,INSTANCE,ELEVATED
+contract,create,Create contract,COLLECTION,STANDARD
+contract,list,List contract,COLLECTION,STANDARD
+contract,read,Read contract,INSTANCE,STANDARD
+contract,update,Update contract,INSTANCE,ELEVATED
+contract,delete,Delete contract,INSTANCE,ELEVATED
+contract,assign,Assign contract,INSTANCE,ELEVATED
+explanation_of_benefit,create,Create explanation of benefit,COLLECTION,STANDARD
+explanation_of_benefit,list,List explanation of benefit,COLLECTION,STANDARD
+explanation_of_benefit,read,Read explanation of benefit,INSTANCE,STANDARD
+explanation_of_benefit,update,Update explanation of benefit,INSTANCE,ELEVATED
+explanation_of_benefit,delete,Delete explanation of benefit,INSTANCE,ELEVATED
+explanation_of_benefit,assign,Assign explanation of benefit,INSTANCE,ELEVATED
+insurance_plan,create,Create insurance plan,COLLECTION,STANDARD
+insurance_plan,list,List insurance plan,COLLECTION,STANDARD
+insurance_plan,read,Read insurance plan,INSTANCE,STANDARD
+insurance_plan,update,Update insurance plan,INSTANCE,ELEVATED
+insurance_plan,delete,Delete insurance plan,INSTANCE,ELEVATED
+insurance_plan,assign,Assign insurance plan,INSTANCE,ELEVATED
+payment_notice,create,Create payment notice,COLLECTION,STANDARD
+payment_notice,list,List payment notice,COLLECTION,STANDARD
+payment_notice,read,Read payment notice,INSTANCE,STANDARD
+payment_notice,update,Update payment notice,INSTANCE,ELEVATED
+payment_notice,delete,Delete payment notice,INSTANCE,ELEVATED
+payment_notice,assign,Assign payment notice,INSTANCE,ELEVATED
+payment_reconciliation,create,Create payment reconciliation,COLLECTION,STANDARD
+payment_reconciliation,list,List payment reconciliation,COLLECTION,STANDARD
+payment_reconciliation,read,Read payment reconciliation,INSTANCE,STANDARD
+payment_reconciliation,update,Update payment reconciliation,INSTANCE,ELEVATED
+payment_reconciliation,delete,Delete payment reconciliation,INSTANCE,ELEVATED
+payment_reconciliation,assign,Assign payment reconciliation,INSTANCE,ELEVATED
+composition,create,Create composition,COLLECTION,STANDARD
+composition,list,List composition,COLLECTION,STANDARD
+composition,read,Read composition,INSTANCE,STANDARD
+composition,update,Update composition,INSTANCE,ELEVATED
+composition,delete,Delete composition,INSTANCE,ELEVATED
+composition,assign,Assign composition,INSTANCE,ELEVATED
+document_reference,create,Create document reference,COLLECTION,STANDARD
+document_reference,list,List document reference,COLLECTION,STANDARD
+document_reference,read,Read document reference,INSTANCE,STANDARD
+document_reference,update,Update document reference,INSTANCE,ELEVATED
+document_reference,delete,Delete document reference,INSTANCE,ELEVATED
+document_reference,assign,Assign document reference,INSTANCE,ELEVATED
+activity_definition,create,Create activity definition,COLLECTION,STANDARD
+activity_definition,list,List activity definition,COLLECTION,STANDARD
+activity_definition,read,Read activity definition,INSTANCE,STANDARD
+activity_definition,update,Update activity definition,INSTANCE,ELEVATED
+activity_definition,delete,Delete activity definition,INSTANCE,ELEVATED
+activity_definition,assign,Assign activity definition,INSTANCE,ELEVATED
+plan_definition,create,Create plan definition,COLLECTION,STANDARD
+plan_definition,list,List plan definition,COLLECTION,STANDARD
+plan_definition,read,Read plan definition,INSTANCE,STANDARD
+plan_definition,update,Update plan definition,INSTANCE,ELEVATED
+plan_definition,delete,Delete plan definition,INSTANCE,ELEVATED
+plan_definition,assign,Assign plan definition,INSTANCE,ELEVATED
+measure,create,Create measure,COLLECTION,STANDARD
+measure,list,List measure,COLLECTION,STANDARD
+measure,read,Read measure,INSTANCE,STANDARD
+measure,update,Update measure,INSTANCE,ELEVATED
+measure,delete,Delete measure,INSTANCE,ELEVATED
+measure,assign,Assign measure,INSTANCE,ELEVATED
+measure_report,create,Create measure report,COLLECTION,STANDARD
+measure_report,list,List measure report,COLLECTION,STANDARD
+measure_report,read,Read measure report,INSTANCE,STANDARD
+measure_report,update,Update measure report,INSTANCE,ELEVATED
+measure_report,delete,Delete measure report,INSTANCE,ELEVATED
+measure_report,assign,Assign measure report,INSTANCE,ELEVATED
+questionnaire,create,Create questionnaire,COLLECTION,STANDARD
+questionnaire,list,List questionnaire,COLLECTION,STANDARD
+questionnaire,read,Read questionnaire,INSTANCE,STANDARD
+questionnaire,update,Update questionnaire,INSTANCE,ELEVATED
+questionnaire,delete,Delete questionnaire,INSTANCE,ELEVATED
+questionnaire,assign,Assign questionnaire,INSTANCE,ELEVATED
+questionnaire_response,create,Create questionnaire response,COLLECTION,STANDARD
+questionnaire_response,list,List questionnaire response,COLLECTION,STANDARD
+questionnaire_response,read,Read questionnaire response,INSTANCE,STANDARD
+questionnaire_response,update,Update questionnaire response,INSTANCE,ELEVATED
+questionnaire_response,delete,Delete questionnaire response,INSTANCE,ELEVATED
+questionnaire_response,assign,Assign questionnaire response,INSTANCE,ELEVATED
+operation_definition,create,Create operation definition,COLLECTION,STANDARD
+operation_definition,list,List operation definition,COLLECTION,STANDARD
+operation_definition,read,Read operation definition,INSTANCE,STANDARD
+operation_definition,update,Update operation definition,INSTANCE,ELEVATED
+operation_definition,delete,Delete operation definition,INSTANCE,ELEVATED
+operation_definition,assign,Assign operation definition,INSTANCE,ELEVATED
+structure_definition,create,Create structure definition,COLLECTION,STANDARD
+structure_definition,list,List structure definition,COLLECTION,STANDARD
+structure_definition,read,Read structure definition,INSTANCE,STANDARD
+structure_definition,update,Update structure definition,INSTANCE,ELEVATED
+structure_definition,delete,Delete structure definition,INSTANCE,ELEVATED
+structure_definition,assign,Assign structure definition,INSTANCE,ELEVATED
+structure_map,create,Create structure map,COLLECTION,STANDARD
+structure_map,list,List structure map,COLLECTION,STANDARD
+structure_map,read,Read structure map,INSTANCE,STANDARD
+structure_map,update,Update structure map,INSTANCE,ELEVATED
+structure_map,delete,Delete structure map,INSTANCE,ELEVATED
+structure_map,assign,Assign structure map,INSTANCE,ELEVATED
+graph_definition,create,Create graph definition,COLLECTION,STANDARD
+graph_definition,list,List graph definition,COLLECTION,STANDARD
+graph_definition,read,Read graph definition,INSTANCE,STANDARD
+graph_definition,update,Update graph definition,INSTANCE,ELEVATED
+graph_definition,delete,Delete graph definition,INSTANCE,ELEVATED
+graph_definition,assign,Assign graph definition,INSTANCE,ELEVATED
+example_scenario,create,Create example scenario,COLLECTION,STANDARD
+example_scenario,list,List example scenario,COLLECTION,STANDARD
+example_scenario,read,Read example scenario,INSTANCE,STANDARD
+example_scenario,update,Update example scenario,INSTANCE,ELEVATED
+example_scenario,delete,Delete example scenario,INSTANCE,ELEVATED
+example_scenario,assign,Assign example scenario,INSTANCE,ELEVATED
+observation_definition,create,Create observation definition,COLLECTION,STANDARD
+observation_definition,list,List observation definition,COLLECTION,STANDARD
+observation_definition,read,Read observation definition,INSTANCE,STANDARD
+observation_definition,update,Update observation definition,INSTANCE,ELEVATED
+observation_definition,delete,Delete observation definition,INSTANCE,ELEVATED
+observation_definition,assign,Assign observation definition,INSTANCE,ELEVATED
+specimen_definition,create,Create specimen definition,COLLECTION,STANDARD
+specimen_definition,list,List specimen definition,COLLECTION,STANDARD
+specimen_definition,read,Read specimen definition,INSTANCE,STANDARD
+specimen_definition,update,Update specimen definition,INSTANCE,ELEVATED
+specimen_definition,delete,Delete specimen definition,INSTANCE,ELEVATED
+specimen_definition,assign,Assign specimen definition,INSTANCE,ELEVATED
+actor_definition,create,Create actor definition,COLLECTION,STANDARD
+actor_definition,list,List actor definition,COLLECTION,STANDARD
+actor_definition,read,Read actor definition,INSTANCE,STANDARD
+actor_definition,update,Update actor definition,INSTANCE,ELEVATED
+actor_definition,delete,Delete actor definition,INSTANCE,ELEVATED
+actor_definition,assign,Assign actor definition,INSTANCE,ELEVATED
+code_system,create,Create code system,COLLECTION,STANDARD
+code_system,list,List code system,COLLECTION,STANDARD
+code_system,read,Read code system,INSTANCE,STANDARD
+code_system,update,Update code system,INSTANCE,ELEVATED
+code_system,delete,Delete code system,INSTANCE,ELEVATED
+code_system,assign,Assign code system,INSTANCE,ELEVATED
+value_set,create,Create value set,COLLECTION,STANDARD
+value_set,list,List value set,COLLECTION,STANDARD
+value_set,read,Read value set,INSTANCE,STANDARD
+value_set,update,Update value set,INSTANCE,ELEVATED
+value_set,delete,Delete value set,INSTANCE,ELEVATED
+value_set,assign,Assign value set,INSTANCE,ELEVATED
+concept_map,create,Create concept map,COLLECTION,STANDARD
+concept_map,list,List concept map,COLLECTION,STANDARD
+concept_map,read,Read concept map,INSTANCE,STANDARD
+concept_map,update,Update concept map,INSTANCE,ELEVATED
+concept_map,delete,Delete concept map,INSTANCE,ELEVATED
+concept_map,assign,Assign concept map,INSTANCE,ELEVATED
+naming_system,create,Create naming system,COLLECTION,STANDARD
+naming_system,list,List naming system,COLLECTION,STANDARD
+naming_system,read,Read naming system,INSTANCE,STANDARD
+naming_system,update,Update naming system,INSTANCE,ELEVATED
+naming_system,delete,Delete naming system,INSTANCE,ELEVATED
+naming_system,assign,Assign naming system,INSTANCE,ELEVATED
+terminology_capabilities,create,Create terminology capabilities,COLLECTION,STANDARD
+terminology_capabilities,list,List terminology capabilities,COLLECTION,STANDARD
+terminology_capabilities,read,Read terminology capabilities,INSTANCE,STANDARD
+terminology_capabilities,update,Update terminology capabilities,INSTANCE,ELEVATED
+terminology_capabilities,delete,Delete terminology capabilities,INSTANCE,ELEVATED
+terminology_capabilities,assign,Assign terminology capabilities,INSTANCE,ELEVATED
+capability_statement,create,Create capability statement,COLLECTION,STANDARD
+capability_statement,list,List capability statement,COLLECTION,STANDARD
+capability_statement,read,Read capability statement,INSTANCE,STANDARD
+capability_statement,update,Update capability statement,INSTANCE,ELEVATED
+capability_statement,delete,Delete capability statement,INSTANCE,ELEVATED
+capability_statement,assign,Assign capability statement,INSTANCE,ELEVATED
+compartment_definition,create,Create compartment definition,COLLECTION,STANDARD
+compartment_definition,list,List compartment definition,COLLECTION,STANDARD
+compartment_definition,read,Read compartment definition,INSTANCE,STANDARD
+compartment_definition,update,Update compartment definition,INSTANCE,ELEVATED
+compartment_definition,delete,Delete compartment definition,INSTANCE,ELEVATED
+compartment_definition,assign,Assign compartment definition,INSTANCE,ELEVATED
+implementation_guide,create,Create implementation guide,COLLECTION,STANDARD
+implementation_guide,list,List implementation guide,COLLECTION,STANDARD
+implementation_guide,read,Read implementation guide,INSTANCE,STANDARD
+implementation_guide,update,Update implementation guide,INSTANCE,ELEVATED
+implementation_guide,delete,Delete implementation guide,INSTANCE,ELEVATED
+implementation_guide,assign,Assign implementation guide,INSTANCE,ELEVATED
+search_parameter,create,Create search parameter,COLLECTION,STANDARD
+search_parameter,list,List search parameter,COLLECTION,STANDARD
+search_parameter,read,Read search parameter,INSTANCE,STANDARD
+search_parameter,update,Update search parameter,INSTANCE,ELEVATED
+search_parameter,delete,Delete search parameter,INSTANCE,ELEVATED
+search_parameter,assign,Assign search parameter,INSTANCE,ELEVATED
+message_definition,create,Create message definition,COLLECTION,STANDARD
+message_definition,list,List message definition,COLLECTION,STANDARD
+message_definition,read,Read message definition,INSTANCE,STANDARD
+message_definition,update,Update message definition,INSTANCE,ELEVATED
+message_definition,delete,Delete message definition,INSTANCE,ELEVATED
+message_definition,assign,Assign message definition,INSTANCE,ELEVATED
+message_header,create,Create message header,COLLECTION,STANDARD
+message_header,list,List message header,COLLECTION,STANDARD
+message_header,read,Read message header,INSTANCE,STANDARD
+message_header,update,Update message header,INSTANCE,ELEVATED
+message_header,delete,Delete message header,INSTANCE,ELEVATED
+message_header,assign,Assign message header,INSTANCE,ELEVATED
+test_script,create,Create test script,COLLECTION,STANDARD
+test_script,list,List test script,COLLECTION,STANDARD
+test_script,read,Read test script,INSTANCE,STANDARD
+test_script,update,Update test script,INSTANCE,ELEVATED
+test_script,delete,Delete test script,INSTANCE,ELEVATED
+test_script,assign,Assign test script,INSTANCE,ELEVATED
+test_report,create,Create test report,COLLECTION,STANDARD
+test_report,list,List test report,COLLECTION,STANDARD
+test_report,read,Read test report,INSTANCE,STANDARD
+test_report,update,Update test report,INSTANCE,ELEVATED
+test_report,delete,Delete test report,INSTANCE,ELEVATED
+test_report,assign,Assign test report,INSTANCE,ELEVATED
+test_plan,create,Create test plan,COLLECTION,STANDARD
+test_plan,list,List test plan,COLLECTION,STANDARD
+test_plan,read,Read test plan,INSTANCE,STANDARD
+test_plan,update,Update test plan,INSTANCE,ELEVATED
+test_plan,delete,Delete test plan,INSTANCE,ELEVATED
+test_plan,assign,Assign test plan,INSTANCE,ELEVATED
+provenance,create,Create provenance,COLLECTION,STANDARD
+provenance,list,List provenance,COLLECTION,STANDARD
+provenance,read,Read provenance,INSTANCE,STANDARD
+provenance,update,Update provenance,INSTANCE,ELEVATED
+provenance,delete,Delete provenance,INSTANCE,ELEVATED
+provenance,assign,Assign provenance,INSTANCE,ELEVATED
+audit_event,create,Create audit event,COLLECTION,STANDARD
+audit_event,list,List audit event,COLLECTION,STANDARD
+audit_event,read,Read audit event,INSTANCE,STANDARD
+audit_event,update,Update audit event,INSTANCE,ELEVATED
+audit_event,delete,Delete audit event,INSTANCE,ELEVATED
+audit_event,assign,Assign audit event,INSTANCE,ELEVATED
+consent,create,Create consent,COLLECTION,STANDARD
+consent,list,List consent,COLLECTION,STANDARD
+consent,read,Read consent,INSTANCE,STANDARD
+consent,update,Update consent,INSTANCE,ELEVATED
+consent,delete,Delete consent,INSTANCE,ELEVATED
+consent,assign,Assign consent,INSTANCE,ELEVATED
+permission,create,Create permission,COLLECTION,STANDARD
+permission,list,List permission,COLLECTION,STANDARD
+permission,read,Read permission,INSTANCE,STANDARD
+permission,update,Update permission,INSTANCE,ELEVATED
+permission,delete,Delete permission,INSTANCE,ELEVATED
+permission,assign,Assign permission,INSTANCE,ELEVATED
+research_study,create,Create research study,COLLECTION,STANDARD
+research_study,list,List research study,COLLECTION,STANDARD
+research_study,read,Read research study,INSTANCE,STANDARD
+research_study,update,Update research study,INSTANCE,ELEVATED
+research_study,delete,Delete research study,INSTANCE,ELEVATED
+research_study,assign,Assign research study,INSTANCE,ELEVATED
+research_subject,create,Create research subject,COLLECTION,STANDARD
+research_subject,list,List research subject,COLLECTION,STANDARD
+research_subject,read,Read research subject,INSTANCE,STANDARD
+research_subject,update,Update research subject,INSTANCE,ELEVATED
+research_subject,delete,Delete research subject,INSTANCE,ELEVATED
+research_subject,assign,Assign research subject,INSTANCE,ELEVATED
+citation,create,Create citation,COLLECTION,STANDARD
+citation,list,List citation,COLLECTION,STANDARD
+citation,read,Read citation,INSTANCE,STANDARD
+citation,update,Update citation,INSTANCE,ELEVATED
+citation,delete,Delete citation,INSTANCE,ELEVATED
+citation,assign,Assign citation,INSTANCE,ELEVATED
+evidence,create,Create evidence,COLLECTION,STANDARD
+evidence,list,List evidence,COLLECTION,STANDARD
+evidence,read,Read evidence,INSTANCE,STANDARD
+evidence,update,Update evidence,INSTANCE,ELEVATED
+evidence,delete,Delete evidence,INSTANCE,ELEVATED
+evidence,assign,Assign evidence,INSTANCE,ELEVATED
+evidence_report,create,Create evidence report,COLLECTION,STANDARD
+evidence_report,list,List evidence report,COLLECTION,STANDARD
+evidence_report,read,Read evidence report,INSTANCE,STANDARD
+evidence_report,update,Update evidence report,INSTANCE,ELEVATED
+evidence_report,delete,Delete evidence report,INSTANCE,ELEVATED
+evidence_report,assign,Assign evidence report,INSTANCE,ELEVATED
+evidence_variable,create,Create evidence variable,COLLECTION,STANDARD
+evidence_variable,list,List evidence variable,COLLECTION,STANDARD
+evidence_variable,read,Read evidence variable,INSTANCE,STANDARD
+evidence_variable,update,Update evidence variable,INSTANCE,ELEVATED
+evidence_variable,delete,Delete evidence variable,INSTANCE,ELEVATED
+evidence_variable,assign,Assign evidence variable,INSTANCE,ELEVATED
+artifact_assessment,create,Create artifact assessment,COLLECTION,STANDARD
+artifact_assessment,list,List artifact assessment,COLLECTION,STANDARD
+artifact_assessment,read,Read artifact assessment,INSTANCE,STANDARD
+artifact_assessment,update,Update artifact assessment,INSTANCE,ELEVATED
+artifact_assessment,delete,Delete artifact assessment,INSTANCE,ELEVATED
+artifact_assessment,assign,Assign artifact assessment,INSTANCE,ELEVATED
+linkage,create,Create linkage,COLLECTION,STANDARD
+linkage,list,List linkage,COLLECTION,STANDARD
+linkage,read,Read linkage,INSTANCE,STANDARD
+linkage,update,Update linkage,INSTANCE,ELEVATED
+linkage,delete,Delete linkage,INSTANCE,ELEVATED
+linkage,assign,Assign linkage,INSTANCE,ELEVATED
+inventory_item,create,Create inventory item,COLLECTION,STANDARD
+inventory_item,list,List inventory item,COLLECTION,STANDARD
+inventory_item,read,Read inventory item,INSTANCE,STANDARD
+inventory_item,update,Update inventory item,INSTANCE,ELEVATED
+inventory_item,delete,Delete inventory item,INSTANCE,ELEVATED
+inventory_item,assign,Assign inventory item,INSTANCE,ELEVATED
+inventory_report,create,Create inventory report,COLLECTION,STANDARD
+inventory_report,list,List inventory report,COLLECTION,STANDARD
+inventory_report,read,Read inventory report,INSTANCE,STANDARD
+inventory_report,update,Update inventory report,INSTANCE,ELEVATED
+inventory_report,delete,Delete inventory report,INSTANCE,ELEVATED
+inventory_report,assign,Assign inventory report,INSTANCE,ELEVATED
+subscription,create,Create subscription,COLLECTION,STANDARD
+subscription,list,List subscription,COLLECTION,STANDARD
+subscription,read,Read subscription,INSTANCE,STANDARD
+subscription,update,Update subscription,INSTANCE,ELEVATED
+subscription,delete,Delete subscription,INSTANCE,ELEVATED
+subscription,assign,Assign subscription,INSTANCE,ELEVATED
+subscription_status,create,Create subscription status,COLLECTION,STANDARD
+subscription_status,list,List subscription status,COLLECTION,STANDARD
+subscription_status,read,Read subscription status,INSTANCE,STANDARD
+subscription_status,update,Update subscription status,INSTANCE,ELEVATED
+subscription_status,delete,Delete subscription status,INSTANCE,ELEVATED
+subscription_status,assign,Assign subscription status,INSTANCE,ELEVATED
+subscription_topic,create,Create subscription topic,COLLECTION,STANDARD
+subscription_topic,list,List subscription topic,COLLECTION,STANDARD
+subscription_topic,read,Read subscription topic,INSTANCE,STANDARD
+subscription_topic,update,Update subscription topic,INSTANCE,ELEVATED
+subscription_topic,delete,Delete subscription topic,INSTANCE,ELEVATED
+subscription_topic,assign,Assign subscription topic,INSTANCE,ELEVATED

@@ -1,0 +1,29 @@
+# GENERATED FILE - DO NOT EDIT BY HAND.
+#
+# Produced by libs/cataloggen from libs/cataloggen/manifest.yaml (catalog revision 1).
+# Edit the manifest and re-run `make catalog-gen`, or regenerate directly
+# with `go run ./libs/cataloggen/cmd/cataloggen -manifest libs/cataloggen/manifest.yaml`.
+resource: implementation_guide
+version: v1
+displayName: Implementation guide
+domain: conformance
+fhirType: ImplementationGuide
+actions:
+  - key: create
+    displayName: Create implementation guide
+    context: COLLECTION
+  - key: list
+    displayName: List implementation guide
+    context: COLLECTION
+  - key: read
+    displayName: Read implementation guide
+    context: INSTANCE
+  - key: update
+    displayName: Update implementation guide
+    context: INSTANCE
+  - key: delete
+    displayName: Delete implementation guide
+    context: INSTANCE
+  - key: assign
+    displayName: Assign implementation guide
+    context: INSTANCE

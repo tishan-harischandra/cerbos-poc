@@ -1,0 +1,186 @@
+# GENERATED FILE - DO NOT EDIT BY HAND.
+#
+# Produced by libs/cataloggen from libs/cataloggen/manifest.yaml (catalog revision 1).
+# Edit the manifest and re-run `make catalog-gen`, or regenerate directly
+# with `go run ./libs/cataloggen/cmd/cataloggen -manifest libs/cataloggen/manifest.yaml`.
+apiVersion: api.cerbos.dev/v1
+resourcePolicy:
+  resource: care_plan
+  version: v1
+
+  variables:
+    local:
+      isolated: >-
+        request.principal.attr.tenantId == request.resource.attr.tenantId &&
+        request.principal.attr.hospitalId == request.resource.attr.hospitalId
+      role_actions: request.resource.attr.permissionContext.roleGrantedActions
+      user_grants: request.resource.attr.permissionContext.userGrantedActions
+      user_revokes: request.resource.attr.permissionContext.userRevokedActions
+      is_locked: request.resource.attr.status == "LOCKED"
+
+  rules:
+    - name: tenant_and_hospital_isolation
+      actions: ["*"]
+      effect: EFFECT_DENY
+      roles: ["sys:permission-evaluator"]
+      condition:
+        match:
+          expr: "!variables.isolated"
+
+    - name: locked_record_restriction
+      actions: ["update", "delete", "assign"]
+      effect: EFFECT_DENY
+      roles: ["sys:permission-evaluator"]
+      condition:
+        match:
+          expr: variables.is_locked
+
+    - name: revoke_create
+      actions: ["create"]
+      effect: EFFECT_DENY
+      roles: ["sys:permission-evaluator"]
+      condition:
+        match:
+          expr: '"create" in variables.user_revokes'
+
+    - name: revoke_list
+      actions: ["list"]
+      effect: EFFECT_DENY
+      roles: ["sys:permission-evaluator"]
+      condition:
+        match:
+          expr: '"list" in variables.user_revokes'
+
+    - name: revoke_read
+      actions: ["read"]
+      effect: EFFECT_DENY
+      roles: ["sys:permission-evaluator"]
+      condition:
+        match:
+          expr: '"read" in variables.user_revokes'
+
+    - name: revoke_update
+      actions: ["update"]
+      effect: EFFECT_DENY
+      roles: ["sys:permission-evaluator"]
+      condition:
+        match:
+          expr: '"update" in variables.user_revokes'
+
+    - name: revoke_delete
+      actions: ["delete"]
+      effect: EFFECT_DENY
+      roles: ["sys:permission-evaluator"]
+      condition:
+        match:
+          expr: '"delete" in variables.user_revokes'
+
+    - name: revoke_assign
+      actions: ["assign"]
+      effect: EFFECT_DENY
+      roles: ["sys:permission-evaluator"]
+      condition:
+        match:
+          expr: '"assign" in variables.user_revokes'
+
+    - name: grant_create_to_user
+      actions: ["create"]
+      effect: EFFECT_ALLOW
+      roles: ["sys:permission-evaluator"]
+      condition:
+        match:
+          expr: '"create" in variables.user_grants'
+
+    - name: grant_list_to_user
+      actions: ["list"]
+      effect: EFFECT_ALLOW
+      roles: ["sys:permission-evaluator"]
+      condition:
+        match:
+          expr: '"list" in variables.user_grants'
+
+    - name: grant_read_to_user
+      actions: ["read"]
+      effect: EFFECT_ALLOW
+      roles: ["sys:permission-evaluator"]
+      condition:
+        match:
+          expr: '"read" in variables.user_grants'
+
+    - name: grant_update_to_user
+      actions: ["update"]
+      effect: EFFECT_ALLOW
+      roles: ["sys:permission-evaluator"]
+      condition:
+        match:
+          expr: '"update" in variables.user_grants'
+
+    - name: grant_delete_to_user
+      actions: ["delete"]
+      effect: EFFECT_ALLOW
+      roles: ["sys:permission-evaluator"]
+      condition:
+        match:
+          expr: '"delete" in variables.user_grants'
+
+    - name: grant_assign_to_user
+      actions: ["assign"]
+      effect: EFFECT_ALLOW
+      roles: ["sys:permission-evaluator"]
+      condition:
+        match:
+          expr: '"assign" in variables.user_grants'
+
+    - name: grant_create_to_role
+      actions: ["create"]
+      effect: EFFECT_ALLOW
+      roles: ["sys:permission-evaluator"]
+      condition:
+        match:
+          expr: '"create" in variables.role_actions'
+
+    - name: grant_list_to_role
+      actions: ["list"]
+      effect: EFFECT_ALLOW
+      roles: ["sys:permission-evaluator"]
+      condition:
+        match:
+          expr: '"list" in variables.role_actions'
+
+    - name: grant_read_to_role
+      actions: ["read"]
+      effect: EFFECT_ALLOW
+      roles: ["sys:permission-evaluator"]
+      condition:
+        match:
+          expr: '"read" in variables.role_actions'
+
+    - name: grant_update_to_role
+      actions: ["update"]
+      effect: EFFECT_ALLOW
+      roles: ["sys:permission-evaluator"]
+      condition:
+        match:
+          expr: '"update" in variables.role_actions'
+
+    - name: grant_delete_to_role
+      actions: ["delete"]
+      effect: EFFECT_ALLOW
+      roles: ["sys:permission-evaluator"]
+      condition:
+        match:
+          expr: '"delete" in variables.role_actions'
+
+    - name: grant_assign_to_role
+      actions: ["assign"]
+      effect: EFFECT_ALLOW
+      roles: ["sys:permission-evaluator"]
+      condition:
+        match:
+          expr: '"assign" in variables.role_actions'
+
+  schemas:
+    principalSchema:
+      ref: cerbos:///principal.json
+    resourceSchema:
+      ref: cerbos:///care_plan.json

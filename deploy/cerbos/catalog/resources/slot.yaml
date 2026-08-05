@@ -1,0 +1,29 @@
+# GENERATED FILE - DO NOT EDIT BY HAND.
+#
+# Produced by libs/cataloggen from libs/cataloggen/manifest.yaml (catalog revision 1).
+# Edit the manifest and re-run `make catalog-gen`, or regenerate directly
+# with `go run ./libs/cataloggen/cmd/cataloggen -manifest libs/cataloggen/manifest.yaml`.
+resource: slot
+version: v1
+displayName: Slot
+domain: workflow
+fhirType: Slot
+actions:
+  - key: create
+    displayName: Create slot
+    context: COLLECTION
+  - key: list
+    displayName: List slot
+    context: COLLECTION
+  - key: read
+    displayName: Read slot
+    context: INSTANCE
+  - key: update
+    displayName: Update slot
+    context: INSTANCE
+  - key: delete
+    displayName: Delete slot
+    context: INSTANCE
+  - key: assign
+    displayName: Assign slot
+    context: INSTANCE

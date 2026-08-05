@@ -1,0 +1,29 @@
+# GENERATED FILE - DO NOT EDIT BY HAND.
+#
+# Produced by libs/cataloggen from libs/cataloggen/manifest.yaml (catalog revision 1).
+# Edit the manifest and re-run `make catalog-gen`, or regenerate directly
+# with `go run ./libs/cataloggen/cmd/cataloggen -manifest libs/cataloggen/manifest.yaml`.
+resource: compartment_definition
+version: v1
+displayName: Compartment definition
+domain: conformance
+fhirType: CompartmentDefinition
+actions:
+  - key: create
+    displayName: Create compartment definition
+    context: COLLECTION
+  - key: list
+    displayName: List compartment definition
+    context: COLLECTION
+  - key: read
+    displayName: Read compartment definition
+    context: INSTANCE
+  - key: update
+    displayName: Update compartment definition
+    context: INSTANCE
+  - key: delete
+    displayName: Delete compartment definition
+    context: INSTANCE
+  - key: assign
+    displayName: Assign compartment definition
+    context: INSTANCE
