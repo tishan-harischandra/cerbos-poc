@@ -93,6 +93,11 @@ type UserOverride struct {
 	ValidFrom  time.Time
 	ValidUntil time.Time
 	Revision   int64
+	// Reason is the mandatory administrative justification for a GRANT or
+	// REVOKE (§9.3). Empty for rows SaveUserOverride writes directly - the
+	// bulk-seeding path (issue #24) has no administrator behind it - but
+	// SaveUserOverrideWrite refuses to write a GRANT or REVOKE without one.
+	Reason string
 }
 
 // ActiveUserOverridesQuery asks for the user overrides in force for one
@@ -186,6 +191,29 @@ type RoleMatrixWrite struct {
 // when ExpectedRevision no longer matches the tenant's stored permission
 // revision (§10.1).
 var ErrRevisionConflict = errors.New("assignmentstore: expected revision is stale")
+
+// UserOverrideWrite is the input to SaveUserOverrideWrite: one tri-state
+// change to a single user override, plus the audit event and outbox event
+// that must commit with it (§9.3, §9.4, §10.1).
+type UserOverrideWrite struct {
+	Key UserOverrideKey
+	// Effect is EffectGrant or EffectRevoke to persist a GRANT or REVOKE.
+	// The zero value means INHERIT: SaveUserOverrideWrite clears any
+	// existing row for Key rather than upserting one, because INHERIT is
+	// the absence of a row (§8.3), not a storable effect.
+	Effect     OverrideEffect
+	Reason     string
+	ValidFrom  time.Time
+	ValidUntil time.Time
+	// ExpectedRevision is the tenant permission revision the caller last
+	// read, the same expected-revision guard SaveRoleMatrix uses (§9.4).
+	ExpectedRevision int64
+	// Audit.TenantID and Audit.HospitalID are ignored; the write always
+	// audits against Key.TenantID and Key.HospitalID so the two can never
+	// disagree.
+	Audit  AuditEvent
+	Outbox OutboxEvent
+}
 
 // Capability is one composite UI capability definition (§8.1).
 type Capability struct {
@@ -301,6 +329,14 @@ type Store interface {
 	// if write.ExpectedRevision no longer matches the tenant's stored
 	// revision.
 	SaveRoleMatrix(ctx context.Context, write RoleMatrixWrite) (newRevision int64, err error)
+
+	// SaveUserOverrideWrite atomically applies one tri-state change to a
+	// user override: the row's upsert (GRANT/REVOKE) or delete (INHERIT),
+	// the audit event, the outbox event and the tenant's permission-revision
+	// bump commit as a single unit or none do (§9.3, §9.4, §10.1, §16.1). It
+	// returns ErrRevisionConflict, with nothing written, if
+	// write.ExpectedRevision no longer matches the tenant's stored revision.
+	SaveUserOverrideWrite(ctx context.Context, write UserOverrideWrite) (newRevision int64, err error)
 
 	SaveCapability(ctx context.Context, capability Capability) error
 	Capability(ctx context.Context, capabilityKey string) (Capability, bool, error)

@@ -1,0 +1,16 @@
+databaseChangeLog:
+  - changeSet:
+      id: 009-user-override-reason
+      author: cerbos-poc
+      comment: >-
+        A mandatory administrative reason for every GRANT or REVOKE (§9.3:
+        "Require ... reason"). Nullable at the schema level because INHERIT
+        clears the row rather than storing one; the administration service
+        rejects a GRANT or REVOKE with no reason before any write.
+      changes:
+        - addColumn:
+            tableName: user_permission_override
+            columns:
+              - column:
+                  name: reason
+                  type: VARCHAR(512)

@@ -208,20 +208,21 @@ func (s *Store) SaveUserOverride(ctx context.Context, override assignmentstore.U
 		    AND t.resource_key = s.resource_key AND t.action_key = s.action_key
 		    AND t.resource_instance_id = s.resource_instance_id)
 		WHEN MATCHED THEN UPDATE SET
-			effect = :7, enabled = :8, valid_from = :9, valid_until = :10, revision = :11
+			effect = :7, enabled = :8, valid_from = :9, valid_until = :10, revision = :11, reason = :12
 		WHEN NOT MATCHED THEN INSERT (
 			tenant_id, hospital_id, user_external_id, resource_key, action_key,
-			resource_instance_id, effect, enabled, valid_from, valid_until, revision)
+			resource_instance_id, effect, enabled, valid_from, valid_until, revision, reason)
 		VALUES (s.tenant_id, s.hospital_id, s.user_external_id, s.resource_key,
-			s.action_key, s.resource_instance_id, :12, :13, :14, :15, :16)`
+			s.action_key, s.resource_instance_id, :13, :14, :15, :16, :17, :18)`
 
 	key := assignmentstore.NormalizeOverrideKey(override.Key)
 	enabled := boolToNumber(override.Enabled)
+	reason := nullableString(override.Reason)
 	_, err := s.db.ExecContext(ctx, statement,
 		key.TenantID, key.HospitalID, key.UserExternalID, key.ResourceKey,
 		key.ActionKey, key.ResourceInstanceID,
-		string(override.Effect), enabled, override.ValidFrom, override.ValidUntil, override.Revision,
-		string(override.Effect), enabled, override.ValidFrom, override.ValidUntil, override.Revision)
+		string(override.Effect), enabled, override.ValidFrom, override.ValidUntil, override.Revision, reason,
+		string(override.Effect), enabled, override.ValidFrom, override.ValidUntil, override.Revision, reason)
 	if err != nil {
 		return fmt.Errorf("oraclestore: saving a user override: %w", err)
 	}
@@ -231,7 +232,7 @@ func (s *Store) SaveUserOverride(ctx context.Context, override assignmentstore.U
 // UserOverride reads one override by its §8.2 key.
 func (s *Store) UserOverride(ctx context.Context, key assignmentstore.UserOverrideKey) (assignmentstore.UserOverride, bool, error) {
 	const query = `
-		SELECT effect, enabled, valid_from, valid_until, revision
+		SELECT effect, enabled, valid_from, valid_until, revision, reason
 		FROM user_permission_override
 		WHERE tenant_id = :1 AND hospital_id = :2 AND user_external_id = :3
 		  AND resource_key = :4 AND action_key = :5 AND resource_instance_id = :6`
@@ -240,10 +241,12 @@ func (s *Store) UserOverride(ctx context.Context, key assignmentstore.UserOverri
 	override := assignmentstore.UserOverride{Key: key}
 	var effect string
 	var enabled int64
+	var validUntil *time.Time
+	var reason *string
 	err := s.db.QueryRowContext(ctx, query,
 		key.TenantID, key.HospitalID, key.UserExternalID, key.ResourceKey,
 		key.ActionKey, key.ResourceInstanceID).
-		Scan(&effect, &enabled, &override.ValidFrom, &override.ValidUntil, &override.Revision)
+		Scan(&effect, &enabled, &override.ValidFrom, &validUntil, &override.Revision, &reason)
 	if errors.Is(err, sql.ErrNoRows) {
 		return assignmentstore.UserOverride{}, false, nil
 	}
@@ -252,7 +255,22 @@ func (s *Store) UserOverride(ctx context.Context, key assignmentstore.UserOverri
 	}
 	override.Effect = assignmentstore.OverrideEffect(effect)
 	override.Enabled = enabled != 0
+	if validUntil != nil {
+		override.ValidUntil = *validUntil
+	}
+	if reason != nil {
+		override.Reason = *reason
+	}
 	return override, true, nil
+}
+
+// nullableString turns an empty string into a genuine SQL NULL, mirroring
+// postgresstore's helper of the same name (see there for why).
+func nullableString(value string) any {
+	if value == "" {
+		return nil
+	}
+	return value
 }
 
 // ActiveUserOverrides reads every override in force for one principal and one
@@ -268,7 +286,7 @@ func (s *Store) ActiveUserOverrides(ctx context.Context, query assignmentstore.A
 	}
 
 	const statement = `
-		SELECT action_key, resource_instance_id, effect, enabled, valid_from, valid_until, revision
+		SELECT action_key, resource_instance_id, effect, enabled, valid_from, valid_until, revision, reason
 		FROM user_permission_override
 		WHERE tenant_id = :1
 		  AND hospital_id = :2
@@ -297,14 +315,18 @@ func (s *Store) ActiveUserOverrides(ctx context.Context, query assignmentstore.A
 		var effect string
 		var enabled int64
 		var validUntil *time.Time
+		var reason *string
 		if err := rows.Scan(&override.Key.ActionKey, &override.Key.ResourceInstanceID,
-			&effect, &enabled, &override.ValidFrom, &validUntil, &override.Revision); err != nil {
+			&effect, &enabled, &override.ValidFrom, &validUntil, &override.Revision, &reason); err != nil {
 			return nil, fmt.Errorf("oraclestore: scanning a user override: %w", err)
 		}
 		override.Effect = assignmentstore.OverrideEffect(effect)
 		override.Enabled = enabled != 0
 		if validUntil != nil {
 			override.ValidUntil = *validUntil
+		}
+		if reason != nil {
+			override.Reason = *reason
 		}
 		overrides = append(overrides, override)
 	}
@@ -563,6 +585,112 @@ func (s *Store) SaveRoleMatrix(ctx context.Context, write assignmentstore.RoleMa
 
 	if err := tx.Commit(); err != nil {
 		return 0, fmt.Errorf("oraclestore: committing the role matrix transaction: %w", err)
+	}
+	return newRevision, nil
+}
+
+// SaveUserOverrideWrite atomically applies one tri-state change to a user
+// override (§9.3, §9.4, §10.1). See SaveRoleMatrix for why the revision row
+// is seeded before it is locked.
+func (s *Store) SaveUserOverrideWrite(ctx context.Context, write assignmentstore.UserOverrideWrite) (int64, error) {
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return 0, fmt.Errorf("oraclestore: beginning the user override transaction: %w", err)
+	}
+	defer func() { _ = tx.Rollback() }()
+
+	if _, err := tx.ExecContext(ctx, `
+		MERGE INTO permission_revision t
+		USING (SELECT :1 AS tenant_id FROM dual) s
+		ON (t.tenant_id = s.tenant_id)
+		WHEN NOT MATCHED THEN INSERT (tenant_id, revision, changed_at)
+		VALUES (s.tenant_id, 0, :2)`,
+		write.Key.TenantID, write.Audit.CreatedAt); err != nil {
+		return 0, fmt.Errorf("oraclestore: seeding the permission revision: %w", err)
+	}
+
+	var current int64
+	if err := tx.QueryRowContext(ctx, `
+		SELECT revision FROM permission_revision WHERE tenant_id = :1 FOR UPDATE`,
+		write.Key.TenantID).Scan(&current); err != nil {
+		return 0, fmt.Errorf("oraclestore: locking the permission revision: %w", err)
+	}
+	if current != write.ExpectedRevision {
+		return 0, assignmentstore.ErrRevisionConflict
+	}
+
+	newRevision := current + 1
+	key := assignmentstore.NormalizeOverrideKey(write.Key)
+	if write.Effect == "" {
+		// INHERIT: the override row is cleared rather than upserted (§8.3).
+		if _, err := tx.ExecContext(ctx, `
+			DELETE FROM user_permission_override
+			WHERE tenant_id = :1 AND hospital_id = :2 AND user_external_id = :3
+			  AND resource_key = :4 AND action_key = :5 AND resource_instance_id = :6`,
+			key.TenantID, key.HospitalID, key.UserExternalID, key.ResourceKey,
+			key.ActionKey, key.ResourceInstanceID); err != nil {
+			return 0, fmt.Errorf("oraclestore: clearing a user override: %w", err)
+		}
+	} else {
+		enabled := boolToNumber(true)
+		validUntil := endOrNull(write.ValidUntil)
+		reason := nullableString(write.Reason)
+		if _, err := tx.ExecContext(ctx, `
+			MERGE INTO user_permission_override t
+			USING (SELECT :1 AS tenant_id, :2 AS hospital_id, :3 AS user_external_id,
+			              :4 AS resource_key, :5 AS action_key,
+			              :6 AS resource_instance_id FROM dual) s
+			ON (t.tenant_id = s.tenant_id AND t.hospital_id = s.hospital_id
+			    AND t.user_external_id = s.user_external_id
+			    AND t.resource_key = s.resource_key AND t.action_key = s.action_key
+			    AND t.resource_instance_id = s.resource_instance_id)
+			WHEN MATCHED THEN UPDATE SET
+				effect = :7, enabled = :8, valid_from = :9, valid_until = :10, revision = :11, reason = :12
+			WHEN NOT MATCHED THEN INSERT (
+				tenant_id, hospital_id, user_external_id, resource_key, action_key,
+				resource_instance_id, effect, enabled, valid_from, valid_until, revision, reason)
+			VALUES (s.tenant_id, s.hospital_id, s.user_external_id, s.resource_key,
+				s.action_key, s.resource_instance_id, :13, :14, :15, :16, :17, :18)`,
+			key.TenantID, key.HospitalID, key.UserExternalID, key.ResourceKey,
+			key.ActionKey, key.ResourceInstanceID,
+			string(write.Effect), enabled, write.ValidFrom, validUntil, newRevision, reason,
+			string(write.Effect), enabled, write.ValidFrom, validUntil, newRevision, reason); err != nil {
+			return 0, fmt.Errorf("oraclestore: writing a user override: %w", err)
+		}
+	}
+
+	if _, err := tx.ExecContext(ctx, `
+		INSERT INTO permission_audit_event (
+			event_id, actor_id, operation, target_type, before_json, after_json,
+			tenant_id, hospital_id, correlation_id, created_at)
+		VALUES (:1, :2, :3, :4, :5, :6, :7, :8, :9, :10)`,
+		write.Audit.EventID, write.Audit.ActorID, write.Audit.Operation, write.Audit.TargetType,
+		write.Audit.BeforeJSON, write.Audit.AfterJSON, key.TenantID, key.HospitalID,
+		write.Audit.CorrelationID, write.Audit.CreatedAt); err != nil {
+		return 0, fmt.Errorf("oraclestore: appending the audit event: %w", err)
+	}
+
+	var publishedAt any
+	if write.Outbox.PublishedAt != nil {
+		publishedAt = *write.Outbox.PublishedAt
+	}
+	if _, err := tx.ExecContext(ctx, `
+		INSERT INTO outbox_event (
+			event_id, aggregate_key, event_type, payload, created_at, published_at)
+		VALUES (:1, :2, :3, :4, :5, :6)`,
+		write.Outbox.EventID, write.Outbox.AggregateKey, write.Outbox.EventType,
+		write.Outbox.Payload, write.Outbox.CreatedAt, publishedAt); err != nil {
+		return 0, fmt.Errorf("oraclestore: appending the outbox event: %w", err)
+	}
+
+	if _, err := tx.ExecContext(ctx, `
+		UPDATE permission_revision SET revision = :2, changed_at = :3 WHERE tenant_id = :1`,
+		key.TenantID, newRevision, write.Audit.CreatedAt); err != nil {
+		return 0, fmt.Errorf("oraclestore: advancing the permission revision: %w", err)
+	}
+
+	if err := tx.Commit(); err != nil {
+		return 0, fmt.Errorf("oraclestore: committing the user override transaction: %w", err)
 	}
 	return newRevision, nil
 }
