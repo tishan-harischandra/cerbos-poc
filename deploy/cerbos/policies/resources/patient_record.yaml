@@ -39,6 +39,9 @@ resourcePolicy:
       condition:
         match:
           expr: "!variables.isolated"
+      output:
+        when:
+          ruleActivated: '"fired"'
 
     - name: locked_record_restriction
       actions: ["update", "delete"]
@@ -47,6 +50,9 @@ resourcePolicy:
       condition:
         match:
           expr: variables.is_locked
+      output:
+        when:
+          ruleActivated: '"fired"'
 
     # User revocations outrank every grant below.
     #
@@ -62,6 +68,9 @@ resourcePolicy:
       condition:
         match:
           expr: '"read" in variables.user_revokes'
+      output:
+        when:
+          ruleActivated: '"fired"'
 
     - name: revoke_update
       actions: ["update"]
@@ -70,6 +79,9 @@ resourcePolicy:
       condition:
         match:
           expr: '"update" in variables.user_revokes'
+      output:
+        when:
+          ruleActivated: '"fired"'
 
     - name: revoke_delete
       actions: ["delete"]
@@ -78,6 +90,9 @@ resourcePolicy:
       condition:
         match:
           expr: '"delete" in variables.user_revokes'
+      output:
+        when:
+          ruleActivated: '"fired"'
 
     # User grants. Kept separate from role grants so the audit trail records
     # which source of authority allowed the action. Isolation is not repeated
@@ -89,6 +104,9 @@ resourcePolicy:
       condition:
         match:
           expr: '"read" in variables.user_grants'
+      output:
+        when:
+          ruleActivated: '"fired"'
 
     - name: grant_update_to_user
       actions: ["update"]
@@ -97,6 +115,9 @@ resourcePolicy:
       condition:
         match:
           expr: '"update" in variables.user_grants'
+      output:
+        when:
+          ruleActivated: '"fired"'
 
     - name: grant_delete_to_user
       actions: ["delete"]
@@ -105,6 +126,9 @@ resourcePolicy:
       condition:
         match:
           expr: '"delete" in variables.user_grants'
+      output:
+        when:
+          ruleActivated: '"fired"'
 
     # Role grants, the default source of business capability.
     - name: grant_read_to_role
@@ -114,6 +138,9 @@ resourcePolicy:
       condition:
         match:
           expr: '"read" in variables.role_actions'
+      output:
+        when:
+          ruleActivated: '"fired"'
 
     - name: grant_update_to_role
       actions: ["update"]
@@ -122,6 +149,9 @@ resourcePolicy:
       condition:
         match:
           expr: '"update" in variables.role_actions'
+      output:
+        when:
+          ruleActivated: '"fired"'
 
     - name: grant_delete_to_role
       actions: ["delete"]
@@ -130,6 +160,9 @@ resourcePolicy:
       condition:
         match:
           expr: '"delete" in variables.role_actions'
+      output:
+        when:
+          ruleActivated: '"fired"'
 
   schemas:
     principalSchema:
