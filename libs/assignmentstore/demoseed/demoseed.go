@@ -74,9 +74,9 @@ const (
 	// GenericResourceType and its instances prove the seed - and so the
 	// resource service built against it - is not special-cased to
 	// patient_record: any catalog resource type works the same way.
-	GenericResourceType       = "condition"
-	GenericResourceID         = "condition-1"
-	GenericLockedResourceID   = "condition-locked-1"
+	GenericResourceType        = "condition"
+	GenericResourceID          = "condition-1"
+	GenericLockedResourceID    = "condition-locked-1"
 	GenericOtherTenantResource = "condition-tenant-b-1"
 )
 

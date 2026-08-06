@@ -311,7 +311,7 @@ func assertActiveUserOverrides(t *testing.T, store assignmentstore.Store) {
 	want := map[string]observed{
 		"update/" + assignmentstore.NoResourceInstance: {assignmentstore.EffectRevoke, true},
 		"delete/" + assignmentstore.NoResourceInstance: {assignmentstore.EffectGrant, false},
-		"read/patient-456":                             {assignmentstore.EffectGrant, true},
+		"read/patient-456": {assignmentstore.EffectGrant, true},
 	}
 	if len(got) != len(want) {
 		t.Fatalf("the active overrides are %+v, want %+v", got, want)
