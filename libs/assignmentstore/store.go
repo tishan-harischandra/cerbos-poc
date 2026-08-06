@@ -295,6 +295,13 @@ type Store interface {
 	// nothing" and "denies" are different facts (§8.3).
 	ActiveRolePermissions(ctx context.Context, query ActiveRolePermissionQuery) ([]RolePermission, error)
 
+	// RolePermissionsForRole reads every permission row a role carries
+	// across every resource, regardless of validity window or enabled
+	// state (§9.2's role matrix screen: an administrator editing a role
+	// needs to see a disabled or expired grant exactly as stored, not
+	// filtered the way a live decision would filter it).
+	RolePermissionsForRole(ctx context.Context, tenantID, roleExternalID string) ([]RolePermission, error)
+
 	SaveUserOverride(ctx context.Context, override UserOverride) error
 	UserOverride(ctx context.Context, key UserOverrideKey) (UserOverride, bool, error)
 

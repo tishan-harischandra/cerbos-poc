@@ -13,6 +13,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/tishan-harischandra/cerbos-poc/apps/admin-service/internal/catalogapi"
 	"github.com/tishan-harischandra/cerbos-poc/apps/admin-service/internal/config"
 	"github.com/tishan-harischandra/cerbos-poc/apps/admin-service/internal/rolematrix"
 	"github.com/tishan-harischandra/cerbos-poc/apps/admin-service/internal/server"
@@ -38,6 +39,12 @@ func main() {
 	catalog, err := capabilitycatalog.LoadActiveCatalogDir(cfg.CatalogDir)
 	if err != nil {
 		logger.Error("could not load the active resource/action catalog", slog.Any("error", err))
+		os.Exit(1)
+	}
+
+	resourceCatalog, err := capabilitycatalog.LoadResourceCatalogDir(cfg.CatalogDir)
+	if err != nil {
+		logger.Error("could not load the resource catalog for the browser", slog.Any("error", err))
 		os.Exit(1)
 	}
 
@@ -69,6 +76,10 @@ func main() {
 			Catalog:                 catalog,
 			HighRiskActions:         cfg.HighRiskActions,
 			DefaultHighRiskValidity: cfg.HighRiskOverrideValidity,
+		},
+		Catalog: &catalogapi.Handler{
+			Resources:          resourceCatalog,
+			RootPolicyRevision: cfg.RootPolicyRevision,
 		},
 	})
 

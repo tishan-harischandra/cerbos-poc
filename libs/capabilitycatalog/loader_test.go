@@ -53,6 +53,47 @@ func TestLoadActiveCatalogDirBuildsResourceActionPairs(t *testing.T) {
 	}
 }
 
+func TestLoadResourceCatalogDirReadsDisplayMetadata(t *testing.T) {
+	entries, err := capabilitycatalog.LoadResourceCatalogDir(filepath.Join("testdata", "catalog"))
+	if err != nil {
+		t.Fatalf("LoadResourceCatalogDir: %v", err)
+	}
+	if len(entries) != 2 {
+		t.Fatalf("got %d entries, want 2", len(entries))
+	}
+
+	byKey := make(map[string]capabilitycatalog.ResourceEntry, len(entries))
+	for _, entry := range entries {
+		byKey[entry.ResourceKey] = entry
+	}
+
+	patient, ok := byKey["patient_record"]
+	if !ok {
+		t.Fatal("patient_record entry is missing")
+	}
+	if patient.DisplayName != "Patient record" || patient.Domain != "clinical" {
+		t.Errorf("patient_record = %+v, want displayName=Patient record domain=clinical", patient)
+	}
+	if len(patient.Actions) != 2 {
+		t.Fatalf("patient_record has %d actions, want 2", len(patient.Actions))
+	}
+	if patient.Actions[0].Key != "read" || patient.Actions[0].DisplayName != "View patient" || patient.Actions[0].Context != "INSTANCE" {
+		t.Errorf("patient_record.Actions[0] = %+v, want key=read displayName='View patient' context=INSTANCE", patient.Actions[0])
+	}
+}
+
+func TestLoadResourceCatalogDirIsSortedByResourceKey(t *testing.T) {
+	entries, err := capabilitycatalog.LoadResourceCatalogDir(filepath.Join("testdata", "catalog"))
+	if err != nil {
+		t.Fatalf("LoadResourceCatalogDir: %v", err)
+	}
+	for i := 1; i < len(entries); i++ {
+		if entries[i-1].ResourceKey >= entries[i].ResourceKey {
+			t.Fatalf("entries are not sorted: %q before %q", entries[i-1].ResourceKey, entries[i].ResourceKey)
+		}
+	}
+}
+
 func TestLoadedDefinitionsValidateAgainstLoadedCatalog(t *testing.T) {
 	defs, err := capabilitycatalog.LoadDefinitionsDir(filepath.Join("testdata", "definitions"))
 	if err != nil {

@@ -57,10 +57,36 @@ func LoadDefinitionsDir(dir string) ([]UiCapabilityDefinition, error) {
 // source (§6.1), which is also the "active resource catalog" permission
 // leaves are validated against.
 type catalogResourceEntry struct {
-	Resource string `yaml:"resource"`
-	Actions  []struct {
-		Key string `yaml:"key"`
+	Resource    string `yaml:"resource"`
+	Version     string `yaml:"version"`
+	DisplayName string `yaml:"displayName"`
+	Domain      string `yaml:"domain"`
+	Actions     []struct {
+		Key         string `yaml:"key"`
+		DisplayName string `yaml:"displayName"`
+		Context     string `yaml:"context"`
 	} `yaml:"actions"`
+}
+
+// ActionEntry is one action a resource declares in the administration-facing
+// catalog (§9.1's "Resource catalog" module, §9.2's "actions grouped by
+// collection, instance and workflow context").
+type ActionEntry struct {
+	Key         string `json:"key"`
+	DisplayName string `json:"displayName"`
+	Context     string `json:"context"`
+}
+
+// ResourceEntry is one resource's full administration-facing catalog entry:
+// everything the Admin Console's resource catalog and role matrix modules
+// need to render and let an administrator search, without knowing the file
+// format underneath.
+type ResourceEntry struct {
+	ResourceKey string        `json:"resourceKey"`
+	Version     string        `json:"version"`
+	DisplayName string        `json:"displayName"`
+	Domain      string        `json:"domain"`
+	Actions     []ActionEntry `json:"actions"`
 }
 
 // LoadActiveCatalogDir builds an ActiveCatalog from every *.yaml file
@@ -95,4 +121,49 @@ func LoadActiveCatalogDir(dir string) (*ActiveCatalog, error) {
 	}
 
 	return catalog, nil
+}
+
+// LoadResourceCatalogDir reads every *.yaml file directly under dir
+// (deploy/cerbos/catalog/resources) into a key-sorted slice of
+// ResourceEntry, the shape the Admin Console's resource catalog and role
+// matrix modules serve to the browser (§9.1, §9.4's
+// "GET /admin/authz/resources").
+//
+// Sorting keeps the response deterministic regardless of directory
+// iteration order, the same reason LoadDefinitionsDir sorts its result.
+func LoadResourceCatalogDir(dir string) ([]ResourceEntry, error) {
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		return nil, fmt.Errorf("reading %s: %w", dir, err)
+	}
+
+	var all []ResourceEntry
+	for _, file := range entries {
+		if file.IsDir() || filepath.Ext(file.Name()) != ".yaml" {
+			continue
+		}
+		path := filepath.Join(dir, file.Name())
+		raw, err := os.ReadFile(path)
+		if err != nil {
+			return nil, fmt.Errorf("reading %s: %w", path, err)
+		}
+		var e catalogResourceEntry
+		if err := yaml.Unmarshal(raw, &e); err != nil {
+			return nil, fmt.Errorf("parsing %s: %w", path, err)
+		}
+		if e.Resource == "" {
+			return nil, fmt.Errorf("%s: catalog entry has no resource key", path)
+		}
+		actions := make([]ActionEntry, 0, len(e.Actions))
+		for _, a := range e.Actions {
+			actions = append(actions, ActionEntry{Key: a.Key, DisplayName: a.DisplayName, Context: a.Context})
+		}
+		all = append(all, ResourceEntry{
+			ResourceKey: e.Resource, Version: e.Version,
+			DisplayName: e.DisplayName, Domain: e.Domain, Actions: actions,
+		})
+	}
+
+	sort.Slice(all, func(i, j int) bool { return all[i].ResourceKey < all[j].ResourceKey })
+	return all, nil
 }

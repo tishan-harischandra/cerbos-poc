@@ -93,6 +93,9 @@ func Run(t *testing.T, newStore Factory) {
 	t.Run("a role permission with no end date stays active", func(t *testing.T) {
 		assertOpenEndedRolePermission(t, newStore(t))
 	})
+	t.Run("RolePermissionsForRole reads every row for a role, unfiltered by validity or enabled state", func(t *testing.T) {
+		assertRolePermissionsForRole(t, newStore(t))
+	})
 	t.Run("the active user overrides for one principal and resource are read in one call", func(t *testing.T) {
 		assertActiveUserOverrides(t, newStore(t))
 	})
@@ -269,6 +272,64 @@ func assertOpenEndedRolePermission(t *testing.T, store assignmentstore.Store) {
 	}
 	if len(active) != 1 {
 		t.Fatalf("an open-ended grant resolved %d permissions, want 1", len(active))
+	}
+}
+
+// RolePermissionsForRole is the role matrix screen's read: everything a
+// role carries, exactly as stored, including a disabled row and one whose
+// validity window has already closed - neither of which ActiveRolePermissions
+// would return.
+func assertRolePermissionsForRole(t *testing.T, store assignmentstore.Store) {
+	t.Helper()
+	defer closeStore(t, store)
+	ctx := context.Background()
+	truncate(t, store, "role_permission")
+
+	now := time.Date(2026, 6, 1, 12, 0, 0, 0, time.UTC)
+	save := func(resource, action string, enabled bool, from, until time.Time) {
+		t.Helper()
+		if err := store.SaveRolePermission(ctx, assignmentstore.RolePermission{
+			Key: assignmentstore.RolePermissionKey{
+				TenantID: "tenant-a", RoleExternalID: "role-doctor",
+				ResourceKey: resource, ActionKey: action,
+			},
+			Enabled: enabled, ValidFrom: from, ValidUntil: until, Revision: 1,
+		}); err != nil {
+			t.Fatalf("saving %s/%s: %v", resource, action, err)
+		}
+	}
+
+	save("patient_record", "read", true, now.AddDate(-1, 0, 0), time.Time{})
+	save("patient_record", "delete", false, now.AddDate(-1, 0, 0), time.Time{})
+	save("medication_request", "read", true, now.AddDate(-2, 0, 0), now.AddDate(-1, 0, 0))
+	// A different role's row must never appear.
+	if err := store.SaveRolePermission(ctx, assignmentstore.RolePermission{
+		Key: assignmentstore.RolePermissionKey{
+			TenantID: "tenant-a", RoleExternalID: "role-nurse",
+			ResourceKey: "patient_record", ActionKey: "read",
+		},
+		Enabled: true, ValidFrom: now.AddDate(-1, 0, 0), Revision: 1,
+	}); err != nil {
+		t.Fatalf("saving role-nurse's row: %v", err)
+	}
+
+	found, err := store.RolePermissionsForRole(ctx, "tenant-a", "role-doctor")
+	if err != nil {
+		t.Fatalf("RolePermissionsForRole: %v", err)
+	}
+	if len(found) != 3 {
+		t.Fatalf("got %d permissions, want 3 (all of role-doctor's rows, none of role-nurse's)", len(found))
+	}
+
+	byAction := make(map[string]assignmentstore.RolePermission, len(found))
+	for _, permission := range found {
+		byAction[permission.Key.ResourceKey+"/"+permission.Key.ActionKey] = permission
+	}
+	if disabled, ok := byAction["patient_record/delete"]; !ok || disabled.Enabled {
+		t.Errorf("patient_record/delete = %+v, want present and disabled", disabled)
+	}
+	if expired, ok := byAction["medication_request/read"]; !ok || expired.ValidUntil.IsZero() {
+		t.Errorf("medication_request/read = %+v, want present with its expiry intact", expired)
 	}
 }
 

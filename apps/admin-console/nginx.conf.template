@@ -32,6 +32,20 @@ server {
     proxy_set_header X-Forwarded-Proto $scheme;
   }
 
+  # The browser never talks to the Administration Service directly either
+  # (§16.1): the console proxies it the same way it proxies the ADS, so the
+  # write path's own credential-free surface stays on the internal network.
+  location /api/admin/ {
+    set $admin_service_upstream "http://admin-service:8081";
+
+    rewrite ^/api/admin/(.*)$ /$1 break;
+
+    proxy_pass $admin_service_upstream;
+    proxy_set_header Host $host;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto $scheme;
+  }
+
   location / {
     try_files $uri $uri/ /index.html;
   }

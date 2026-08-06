@@ -38,6 +38,16 @@ func (f *fakeStore) RolePermission(_ context.Context, key assignmentstore.RolePe
 	return permission, found, nil
 }
 
+func (f *fakeStore) RolePermissionsForRole(_ context.Context, tenantID, roleExternalID string) ([]assignmentstore.RolePermission, error) {
+	var found []assignmentstore.RolePermission
+	for _, permission := range f.permissions {
+		if permission.Key.TenantID == tenantID && permission.Key.RoleExternalID == roleExternalID {
+			found = append(found, permission)
+		}
+	}
+	return found, nil
+}
+
 func (f *fakeStore) SaveRoleMatrix(_ context.Context, write assignmentstore.RoleMatrixWrite) (int64, error) {
 	f.lastWrite = write
 	if f.saveErr != nil {
@@ -344,6 +354,72 @@ func TestSaveAppendsOnePermissionChangedEventPerTouchedPermission(t *testing.T) 
 	}
 	if update.Enabled {
 		t.Error("the update event reads enabled=true, want false (it was revoked)")
+	}
+}
+
+// Read must return every permission row a role carries, exactly as
+// stored, alongside the tenant's current revision (§9.4's role matrix
+// screen).
+func TestReadReturnsEveryPermissionRowAndTheCurrentRevision(t *testing.T) {
+	store := newFakeStore()
+	store.permissions[permissionKeyString(assignmentstore.RolePermissionKey{
+		TenantID: "tenant-a", RoleExternalID: "role-doctor", ResourceKey: "patient_record", ActionKey: "read",
+	})] = assignmentstore.RolePermission{
+		Key: assignmentstore.RolePermissionKey{
+			TenantID: "tenant-a", RoleExternalID: "role-doctor", ResourceKey: "patient_record", ActionKey: "read",
+		},
+		Enabled: true, ValidFrom: time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC), Revision: 3,
+	}
+	store.permissions[permissionKeyString(assignmentstore.RolePermissionKey{
+		TenantID: "tenant-a", RoleExternalID: "role-nurse", ResourceKey: "patient_record", ActionKey: "read",
+	})] = assignmentstore.RolePermission{
+		Key: assignmentstore.RolePermissionKey{
+			TenantID: "tenant-a", RoleExternalID: "role-nurse", ResourceKey: "patient_record", ActionKey: "read",
+		},
+		Enabled: true, Revision: 1,
+	}
+	store.revisions["tenant-a"] = 3
+	handler := newHandler(store, newFakeCatalog())
+
+	req := httptest.NewRequest(http.MethodGet, "/admin/authz/tenants/tenant-a/roles/role-doctor/permissions", nil)
+	req.SetPathValue("tenant", "tenant-a")
+	req.SetPathValue("role", "role-doctor")
+	req = req.WithContext(tokenauth.WithIdentity(req.Context(), adminOf("tenant-a")))
+
+	rec := httptest.NewRecorder()
+	handler.Read(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, want 200: %s", rec.Code, rec.Body.String())
+	}
+	body := decodeResponse(t, rec)
+	if body["revision"] != float64(3) {
+		t.Errorf("revision = %v, want 3", body["revision"])
+	}
+	permissions, ok := body["permissions"].([]any)
+	if !ok || len(permissions) != 1 {
+		t.Fatalf("permissions = %v, want exactly role-doctor's one row", body["permissions"])
+	}
+	row := permissions[0].(map[string]any)
+	if row["resourceKey"] != "patient_record" || row["actionKey"] != "read" {
+		t.Errorf("row = %v, want patient_record/read", row)
+	}
+}
+
+func TestReadRejectsAnAdministratorFromAnotherTenant(t *testing.T) {
+	store := newFakeStore()
+	handler := newHandler(store, newFakeCatalog())
+
+	req := httptest.NewRequest(http.MethodGet, "/admin/authz/tenants/tenant-a/roles/role-doctor/permissions", nil)
+	req.SetPathValue("tenant", "tenant-a")
+	req.SetPathValue("role", "role-doctor")
+	req = req.WithContext(tokenauth.WithIdentity(req.Context(), adminOf("tenant-b")))
+
+	rec := httptest.NewRecorder()
+	handler.Read(rec, req)
+
+	if rec.Code != http.StatusForbidden {
+		t.Fatalf("status = %d, want 403: %s", rec.Code, rec.Body.String())
 	}
 }
 
