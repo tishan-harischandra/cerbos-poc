@@ -63,8 +63,8 @@ func TestDecisionSourceLabelsEveryCategory(t *testing.T) {
 
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
-			if got := decisionSource(c.action, c.allowed, c.firedRules); got != c.want {
-				t.Errorf("decisionSource(%q, %v, %v) = %q, want %q",
+			if got := DecisionSource(c.action, c.allowed, c.firedRules); got != c.want {
+				t.Errorf("DecisionSource(%q, %v, %v) = %q, want %q",
 					c.action, c.allowed, c.firedRules, got, c.want)
 			}
 		})

@@ -199,7 +199,7 @@ func NewHandler(cfg Config) http.Handler {
 				decision := result.Decisions[cerbosclient.Leaf{Resource: ref, Action: action}]
 				actions[action] = Decision{
 					Allowed: decision.Allowed,
-					Source:  decisionSource(action, decision.Allowed, result.FiredRules[ref]),
+					Source:  DecisionSource(action, decision.Allowed, result.FiredRules[ref]),
 				}
 			}
 			response.Resources = append(response.Resources, ResourceDecision{

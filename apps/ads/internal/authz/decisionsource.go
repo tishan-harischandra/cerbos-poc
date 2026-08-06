@@ -15,7 +15,7 @@ const (
 	SourceMandatory  Source = "MANDATORY_RULE"
 )
 
-// decisionSource labels one leaf's decision from the rule names that fired
+// DecisionSource labels one leaf's decision from the rule names that fired
 // for its resource. allowed is the PDP's own verdict for this action; the
 // fired rule names only say which named rule produced it.
 //
@@ -23,7 +23,10 @@ const (
 // tenant_and_hospital_isolation, locked_record_restriction, revoke_<action>,
 // grant_<action>_to_user and grant_<action>_to_role (§6.5/ADR-006), so the
 // rule name alone identifies the category without reading any action set.
-func decisionSource(action string, allowed bool, firedRules []string) Source {
+//
+// Exported so the capability endpoint (issue #11) can label the same
+// leaf-level facts without a second implementation of this mapping.
+func DecisionSource(action string, allowed bool, firedRules []string) Source {
 	fired := make(map[string]bool, len(firedRules))
 	for _, name := range firedRules {
 		fired[name] = true
