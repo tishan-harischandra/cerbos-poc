@@ -62,3 +62,42 @@ describe('CapabilityDirective', () => {
     expect(fixture.nativeElement.textContent).toContain('summary');
   });
 });
+
+@Component({
+  standalone: true,
+  imports: [CapabilityDirective],
+  template: `<span
+    *capability="'patient.row.edit'; decisions: rowDecisions"
+    >edit</span
+  >`,
+})
+class RowHostComponent {
+  rowDecisions: Record<string, { allowed: boolean }> = {
+    'patient.row.edit': { allowed: true },
+  };
+}
+
+describe('CapabilityDirective row-level decisions', () => {
+  it('renders from an explicit local decision map with no store and no HTTP call', () => {
+    TestBed.configureTestingModule({ imports: [RowHostComponent] });
+    // Deliberately never replace anything into CapabilityStore: the row
+    // decision map must be self-sufficient (§12.7 - render row menus from
+    // a single batched response with no per-row request).
+
+    const fixture = TestBed.createComponent(RowHostComponent);
+    fixture.detectChanges();
+
+    expect(fixture.nativeElement.textContent).toContain('edit');
+  });
+
+  it('hides the row control when the local decision map denies it', () => {
+    TestBed.configureTestingModule({ imports: [RowHostComponent] });
+    const fixture = TestBed.createComponent(RowHostComponent);
+    fixture.componentInstance.rowDecisions = {
+      'patient.row.edit': { allowed: false },
+    };
+    fixture.detectChanges();
+
+    expect(fixture.nativeElement.textContent).not.toContain('edit');
+  });
+});

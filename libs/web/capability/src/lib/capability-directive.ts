@@ -8,6 +8,7 @@ import {
   ViewContainerRef,
 } from '@angular/core';
 
+import { CapabilityDecision } from './capability-decision';
 import { CapabilityStore } from './capability-store';
 
 /**
@@ -31,12 +32,22 @@ export class CapabilityDirective {
   private readonly viewContainer = inject(ViewContainerRef);
 
   private readonly key = signal<string | undefined>(undefined);
+  // capabilityDecisions is a local, caller-supplied decision map that, when
+  // set, is used instead of the CapabilityStore (§12.7: row-level menus
+  // rendered from a single batched list response, never a per-row store
+  // lookup or a per-row request).
+  private readonly localDecisions = signal<
+    Record<string, CapabilityDecision> | undefined
+  >(undefined);
   private rendered = false;
 
   constructor() {
     effect(() => {
       const key = this.key();
-      const allowed = key !== undefined && this.store.can(key);
+      const local = this.localDecisions();
+      const allowed =
+        key !== undefined &&
+        (local ? local[key]?.allowed === true : this.store.can(key));
       if (allowed && !this.rendered) {
         this.viewContainer.createEmbeddedView(this.templateRef);
         this.rendered = true;
@@ -50,5 +61,10 @@ export class CapabilityDirective {
   @Input()
   set capability(key: string) {
     this.key.set(key);
+  }
+
+  @Input()
+  set capabilityDecisions(decisions: Record<string, CapabilityDecision> | undefined) {
+    this.localDecisions.set(decisions);
   }
 }
