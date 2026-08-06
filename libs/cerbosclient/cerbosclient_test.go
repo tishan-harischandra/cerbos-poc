@@ -9,6 +9,7 @@ import (
 	"time"
 
 	effectv1 "github.com/cerbos/cerbos/api/genpb/cerbos/effect/v1"
+	enginev1 "github.com/cerbos/cerbos/api/genpb/cerbos/engine/v1"
 	requestv1 "github.com/cerbos/cerbos/api/genpb/cerbos/request/v1"
 	responsev1 "github.com/cerbos/cerbos/api/genpb/cerbos/response/v1"
 	svcv1 "github.com/cerbos/cerbos/api/genpb/cerbos/svc/v1"
@@ -83,6 +84,62 @@ func TestCheckCapturesTheCerbosCallID(t *testing.T) {
 
 	if result.CallID != "01HQ8WZ5F3" {
 		t.Errorf("CallID = %q, want %q", result.CallID, "01HQ8WZ5F3")
+	}
+}
+
+// §11.3/§21: labelling a decision's source has to read a fact the PDP already
+// computed, not rank grants against revokes in Go. The rule names in the
+// PDP's own output reporting are that fact, so the client must surface them
+// exactly as received rather than interpret them.
+func TestCheckReportsTheFiredRuleNamesPerResource(t *testing.T) {
+	pdp := startFakePDP(t, func(*requestv1.CheckResourcesRequest) *responsev1.CheckResourcesResponse {
+		entry := resultFor("patient-456", map[string]effectv1.Effect{"read": effectv1.Effect_EFFECT_ALLOW})
+		entry.Outputs = []*enginev1.OutputEntry{
+			{Src: "resource.patient_record.vdefault/default#grant_read_to_role"},
+			{Src: "resource.patient_record.vdefault/default#tenant_and_hospital_isolation"},
+		}
+		return &responsev1.CheckResourcesResponse{
+			CerbosCallId: "call-1",
+			Results:      []*responsev1.CheckResourcesResponse_ResultEntry{entry},
+		}
+	})
+
+	result, err := dial(t, pdp.address).Check(context.Background(), readRequest())
+	if err != nil {
+		t.Fatalf("Check: %v", err)
+	}
+
+	ref := cerbosclient.ResourceRef{Kind: "patient_record", ID: "patient-456"}
+	got := result.FiredRules[ref]
+	want := []string{"grant_read_to_role", "tenant_and_hospital_isolation"}
+	if len(got) != len(want) {
+		t.Fatalf("FiredRules[%v] = %v, want %v", ref, got, want)
+	}
+	for i, name := range want {
+		if got[i] != name {
+			t.Errorf("FiredRules[%v][%d] = %q, want %q", ref, i, got[i], name)
+		}
+	}
+}
+
+func TestCheckReportsNoFiredRulesWhenThePDPSendsNoOutputs(t *testing.T) {
+	pdp := startFakePDP(t, func(*requestv1.CheckResourcesRequest) *responsev1.CheckResourcesResponse {
+		return &responsev1.CheckResourcesResponse{
+			CerbosCallId: "call-1",
+			Results: []*responsev1.CheckResourcesResponse_ResultEntry{
+				resultFor("patient-456", map[string]effectv1.Effect{"read": effectv1.Effect_EFFECT_ALLOW}),
+			},
+		}
+	})
+
+	result, err := dial(t, pdp.address).Check(context.Background(), readRequest())
+	if err != nil {
+		t.Fatalf("Check: %v", err)
+	}
+
+	ref := cerbosclient.ResourceRef{Kind: "patient_record", ID: "patient-456"}
+	if len(result.FiredRules[ref]) != 0 {
+		t.Errorf("FiredRules[%v] = %v, want none", ref, result.FiredRules[ref])
 	}
 }
 

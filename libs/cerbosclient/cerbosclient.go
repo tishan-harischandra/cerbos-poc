@@ -10,6 +10,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/cerbos/cerbos-sdk-go/cerbos"
@@ -107,6 +108,14 @@ type Result struct {
 	// correlation ID so a decision can be traced back into the PDP's audit
 	// log (§11.3).
 	CallID string
+	// FiredRules names every policy rule that activated for each resource,
+	// taken verbatim from the PDP's own output reporting (§11.3's "decision
+	// source"). This is a fact the PDP already computed while deciding, not a
+	// second decision: the rule *names* - revoke_read, grant_read_to_role,
+	// locked_record_restriction, tenant_and_hospital_isolation - are what let a
+	// caller label *why* a leaf was allowed or denied without any Go code
+	// ranking a grant against a revoke (§21).
+	FiredRules map[ResourceRef][]string
 }
 
 // Client holds one long-lived gRPC channel to the PDP.
@@ -216,6 +225,7 @@ func (c *Client) Check(ctx context.Context, req Request) (Result, error) {
 	}
 
 	decisions := make(map[Leaf]Decision)
+	firedRules := make(map[ResourceRef][]string)
 	for _, entry := range response.GetResults() {
 		ref := ResourceRef{
 			Kind: entry.GetResource().GetKind(),
@@ -226,7 +236,23 @@ func (c *Client) Check(ctx context.Context, req Request) (Result, error) {
 				Allowed: effect == effectv1.Effect_EFFECT_ALLOW,
 			}
 		}
+		for _, output := range entry.GetOutputs() {
+			if name := ruleNameFromOutputSrc(output.GetSrc()); name != "" {
+				firedRules[ref] = append(firedRules[ref], name)
+			}
+		}
 	}
 
-	return Result{Decisions: decisions, CallID: response.GetCerbosCallId()}, nil
+	return Result{Decisions: decisions, CallID: response.GetCerbosCallId(), FiredRules: firedRules}, nil
+}
+
+// ruleNameFromOutputSrc extracts the rule name from an output's src, which
+// the PDP reports as "resource.<kind>.<version>#<rule name>". Only the
+// suffix after the last '#' is the rule name; everything before it is the
+// policy identifier, which no caller here needs.
+func ruleNameFromOutputSrc(src string) string {
+	if i := strings.LastIndex(src, "#"); i >= 0 {
+		return src[i+1:]
+	}
+	return ""
 }
