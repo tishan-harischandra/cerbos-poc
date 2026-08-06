@@ -10,6 +10,7 @@ import (
 
 	"github.com/tishan-harischandra/cerbos-poc/apps/admin-service/internal/catalogapi"
 	"github.com/tishan-harischandra/cerbos-poc/apps/admin-service/internal/rolematrix"
+	"github.com/tishan-harischandra/cerbos-poc/apps/admin-service/internal/simulate"
 	"github.com/tishan-harischandra/cerbos-poc/apps/admin-service/internal/tokenauth"
 	"github.com/tishan-harischandra/cerbos-poc/apps/admin-service/internal/useroverride"
 )
@@ -48,6 +49,10 @@ type Config struct {
 	// Catalog serves the resource catalog endpoint. Nil means the route
 	// is not registered.
 	Catalog *catalogapi.Handler
+
+	// Simulate serves the effective-access simulator endpoints (issue
+	// #19). Nil means the routes are not registered.
+	Simulate *simulate.Handler
 }
 
 // New builds the Administration Service HTTP handler.
@@ -81,6 +86,10 @@ func New(cfg Config) http.Handler {
 			mux.Handle("GET /admin/authz/resources", authenticated(cfg.Catalog.Read))
 			mux.Handle("GET /admin/authz/resources/{resource}/actions/{action}/capabilities",
 				authenticated(cfg.Catalog.CapabilityImpact))
+		}
+		if cfg.Simulate != nil {
+			mux.Handle("POST /admin/authz/simulate", authenticated(cfg.Simulate.SimulateAccess))
+			mux.Handle("POST /admin/authz/simulate-capabilities", authenticated(cfg.Simulate.SimulateCapabilities))
 		}
 	}
 

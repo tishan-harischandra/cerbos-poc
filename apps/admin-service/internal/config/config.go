@@ -28,6 +28,9 @@ type Config struct {
 	// endpoint (issue #18) reads UiCapabilityDefinitions from. Mirrors
 	// the ADS's own config field of the same name and default.
 	CapabilityCatalogDir string
+	// ADSAddr is the ADS's base address the simulator (issue #19) calls
+	// its internal simulation endpoints against, e.g. "http://ads:8080".
+	ADSAddr string
 	// RootPolicyRevision is the immutable root-policy tag currently served
 	// (§9.4's "current root revision"), e.g. "root-v1.4.0". Mirrors the
 	// ADS's own config field of the same name and default.
@@ -66,6 +69,7 @@ func FromEnv(lookup LookupFunc) Config {
 		IdPAddr:              valueOr(lookup, "IDP_ADDR", "keycloak:8080"),
 		CatalogDir:           valueOr(lookup, "AUTHORIZATION_CATALOG_DIR", "/etc/cerbos-catalog/resources"),
 		CapabilityCatalogDir: valueOr(lookup, "CAPABILITY_CATALOG_DIR", "/etc/cerbos-catalog/ui-capabilities"),
+		ADSAddr:              valueOr(lookup, "ADS_ADDR", "http://ads:8080"),
 		RootPolicyRevision:   valueOr(lookup, "ROOT_POLICY_REVISION", "root-v1.4.0"),
 
 		KafkaBrokers:          splitOr(lookup, "KAFKA_BROKERS", []string{"redpanda:9092"}),

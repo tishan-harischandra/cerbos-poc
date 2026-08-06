@@ -27,6 +27,10 @@ type Identity struct {
 	HospitalID  string
 	// Roles are canonical §7.5 identifiers.
 	Roles []string
+	// RawToken is the verified bearer token exactly as it arrived, so the
+	// simulator (issue #19) can present the same credential to the ADS's
+	// internal simulate endpoints rather than minting one of its own.
+	RawToken string
 }
 
 // Verifier is the token verification this middleware delegates to.
@@ -91,6 +95,7 @@ func Require(cfg Config, next http.Handler) http.Handler {
 			TenantID:    verified.TenantID,
 			HospitalID:  verified.HospitalID,
 			Roles:       verified.Roles,
+			RawToken:    raw,
 		}
 		next.ServeHTTP(w, r.WithContext(WithIdentity(r.Context(), identity)))
 	})
