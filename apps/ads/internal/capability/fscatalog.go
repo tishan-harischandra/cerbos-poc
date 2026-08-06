@@ -3,7 +3,6 @@ package capability
 import (
 	"context"
 	"fmt"
-	"strconv"
 
 	"github.com/tishan-harischandra/cerbos-poc/libs/authzcache"
 	"github.com/tishan-harischandra/cerbos-poc/libs/capabilitycatalog"
@@ -59,14 +58,4 @@ func (c *FSCatalog) Definitions(_ context.Context, module string) ([]capabilityc
 	}
 
 	return byModule[module], revision, nil
-}
-
-// parseCatalogRevision is a small helper for callers that read the
-// revision from the environment as a string.
-func parseCatalogRevision(raw string) (int64, error) {
-	revision, err := strconv.ParseInt(raw, 10, 64)
-	if err != nil {
-		return 0, fmt.Errorf("parsing catalog revision %q: %w", raw, err)
-	}
-	return revision, nil
 }

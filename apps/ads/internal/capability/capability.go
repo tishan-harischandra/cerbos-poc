@@ -19,7 +19,6 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
-	"sort"
 
 	"github.com/tishan-harischandra/cerbos-poc/apps/ads/internal/authz"
 	"github.com/tishan-harischandra/cerbos-poc/apps/ads/internal/tokenauth"
@@ -231,15 +230,4 @@ func writeJSON(w http.ResponseWriter, status int, body any) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)
 	_ = json.NewEncoder(w).Encode(body)
-}
-
-// sortedKeys is a small determinism helper used by the fingerprint and by
-// tests.
-func sortedKeys(m map[string]string) []string {
-	keys := make([]string, 0, len(m))
-	for k := range m {
-		keys = append(keys, k)
-	}
-	sort.Strings(keys)
-	return keys
 }
