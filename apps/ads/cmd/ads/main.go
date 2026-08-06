@@ -181,6 +181,24 @@ func main() {
 			RootPolicyRevision: cfg.RootPolicyRevision,
 			Logger:             logger,
 		})),
+		SimulateHandler: authenticated(authz.NewSimulateHandler(authz.Config{
+			PDP: pdp,
+			Assignments: assignments.NewResolver(assignments.ResolverConfig{
+				Matrix:    roleMatrixCache,
+				Overrides: assignments.NewDBOverrides(store, nil),
+			}),
+			Logger: logger,
+		})),
+		CapabilitySimulateHandler: authenticated(capability.NewSimulateHandler(capability.Config{
+			PDP:               pdp,
+			CapabilityCatalog: capability.NewFSCatalog(cfg.CapabilityCatalogDir, cfg.CapabilityCatalogRevision, nil),
+			Assignments: assignments.NewResolver(assignments.ResolverConfig{
+				Matrix:    roleMatrixCache,
+				Overrides: assignments.NewDBOverrides(store, nil),
+			}),
+			RootPolicyRevision: cfg.RootPolicyRevision,
+			Logger:             logger,
+		})),
 		MetricsHandler: promhttp.HandlerFor(registry, promhttp.HandlerOpts{}),
 	})
 
