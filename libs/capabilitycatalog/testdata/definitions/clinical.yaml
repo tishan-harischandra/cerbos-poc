@@ -1,0 +1,23 @@
+catalogRevision: 1
+capabilities:
+  - key: patient.route.details
+    module: clinical
+    context: INSTANCE
+    expression:
+      permission:
+        resource: patient_record
+        action: read
+        targetRef: patient
+  - key: patient.route.edit
+    module: clinical
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: patient_record
+            action: read
+            targetRef: patient
+        - permission:
+            resource: patient_record
+            action: update
+            targetRef: patient

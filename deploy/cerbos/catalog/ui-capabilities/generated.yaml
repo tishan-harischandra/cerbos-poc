@@ -1,0 +1,5464 @@
+# GENERATED FILE - DO NOT EDIT BY HAND.
+#
+# Produced by libs/capabilitycatalog's archetype generator (catalog
+# revision 1, issue #10, PRD "UI capability catalog"). Edit
+# libs/cataloggen/manifest.yaml or the archetype definitions in
+# libs/capabilitycatalog/generator.go and re-run `make capability-gen`,
+# or regenerate directly with
+# `go run ./libs/capabilitycatalog/cmd/capabilitycatalog-gen -root .`.
+#
+# The five hand-authored §12.1 worked examples live alongside this file
+# in clinical-worked-examples.yaml and are never touched by the generator.
+catalogRevision: 1
+capabilities:
+  - key: account.action.delete
+    module: financial
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: account
+            action: read
+            targetRef: account
+        - permission:
+            resource: account
+            action: delete
+            targetRef: account
+  - key: account.button.assign
+    module: financial
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: account
+            action: read
+            targetRef: account
+        - permission:
+            resource: account
+            action: assign
+            targetRef: account
+  - key: account.route.details
+    module: financial
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: account
+            action: read
+            targetRef: account
+        - permission:
+            resource: activity_definition
+            action: read
+            targetRef: activity_definition
+  - key: account.route.edit
+    module: financial
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: account
+            action: read
+            targetRef: account
+        - permission:
+            resource: account
+            action: update
+            targetRef: account
+        - permission:
+            resource: activity_definition
+            action: list
+            targetRef: activity_definitionCollection
+  - key: account.route.list
+    module: financial
+    context: COLLECTION
+    expression:
+      allOf:
+        - permission:
+            resource: account
+            action: list
+            targetRef: accountCollection
+        - permission:
+            resource: hospital_context
+            action: read
+            targetRef: hospitalContext
+  - key: activity_definition.action.delete
+    module: definitional
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: activity_definition
+            action: read
+            targetRef: activity_definition
+        - permission:
+            resource: activity_definition
+            action: delete
+            targetRef: activity_definition
+  - key: activity_definition.button.assign
+    module: definitional
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: activity_definition
+            action: read
+            targetRef: activity_definition
+        - permission:
+            resource: activity_definition
+            action: assign
+            targetRef: activity_definition
+  - key: activity_definition.route.details
+    module: definitional
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: activity_definition
+            action: read
+            targetRef: activity_definition
+        - permission:
+            resource: actor_definition
+            action: read
+            targetRef: actor_definition
+  - key: activity_definition.route.edit
+    module: definitional
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: activity_definition
+            action: read
+            targetRef: activity_definition
+        - permission:
+            resource: activity_definition
+            action: update
+            targetRef: activity_definition
+        - permission:
+            resource: actor_definition
+            action: list
+            targetRef: actor_definitionCollection
+  - key: activity_definition.route.list
+    module: definitional
+    context: COLLECTION
+    expression:
+      allOf:
+        - permission:
+            resource: activity_definition
+            action: list
+            targetRef: activity_definitionCollection
+        - permission:
+            resource: hospital_context
+            action: read
+            targetRef: hospitalContext
+  - key: actor_definition.action.delete
+    module: definitional
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: actor_definition
+            action: read
+            targetRef: actor_definition
+        - permission:
+            resource: actor_definition
+            action: delete
+            targetRef: actor_definition
+  - key: actor_definition.button.assign
+    module: definitional
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: actor_definition
+            action: read
+            targetRef: actor_definition
+        - permission:
+            resource: actor_definition
+            action: assign
+            targetRef: actor_definition
+  - key: actor_definition.route.details
+    module: definitional
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: actor_definition
+            action: read
+            targetRef: actor_definition
+        - permission:
+            resource: administrable_product_definition
+            action: read
+            targetRef: administrable_product_definition
+  - key: actor_definition.route.edit
+    module: definitional
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: actor_definition
+            action: read
+            targetRef: actor_definition
+        - permission:
+            resource: actor_definition
+            action: update
+            targetRef: actor_definition
+        - permission:
+            resource: administrable_product_definition
+            action: list
+            targetRef: administrable_product_definitionCollection
+  - key: actor_definition.route.list
+    module: definitional
+    context: COLLECTION
+    expression:
+      allOf:
+        - permission:
+            resource: actor_definition
+            action: list
+            targetRef: actor_definitionCollection
+        - permission:
+            resource: hospital_context
+            action: read
+            targetRef: hospitalContext
+  - key: administrable_product_definition.action.delete
+    module: medicinal_products
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: administrable_product_definition
+            action: read
+            targetRef: administrable_product_definition
+        - permission:
+            resource: administrable_product_definition
+            action: delete
+            targetRef: administrable_product_definition
+  - key: administrable_product_definition.button.assign
+    module: medicinal_products
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: administrable_product_definition
+            action: read
+            targetRef: administrable_product_definition
+        - permission:
+            resource: administrable_product_definition
+            action: assign
+            targetRef: administrable_product_definition
+  - key: administrable_product_definition.route.details
+    module: medicinal_products
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: administrable_product_definition
+            action: read
+            targetRef: administrable_product_definition
+        - permission:
+            resource: adverse_event
+            action: read
+            targetRef: adverse_event
+  - key: administrable_product_definition.route.edit
+    module: medicinal_products
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: administrable_product_definition
+            action: read
+            targetRef: administrable_product_definition
+        - permission:
+            resource: administrable_product_definition
+            action: update
+            targetRef: administrable_product_definition
+        - permission:
+            resource: adverse_event
+            action: list
+            targetRef: adverse_eventCollection
+  - key: administrable_product_definition.route.list
+    module: medicinal_products
+    context: COLLECTION
+    expression:
+      allOf:
+        - permission:
+            resource: administrable_product_definition
+            action: list
+            targetRef: administrable_product_definitionCollection
+        - permission:
+            resource: hospital_context
+            action: read
+            targetRef: hospitalContext
+  - key: adverse_event.action.delete
+    module: clinical
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: adverse_event
+            action: read
+            targetRef: adverse_event
+        - permission:
+            resource: adverse_event
+            action: delete
+            targetRef: adverse_event
+  - key: adverse_event.button.assign
+    module: clinical
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: adverse_event
+            action: read
+            targetRef: adverse_event
+        - permission:
+            resource: adverse_event
+            action: assign
+            targetRef: adverse_event
+  - key: adverse_event.route.details
+    module: clinical
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: adverse_event
+            action: read
+            targetRef: adverse_event
+        - permission:
+            resource: allergy_intolerance
+            action: read
+            targetRef: allergy_intolerance
+  - key: adverse_event.route.edit
+    module: clinical
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: adverse_event
+            action: read
+            targetRef: adverse_event
+        - permission:
+            resource: adverse_event
+            action: update
+            targetRef: adverse_event
+        - permission:
+            resource: allergy_intolerance
+            action: list
+            targetRef: allergy_intoleranceCollection
+  - key: adverse_event.route.list
+    module: clinical
+    context: COLLECTION
+    expression:
+      allOf:
+        - permission:
+            resource: adverse_event
+            action: list
+            targetRef: adverse_eventCollection
+        - permission:
+            resource: hospital_context
+            action: read
+            targetRef: hospitalContext
+  - key: allergy_intolerance.action.delete
+    module: clinical
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: allergy_intolerance
+            action: read
+            targetRef: allergy_intolerance
+        - permission:
+            resource: allergy_intolerance
+            action: delete
+            targetRef: allergy_intolerance
+  - key: allergy_intolerance.button.assign
+    module: clinical
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: allergy_intolerance
+            action: read
+            targetRef: allergy_intolerance
+        - permission:
+            resource: allergy_intolerance
+            action: assign
+            targetRef: allergy_intolerance
+  - key: allergy_intolerance.route.details
+    module: clinical
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: allergy_intolerance
+            action: read
+            targetRef: allergy_intolerance
+        - permission:
+            resource: appointment
+            action: read
+            targetRef: appointment
+  - key: allergy_intolerance.route.edit
+    module: clinical
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: allergy_intolerance
+            action: read
+            targetRef: allergy_intolerance
+        - permission:
+            resource: allergy_intolerance
+            action: update
+            targetRef: allergy_intolerance
+        - permission:
+            resource: appointment
+            action: list
+            targetRef: appointmentCollection
+  - key: allergy_intolerance.route.list
+    module: clinical
+    context: COLLECTION
+    expression:
+      allOf:
+        - permission:
+            resource: allergy_intolerance
+            action: list
+            targetRef: allergy_intoleranceCollection
+        - permission:
+            resource: hospital_context
+            action: read
+            targetRef: hospitalContext
+  - key: appointment.action.delete
+    module: workflow
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: appointment
+            action: read
+            targetRef: appointment
+        - permission:
+            resource: appointment
+            action: delete
+            targetRef: appointment
+  - key: appointment.button.assign
+    module: workflow
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: appointment
+            action: read
+            targetRef: appointment
+        - permission:
+            resource: appointment
+            action: assign
+            targetRef: appointment
+  - key: appointment.route.details
+    module: workflow
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: appointment
+            action: read
+            targetRef: appointment
+        - permission:
+            resource: appointment_response
+            action: read
+            targetRef: appointment_response
+  - key: appointment.route.edit
+    module: workflow
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: appointment
+            action: read
+            targetRef: appointment
+        - permission:
+            resource: appointment
+            action: update
+            targetRef: appointment
+        - permission:
+            resource: appointment_response
+            action: list
+            targetRef: appointment_responseCollection
+  - key: appointment.route.list
+    module: workflow
+    context: COLLECTION
+    expression:
+      allOf:
+        - permission:
+            resource: appointment
+            action: list
+            targetRef: appointmentCollection
+        - permission:
+            resource: hospital_context
+            action: read
+            targetRef: hospitalContext
+  - key: appointment_response.action.delete
+    module: workflow
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: appointment_response
+            action: read
+            targetRef: appointment_response
+        - permission:
+            resource: appointment_response
+            action: delete
+            targetRef: appointment_response
+  - key: appointment_response.button.assign
+    module: workflow
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: appointment_response
+            action: read
+            targetRef: appointment_response
+        - permission:
+            resource: appointment_response
+            action: assign
+            targetRef: appointment_response
+  - key: appointment_response.route.details
+    module: workflow
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: appointment_response
+            action: read
+            targetRef: appointment_response
+        - permission:
+            resource: artifact_assessment
+            action: read
+            targetRef: artifact_assessment
+  - key: appointment_response.route.edit
+    module: workflow
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: appointment_response
+            action: read
+            targetRef: appointment_response
+        - permission:
+            resource: appointment_response
+            action: update
+            targetRef: appointment_response
+        - permission:
+            resource: artifact_assessment
+            action: list
+            targetRef: artifact_assessmentCollection
+  - key: appointment_response.route.list
+    module: workflow
+    context: COLLECTION
+    expression:
+      allOf:
+        - permission:
+            resource: appointment_response
+            action: list
+            targetRef: appointment_responseCollection
+        - permission:
+            resource: hospital_context
+            action: read
+            targetRef: hospitalContext
+  - key: artifact_assessment.action.delete
+    module: research
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: artifact_assessment
+            action: read
+            targetRef: artifact_assessment
+        - permission:
+            resource: artifact_assessment
+            action: delete
+            targetRef: artifact_assessment
+  - key: artifact_assessment.button.assign
+    module: research
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: artifact_assessment
+            action: read
+            targetRef: artifact_assessment
+        - permission:
+            resource: artifact_assessment
+            action: assign
+            targetRef: artifact_assessment
+  - key: artifact_assessment.route.details
+    module: research
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: artifact_assessment
+            action: read
+            targetRef: artifact_assessment
+        - permission:
+            resource: audit_event
+            action: read
+            targetRef: audit_event
+  - key: artifact_assessment.route.edit
+    module: research
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: artifact_assessment
+            action: read
+            targetRef: artifact_assessment
+        - permission:
+            resource: artifact_assessment
+            action: update
+            targetRef: artifact_assessment
+        - permission:
+            resource: audit_event
+            action: list
+            targetRef: audit_eventCollection
+  - key: artifact_assessment.route.list
+    module: research
+    context: COLLECTION
+    expression:
+      allOf:
+        - permission:
+            resource: artifact_assessment
+            action: list
+            targetRef: artifact_assessmentCollection
+        - permission:
+            resource: hospital_context
+            action: read
+            targetRef: hospitalContext
+  - key: audit_event.action.delete
+    module: security
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: audit_event
+            action: read
+            targetRef: audit_event
+        - permission:
+            resource: audit_event
+            action: delete
+            targetRef: audit_event
+  - key: audit_event.button.assign
+    module: security
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: audit_event
+            action: read
+            targetRef: audit_event
+        - permission:
+            resource: audit_event
+            action: assign
+            targetRef: audit_event
+  - key: audit_event.route.details
+    module: security
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: audit_event
+            action: read
+            targetRef: audit_event
+        - permission:
+            resource: basic
+            action: read
+            targetRef: basic
+  - key: audit_event.route.edit
+    module: security
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: audit_event
+            action: read
+            targetRef: audit_event
+        - permission:
+            resource: audit_event
+            action: update
+            targetRef: audit_event
+        - permission:
+            resource: basic
+            action: list
+            targetRef: basicCollection
+  - key: audit_event.route.list
+    module: security
+    context: COLLECTION
+    expression:
+      allOf:
+        - permission:
+            resource: audit_event
+            action: list
+            targetRef: audit_eventCollection
+        - permission:
+            resource: hospital_context
+            action: read
+            targetRef: hospitalContext
+  - key: basic.action.delete
+    module: foundation
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: basic
+            action: read
+            targetRef: basic
+        - permission:
+            resource: basic
+            action: delete
+            targetRef: basic
+  - key: basic.button.assign
+    module: foundation
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: basic
+            action: read
+            targetRef: basic
+        - permission:
+            resource: basic
+            action: assign
+            targetRef: basic
+  - key: basic.route.details
+    module: foundation
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: basic
+            action: read
+            targetRef: basic
+        - permission:
+            resource: binary
+            action: read
+            targetRef: binary
+  - key: basic.route.edit
+    module: foundation
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: basic
+            action: read
+            targetRef: basic
+        - permission:
+            resource: basic
+            action: update
+            targetRef: basic
+        - permission:
+            resource: binary
+            action: list
+            targetRef: binaryCollection
+  - key: basic.route.list
+    module: foundation
+    context: COLLECTION
+    expression:
+      allOf:
+        - permission:
+            resource: basic
+            action: list
+            targetRef: basicCollection
+        - permission:
+            resource: hospital_context
+            action: read
+            targetRef: hospitalContext
+  - key: binary.action.delete
+    module: foundation
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: binary
+            action: read
+            targetRef: binary
+        - permission:
+            resource: binary
+            action: delete
+            targetRef: binary
+  - key: binary.button.assign
+    module: foundation
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: binary
+            action: read
+            targetRef: binary
+        - permission:
+            resource: binary
+            action: assign
+            targetRef: binary
+  - key: binary.route.details
+    module: foundation
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: binary
+            action: read
+            targetRef: binary
+        - permission:
+            resource: biologically_derived_product
+            action: read
+            targetRef: biologically_derived_product
+  - key: binary.route.edit
+    module: foundation
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: binary
+            action: read
+            targetRef: binary
+        - permission:
+            resource: binary
+            action: update
+            targetRef: binary
+        - permission:
+            resource: biologically_derived_product
+            action: list
+            targetRef: biologically_derived_productCollection
+  - key: binary.route.list
+    module: foundation
+    context: COLLECTION
+    expression:
+      allOf:
+        - permission:
+            resource: binary
+            action: list
+            targetRef: binaryCollection
+        - permission:
+            resource: hospital_context
+            action: read
+            targetRef: hospitalContext
+  - key: biologically_derived_product.action.delete
+    module: substances
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: biologically_derived_product
+            action: read
+            targetRef: biologically_derived_product
+        - permission:
+            resource: biologically_derived_product
+            action: delete
+            targetRef: biologically_derived_product
+  - key: biologically_derived_product.button.assign
+    module: substances
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: biologically_derived_product
+            action: read
+            targetRef: biologically_derived_product
+        - permission:
+            resource: biologically_derived_product
+            action: assign
+            targetRef: biologically_derived_product
+  - key: biologically_derived_product.route.details
+    module: substances
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: biologically_derived_product
+            action: read
+            targetRef: biologically_derived_product
+        - permission:
+            resource: biologically_derived_product_dispense
+            action: read
+            targetRef: biologically_derived_product_dispense
+  - key: biologically_derived_product.route.edit
+    module: substances
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: biologically_derived_product
+            action: read
+            targetRef: biologically_derived_product
+        - permission:
+            resource: biologically_derived_product
+            action: update
+            targetRef: biologically_derived_product
+        - permission:
+            resource: biologically_derived_product_dispense
+            action: list
+            targetRef: biologically_derived_product_dispenseCollection
+  - key: biologically_derived_product.route.list
+    module: substances
+    context: COLLECTION
+    expression:
+      allOf:
+        - permission:
+            resource: biologically_derived_product
+            action: list
+            targetRef: biologically_derived_productCollection
+        - permission:
+            resource: hospital_context
+            action: read
+            targetRef: hospitalContext
+  - key: biologically_derived_product_dispense.action.delete
+    module: substances
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: biologically_derived_product_dispense
+            action: read
+            targetRef: biologically_derived_product_dispense
+        - permission:
+            resource: biologically_derived_product_dispense
+            action: delete
+            targetRef: biologically_derived_product_dispense
+  - key: biologically_derived_product_dispense.button.assign
+    module: substances
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: biologically_derived_product_dispense
+            action: read
+            targetRef: biologically_derived_product_dispense
+        - permission:
+            resource: biologically_derived_product_dispense
+            action: assign
+            targetRef: biologically_derived_product_dispense
+  - key: biologically_derived_product_dispense.route.details
+    module: substances
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: biologically_derived_product_dispense
+            action: read
+            targetRef: biologically_derived_product_dispense
+        - permission:
+            resource: body_structure
+            action: read
+            targetRef: body_structure
+  - key: biologically_derived_product_dispense.route.edit
+    module: substances
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: biologically_derived_product_dispense
+            action: read
+            targetRef: biologically_derived_product_dispense
+        - permission:
+            resource: biologically_derived_product_dispense
+            action: update
+            targetRef: biologically_derived_product_dispense
+        - permission:
+            resource: body_structure
+            action: list
+            targetRef: body_structureCollection
+  - key: biologically_derived_product_dispense.route.list
+    module: substances
+    context: COLLECTION
+    expression:
+      allOf:
+        - permission:
+            resource: biologically_derived_product_dispense
+            action: list
+            targetRef: biologically_derived_product_dispenseCollection
+        - permission:
+            resource: hospital_context
+            action: read
+            targetRef: hospitalContext
+  - key: body_structure.action.delete
+    module: diagnostics
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: body_structure
+            action: read
+            targetRef: body_structure
+        - permission:
+            resource: body_structure
+            action: delete
+            targetRef: body_structure
+  - key: body_structure.button.assign
+    module: diagnostics
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: body_structure
+            action: read
+            targetRef: body_structure
+        - permission:
+            resource: body_structure
+            action: assign
+            targetRef: body_structure
+  - key: body_structure.route.details
+    module: diagnostics
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: body_structure
+            action: read
+            targetRef: body_structure
+        - permission:
+            resource: bundle
+            action: read
+            targetRef: bundle
+  - key: body_structure.route.edit
+    module: diagnostics
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: body_structure
+            action: read
+            targetRef: body_structure
+        - permission:
+            resource: body_structure
+            action: update
+            targetRef: body_structure
+        - permission:
+            resource: bundle
+            action: list
+            targetRef: bundleCollection
+  - key: body_structure.route.list
+    module: diagnostics
+    context: COLLECTION
+    expression:
+      allOf:
+        - permission:
+            resource: body_structure
+            action: list
+            targetRef: body_structureCollection
+        - permission:
+            resource: hospital_context
+            action: read
+            targetRef: hospitalContext
+  - key: bundle.action.delete
+    module: foundation
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: bundle
+            action: read
+            targetRef: bundle
+        - permission:
+            resource: bundle
+            action: delete
+            targetRef: bundle
+  - key: bundle.button.assign
+    module: foundation
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: bundle
+            action: read
+            targetRef: bundle
+        - permission:
+            resource: bundle
+            action: assign
+            targetRef: bundle
+  - key: bundle.route.details
+    module: foundation
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: bundle
+            action: read
+            targetRef: bundle
+        - permission:
+            resource: capability_statement
+            action: read
+            targetRef: capability_statement
+  - key: bundle.route.edit
+    module: foundation
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: bundle
+            action: read
+            targetRef: bundle
+        - permission:
+            resource: bundle
+            action: update
+            targetRef: bundle
+        - permission:
+            resource: capability_statement
+            action: list
+            targetRef: capability_statementCollection
+  - key: bundle.route.list
+    module: foundation
+    context: COLLECTION
+    expression:
+      allOf:
+        - permission:
+            resource: bundle
+            action: list
+            targetRef: bundleCollection
+        - permission:
+            resource: hospital_context
+            action: read
+            targetRef: hospitalContext
+  - key: capability_statement.action.delete
+    module: conformance
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: capability_statement
+            action: read
+            targetRef: capability_statement
+        - permission:
+            resource: capability_statement
+            action: delete
+            targetRef: capability_statement
+  - key: capability_statement.button.assign
+    module: conformance
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: capability_statement
+            action: read
+            targetRef: capability_statement
+        - permission:
+            resource: capability_statement
+            action: assign
+            targetRef: capability_statement
+  - key: capability_statement.route.details
+    module: conformance
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: capability_statement
+            action: read
+            targetRef: capability_statement
+        - permission:
+            resource: care_plan
+            action: read
+            targetRef: care_plan
+  - key: capability_statement.route.edit
+    module: conformance
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: capability_statement
+            action: read
+            targetRef: capability_statement
+        - permission:
+            resource: capability_statement
+            action: update
+            targetRef: capability_statement
+        - permission:
+            resource: care_plan
+            action: list
+            targetRef: care_planCollection
+  - key: capability_statement.route.list
+    module: conformance
+    context: COLLECTION
+    expression:
+      allOf:
+        - permission:
+            resource: capability_statement
+            action: list
+            targetRef: capability_statementCollection
+        - permission:
+            resource: hospital_context
+            action: read
+            targetRef: hospitalContext
+  - key: care_plan.action.delete
+    module: care_provision
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: care_plan
+            action: read
+            targetRef: care_plan
+        - permission:
+            resource: care_plan
+            action: delete
+            targetRef: care_plan
+  - key: care_plan.button.assign
+    module: care_provision
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: care_plan
+            action: read
+            targetRef: care_plan
+        - permission:
+            resource: care_plan
+            action: assign
+            targetRef: care_plan
+  - key: care_plan.route.details
+    module: care_provision
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: care_plan
+            action: read
+            targetRef: care_plan
+        - permission:
+            resource: care_team
+            action: read
+            targetRef: care_team
+  - key: care_plan.route.edit
+    module: care_provision
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: care_plan
+            action: read
+            targetRef: care_plan
+        - permission:
+            resource: care_plan
+            action: update
+            targetRef: care_plan
+        - permission:
+            resource: care_team
+            action: list
+            targetRef: care_teamCollection
+  - key: care_plan.route.list
+    module: care_provision
+    context: COLLECTION
+    expression:
+      allOf:
+        - permission:
+            resource: care_plan
+            action: list
+            targetRef: care_planCollection
+        - permission:
+            resource: hospital_context
+            action: read
+            targetRef: hospitalContext
+  - key: care_team.action.delete
+    module: management
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: care_team
+            action: read
+            targetRef: care_team
+        - permission:
+            resource: care_team
+            action: delete
+            targetRef: care_team
+  - key: care_team.button.assign
+    module: management
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: care_team
+            action: read
+            targetRef: care_team
+        - permission:
+            resource: care_team
+            action: assign
+            targetRef: care_team
+  - key: care_team.route.details
+    module: management
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: care_team
+            action: read
+            targetRef: care_team
+        - permission:
+            resource: charge_item
+            action: read
+            targetRef: charge_item
+  - key: care_team.route.edit
+    module: management
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: care_team
+            action: read
+            targetRef: care_team
+        - permission:
+            resource: care_team
+            action: update
+            targetRef: care_team
+        - permission:
+            resource: charge_item
+            action: list
+            targetRef: charge_itemCollection
+  - key: care_team.route.list
+    module: management
+    context: COLLECTION
+    expression:
+      allOf:
+        - permission:
+            resource: care_team
+            action: list
+            targetRef: care_teamCollection
+        - permission:
+            resource: hospital_context
+            action: read
+            targetRef: hospitalContext
+  - key: charge_item.action.delete
+    module: financial
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: charge_item
+            action: read
+            targetRef: charge_item
+        - permission:
+            resource: charge_item
+            action: delete
+            targetRef: charge_item
+  - key: charge_item.button.assign
+    module: financial
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: charge_item
+            action: read
+            targetRef: charge_item
+        - permission:
+            resource: charge_item
+            action: assign
+            targetRef: charge_item
+  - key: charge_item.route.details
+    module: financial
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: charge_item
+            action: read
+            targetRef: charge_item
+        - permission:
+            resource: charge_item_definition
+            action: read
+            targetRef: charge_item_definition
+  - key: charge_item.route.edit
+    module: financial
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: charge_item
+            action: read
+            targetRef: charge_item
+        - permission:
+            resource: charge_item
+            action: update
+            targetRef: charge_item
+        - permission:
+            resource: charge_item_definition
+            action: list
+            targetRef: charge_item_definitionCollection
+  - key: charge_item.route.list
+    module: financial
+    context: COLLECTION
+    expression:
+      allOf:
+        - permission:
+            resource: charge_item
+            action: list
+            targetRef: charge_itemCollection
+        - permission:
+            resource: hospital_context
+            action: read
+            targetRef: hospitalContext
+  - key: charge_item_definition.action.delete
+    module: financial
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: charge_item_definition
+            action: read
+            targetRef: charge_item_definition
+        - permission:
+            resource: charge_item_definition
+            action: delete
+            targetRef: charge_item_definition
+  - key: charge_item_definition.button.assign
+    module: financial
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: charge_item_definition
+            action: read
+            targetRef: charge_item_definition
+        - permission:
+            resource: charge_item_definition
+            action: assign
+            targetRef: charge_item_definition
+  - key: charge_item_definition.route.details
+    module: financial
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: charge_item_definition
+            action: read
+            targetRef: charge_item_definition
+        - permission:
+            resource: citation
+            action: read
+            targetRef: citation
+  - key: charge_item_definition.route.edit
+    module: financial
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: charge_item_definition
+            action: read
+            targetRef: charge_item_definition
+        - permission:
+            resource: charge_item_definition
+            action: update
+            targetRef: charge_item_definition
+        - permission:
+            resource: citation
+            action: list
+            targetRef: citationCollection
+  - key: charge_item_definition.route.list
+    module: financial
+    context: COLLECTION
+    expression:
+      allOf:
+        - permission:
+            resource: charge_item_definition
+            action: list
+            targetRef: charge_item_definitionCollection
+        - permission:
+            resource: hospital_context
+            action: read
+            targetRef: hospitalContext
+  - key: citation.action.delete
+    module: research
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: citation
+            action: read
+            targetRef: citation
+        - permission:
+            resource: citation
+            action: delete
+            targetRef: citation
+  - key: citation.button.assign
+    module: research
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: citation
+            action: read
+            targetRef: citation
+        - permission:
+            resource: citation
+            action: assign
+            targetRef: citation
+  - key: citation.route.details
+    module: research
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: citation
+            action: read
+            targetRef: citation
+        - permission:
+            resource: claim
+            action: read
+            targetRef: claim
+  - key: citation.route.edit
+    module: research
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: citation
+            action: read
+            targetRef: citation
+        - permission:
+            resource: citation
+            action: update
+            targetRef: citation
+        - permission:
+            resource: claim
+            action: list
+            targetRef: claimCollection
+  - key: citation.route.list
+    module: research
+    context: COLLECTION
+    expression:
+      allOf:
+        - permission:
+            resource: citation
+            action: list
+            targetRef: citationCollection
+        - permission:
+            resource: hospital_context
+            action: read
+            targetRef: hospitalContext
+  - key: claim.action.delete
+    module: financial
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: claim
+            action: read
+            targetRef: claim
+        - permission:
+            resource: claim
+            action: delete
+            targetRef: claim
+  - key: claim.button.assign
+    module: financial
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: claim
+            action: read
+            targetRef: claim
+        - permission:
+            resource: claim
+            action: assign
+            targetRef: claim
+  - key: claim.route.details
+    module: financial
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: claim
+            action: read
+            targetRef: claim
+        - permission:
+            resource: claim_response
+            action: read
+            targetRef: claim_response
+  - key: claim.route.edit
+    module: financial
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: claim
+            action: read
+            targetRef: claim
+        - permission:
+            resource: claim
+            action: update
+            targetRef: claim
+        - permission:
+            resource: claim_response
+            action: list
+            targetRef: claim_responseCollection
+  - key: claim.route.list
+    module: financial
+    context: COLLECTION
+    expression:
+      allOf:
+        - permission:
+            resource: claim
+            action: list
+            targetRef: claimCollection
+        - permission:
+            resource: hospital_context
+            action: read
+            targetRef: hospitalContext
+  - key: claim_response.action.delete
+    module: financial
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: claim_response
+            action: read
+            targetRef: claim_response
+        - permission:
+            resource: claim_response
+            action: delete
+            targetRef: claim_response
+  - key: claim_response.button.assign
+    module: financial
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: claim_response
+            action: read
+            targetRef: claim_response
+        - permission:
+            resource: claim_response
+            action: assign
+            targetRef: claim_response
+  - key: claim_response.route.details
+    module: financial
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: claim_response
+            action: read
+            targetRef: claim_response
+        - permission:
+            resource: clinical_impression
+            action: read
+            targetRef: clinical_impression
+  - key: claim_response.route.edit
+    module: financial
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: claim_response
+            action: read
+            targetRef: claim_response
+        - permission:
+            resource: claim_response
+            action: update
+            targetRef: claim_response
+        - permission:
+            resource: clinical_impression
+            action: list
+            targetRef: clinical_impressionCollection
+  - key: claim_response.route.list
+    module: financial
+    context: COLLECTION
+    expression:
+      allOf:
+        - permission:
+            resource: claim_response
+            action: list
+            targetRef: claim_responseCollection
+        - permission:
+            resource: hospital_context
+            action: read
+            targetRef: hospitalContext
+  - key: clinical_impression.action.delete
+    module: clinical
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: clinical_impression
+            action: read
+            targetRef: clinical_impression
+        - permission:
+            resource: clinical_impression
+            action: delete
+            targetRef: clinical_impression
+  - key: clinical_impression.button.assign
+    module: clinical
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: clinical_impression
+            action: read
+            targetRef: clinical_impression
+        - permission:
+            resource: clinical_impression
+            action: assign
+            targetRef: clinical_impression
+  - key: clinical_impression.route.details
+    module: clinical
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: clinical_impression
+            action: read
+            targetRef: clinical_impression
+        - permission:
+            resource: clinical_use_definition
+            action: read
+            targetRef: clinical_use_definition
+  - key: clinical_impression.route.edit
+    module: clinical
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: clinical_impression
+            action: read
+            targetRef: clinical_impression
+        - permission:
+            resource: clinical_impression
+            action: update
+            targetRef: clinical_impression
+        - permission:
+            resource: clinical_use_definition
+            action: list
+            targetRef: clinical_use_definitionCollection
+  - key: clinical_impression.route.list
+    module: clinical
+    context: COLLECTION
+    expression:
+      allOf:
+        - permission:
+            resource: clinical_impression
+            action: list
+            targetRef: clinical_impressionCollection
+        - permission:
+            resource: hospital_context
+            action: read
+            targetRef: hospitalContext
+  - key: clinical_use_definition.action.delete
+    module: medicinal_products
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: clinical_use_definition
+            action: read
+            targetRef: clinical_use_definition
+        - permission:
+            resource: clinical_use_definition
+            action: delete
+            targetRef: clinical_use_definition
+  - key: clinical_use_definition.button.assign
+    module: medicinal_products
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: clinical_use_definition
+            action: read
+            targetRef: clinical_use_definition
+        - permission:
+            resource: clinical_use_definition
+            action: assign
+            targetRef: clinical_use_definition
+  - key: clinical_use_definition.route.details
+    module: medicinal_products
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: clinical_use_definition
+            action: read
+            targetRef: clinical_use_definition
+        - permission:
+            resource: code_system
+            action: read
+            targetRef: code_system
+  - key: clinical_use_definition.route.edit
+    module: medicinal_products
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: clinical_use_definition
+            action: read
+            targetRef: clinical_use_definition
+        - permission:
+            resource: clinical_use_definition
+            action: update
+            targetRef: clinical_use_definition
+        - permission:
+            resource: code_system
+            action: list
+            targetRef: code_systemCollection
+  - key: clinical_use_definition.route.list
+    module: medicinal_products
+    context: COLLECTION
+    expression:
+      allOf:
+        - permission:
+            resource: clinical_use_definition
+            action: list
+            targetRef: clinical_use_definitionCollection
+        - permission:
+            resource: hospital_context
+            action: read
+            targetRef: hospitalContext
+  - key: code_system.action.delete
+    module: terminology
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: code_system
+            action: read
+            targetRef: code_system
+        - permission:
+            resource: code_system
+            action: delete
+            targetRef: code_system
+  - key: code_system.button.assign
+    module: terminology
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: code_system
+            action: read
+            targetRef: code_system
+        - permission:
+            resource: code_system
+            action: assign
+            targetRef: code_system
+  - key: code_system.route.details
+    module: terminology
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: code_system
+            action: read
+            targetRef: code_system
+        - permission:
+            resource: communication
+            action: read
+            targetRef: communication
+  - key: code_system.route.edit
+    module: terminology
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: code_system
+            action: read
+            targetRef: code_system
+        - permission:
+            resource: code_system
+            action: update
+            targetRef: code_system
+        - permission:
+            resource: communication
+            action: list
+            targetRef: communicationCollection
+  - key: code_system.route.list
+    module: terminology
+    context: COLLECTION
+    expression:
+      allOf:
+        - permission:
+            resource: code_system
+            action: list
+            targetRef: code_systemCollection
+        - permission:
+            resource: hospital_context
+            action: read
+            targetRef: hospitalContext
+  - key: communication.action.delete
+    module: care_provision
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: communication
+            action: read
+            targetRef: communication
+        - permission:
+            resource: communication
+            action: delete
+            targetRef: communication
+  - key: communication.button.assign
+    module: care_provision
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: communication
+            action: read
+            targetRef: communication
+        - permission:
+            resource: communication
+            action: assign
+            targetRef: communication
+  - key: communication.route.details
+    module: care_provision
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: communication
+            action: read
+            targetRef: communication
+        - permission:
+            resource: communication_request
+            action: read
+            targetRef: communication_request
+  - key: communication.route.edit
+    module: care_provision
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: communication
+            action: read
+            targetRef: communication
+        - permission:
+            resource: communication
+            action: update
+            targetRef: communication
+        - permission:
+            resource: communication_request
+            action: list
+            targetRef: communication_requestCollection
+  - key: communication.route.list
+    module: care_provision
+    context: COLLECTION
+    expression:
+      allOf:
+        - permission:
+            resource: communication
+            action: list
+            targetRef: communicationCollection
+        - permission:
+            resource: hospital_context
+            action: read
+            targetRef: hospitalContext
+  - key: communication_request.action.delete
+    module: care_provision
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: communication_request
+            action: read
+            targetRef: communication_request
+        - permission:
+            resource: communication_request
+            action: delete
+            targetRef: communication_request
+  - key: communication_request.button.assign
+    module: care_provision
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: communication_request
+            action: read
+            targetRef: communication_request
+        - permission:
+            resource: communication_request
+            action: assign
+            targetRef: communication_request
+  - key: communication_request.route.details
+    module: care_provision
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: communication_request
+            action: read
+            targetRef: communication_request
+        - permission:
+            resource: compartment_definition
+            action: read
+            targetRef: compartment_definition
+  - key: communication_request.route.edit
+    module: care_provision
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: communication_request
+            action: read
+            targetRef: communication_request
+        - permission:
+            resource: communication_request
+            action: update
+            targetRef: communication_request
+        - permission:
+            resource: compartment_definition
+            action: list
+            targetRef: compartment_definitionCollection
+  - key: communication_request.route.list
+    module: care_provision
+    context: COLLECTION
+    expression:
+      allOf:
+        - permission:
+            resource: communication_request
+            action: list
+            targetRef: communication_requestCollection
+        - permission:
+            resource: hospital_context
+            action: read
+            targetRef: hospitalContext
+  - key: compartment_definition.action.delete
+    module: conformance
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: compartment_definition
+            action: read
+            targetRef: compartment_definition
+        - permission:
+            resource: compartment_definition
+            action: delete
+            targetRef: compartment_definition
+  - key: compartment_definition.button.assign
+    module: conformance
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: compartment_definition
+            action: read
+            targetRef: compartment_definition
+        - permission:
+            resource: compartment_definition
+            action: assign
+            targetRef: compartment_definition
+  - key: compartment_definition.route.details
+    module: conformance
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: compartment_definition
+            action: read
+            targetRef: compartment_definition
+        - permission:
+            resource: composition
+            action: read
+            targetRef: composition
+  - key: compartment_definition.route.edit
+    module: conformance
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: compartment_definition
+            action: read
+            targetRef: compartment_definition
+        - permission:
+            resource: compartment_definition
+            action: update
+            targetRef: compartment_definition
+        - permission:
+            resource: composition
+            action: list
+            targetRef: compositionCollection
+  - key: compartment_definition.route.list
+    module: conformance
+    context: COLLECTION
+    expression:
+      allOf:
+        - permission:
+            resource: compartment_definition
+            action: list
+            targetRef: compartment_definitionCollection
+        - permission:
+            resource: hospital_context
+            action: read
+            targetRef: hospitalContext
+  - key: composition.action.delete
+    module: documents
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: composition
+            action: read
+            targetRef: composition
+        - permission:
+            resource: composition
+            action: delete
+            targetRef: composition
+  - key: composition.button.assign
+    module: documents
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: composition
+            action: read
+            targetRef: composition
+        - permission:
+            resource: composition
+            action: assign
+            targetRef: composition
+  - key: composition.route.details
+    module: documents
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: composition
+            action: read
+            targetRef: composition
+        - permission:
+            resource: concept_map
+            action: read
+            targetRef: concept_map
+  - key: composition.route.edit
+    module: documents
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: composition
+            action: read
+            targetRef: composition
+        - permission:
+            resource: composition
+            action: update
+            targetRef: composition
+        - permission:
+            resource: concept_map
+            action: list
+            targetRef: concept_mapCollection
+  - key: composition.route.list
+    module: documents
+    context: COLLECTION
+    expression:
+      allOf:
+        - permission:
+            resource: composition
+            action: list
+            targetRef: compositionCollection
+        - permission:
+            resource: hospital_context
+            action: read
+            targetRef: hospitalContext
+  - key: concept_map.action.delete
+    module: terminology
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: concept_map
+            action: read
+            targetRef: concept_map
+        - permission:
+            resource: concept_map
+            action: delete
+            targetRef: concept_map
+  - key: concept_map.button.assign
+    module: terminology
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: concept_map
+            action: read
+            targetRef: concept_map
+        - permission:
+            resource: concept_map
+            action: assign
+            targetRef: concept_map
+  - key: concept_map.route.details
+    module: terminology
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: concept_map
+            action: read
+            targetRef: concept_map
+        - permission:
+            resource: condition
+            action: read
+            targetRef: condition
+  - key: concept_map.route.edit
+    module: terminology
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: concept_map
+            action: read
+            targetRef: concept_map
+        - permission:
+            resource: concept_map
+            action: update
+            targetRef: concept_map
+        - permission:
+            resource: condition
+            action: list
+            targetRef: conditionCollection
+  - key: concept_map.route.list
+    module: terminology
+    context: COLLECTION
+    expression:
+      allOf:
+        - permission:
+            resource: concept_map
+            action: list
+            targetRef: concept_mapCollection
+        - permission:
+            resource: hospital_context
+            action: read
+            targetRef: hospitalContext
+  - key: condition.action.delete
+    module: clinical
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: condition
+            action: read
+            targetRef: condition
+        - permission:
+            resource: condition
+            action: delete
+            targetRef: condition
+  - key: condition.button.assign
+    module: clinical
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: condition
+            action: read
+            targetRef: condition
+        - permission:
+            resource: condition
+            action: assign
+            targetRef: condition
+  - key: condition.route.details
+    module: clinical
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: condition
+            action: read
+            targetRef: condition
+        - permission:
+            resource: consent
+            action: read
+            targetRef: consent
+  - key: condition.route.edit
+    module: clinical
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: condition
+            action: read
+            targetRef: condition
+        - permission:
+            resource: condition
+            action: update
+            targetRef: condition
+        - permission:
+            resource: consent
+            action: list
+            targetRef: consentCollection
+  - key: condition.route.list
+    module: clinical
+    context: COLLECTION
+    expression:
+      allOf:
+        - permission:
+            resource: condition
+            action: list
+            targetRef: conditionCollection
+        - permission:
+            resource: hospital_context
+            action: read
+            targetRef: hospitalContext
+  - key: consent.action.delete
+    module: security
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: consent
+            action: read
+            targetRef: consent
+        - permission:
+            resource: consent
+            action: delete
+            targetRef: consent
+  - key: consent.button.assign
+    module: security
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: consent
+            action: read
+            targetRef: consent
+        - permission:
+            resource: consent
+            action: assign
+            targetRef: consent
+  - key: consent.route.details
+    module: security
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: consent
+            action: read
+            targetRef: consent
+        - permission:
+            resource: contract
+            action: read
+            targetRef: contract
+  - key: consent.route.edit
+    module: security
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: consent
+            action: read
+            targetRef: consent
+        - permission:
+            resource: consent
+            action: update
+            targetRef: consent
+        - permission:
+            resource: contract
+            action: list
+            targetRef: contractCollection
+  - key: consent.route.list
+    module: security
+    context: COLLECTION
+    expression:
+      allOf:
+        - permission:
+            resource: consent
+            action: list
+            targetRef: consentCollection
+        - permission:
+            resource: hospital_context
+            action: read
+            targetRef: hospitalContext
+  - key: contract.action.delete
+    module: financial
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: contract
+            action: read
+            targetRef: contract
+        - permission:
+            resource: contract
+            action: delete
+            targetRef: contract
+  - key: contract.button.assign
+    module: financial
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: contract
+            action: read
+            targetRef: contract
+        - permission:
+            resource: contract
+            action: assign
+            targetRef: contract
+  - key: contract.route.details
+    module: financial
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: contract
+            action: read
+            targetRef: contract
+        - permission:
+            resource: coverage
+            action: read
+            targetRef: coverage
+  - key: contract.route.edit
+    module: financial
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: contract
+            action: read
+            targetRef: contract
+        - permission:
+            resource: contract
+            action: update
+            targetRef: contract
+        - permission:
+            resource: coverage
+            action: list
+            targetRef: coverageCollection
+  - key: contract.route.list
+    module: financial
+    context: COLLECTION
+    expression:
+      allOf:
+        - permission:
+            resource: contract
+            action: list
+            targetRef: contractCollection
+        - permission:
+            resource: hospital_context
+            action: read
+            targetRef: hospitalContext
+  - key: coverage.action.delete
+    module: financial
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: coverage
+            action: read
+            targetRef: coverage
+        - permission:
+            resource: coverage
+            action: delete
+            targetRef: coverage
+  - key: coverage.button.assign
+    module: financial
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: coverage
+            action: read
+            targetRef: coverage
+        - permission:
+            resource: coverage
+            action: assign
+            targetRef: coverage
+  - key: coverage.route.details
+    module: financial
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: coverage
+            action: read
+            targetRef: coverage
+        - permission:
+            resource: coverage_eligibility_request
+            action: read
+            targetRef: coverage_eligibility_request
+  - key: coverage.route.edit
+    module: financial
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: coverage
+            action: read
+            targetRef: coverage
+        - permission:
+            resource: coverage
+            action: update
+            targetRef: coverage
+        - permission:
+            resource: coverage_eligibility_request
+            action: list
+            targetRef: coverage_eligibility_requestCollection
+  - key: coverage.route.list
+    module: financial
+    context: COLLECTION
+    expression:
+      allOf:
+        - permission:
+            resource: coverage
+            action: list
+            targetRef: coverageCollection
+        - permission:
+            resource: hospital_context
+            action: read
+            targetRef: hospitalContext
+  - key: coverage_eligibility_request.action.delete
+    module: financial
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: coverage_eligibility_request
+            action: read
+            targetRef: coverage_eligibility_request
+        - permission:
+            resource: coverage_eligibility_request
+            action: delete
+            targetRef: coverage_eligibility_request
+  - key: coverage_eligibility_request.button.assign
+    module: financial
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: coverage_eligibility_request
+            action: read
+            targetRef: coverage_eligibility_request
+        - permission:
+            resource: coverage_eligibility_request
+            action: assign
+            targetRef: coverage_eligibility_request
+  - key: coverage_eligibility_request.route.details
+    module: financial
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: coverage_eligibility_request
+            action: read
+            targetRef: coverage_eligibility_request
+        - permission:
+            resource: coverage_eligibility_response
+            action: read
+            targetRef: coverage_eligibility_response
+  - key: coverage_eligibility_request.route.edit
+    module: financial
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: coverage_eligibility_request
+            action: read
+            targetRef: coverage_eligibility_request
+        - permission:
+            resource: coverage_eligibility_request
+            action: update
+            targetRef: coverage_eligibility_request
+        - permission:
+            resource: coverage_eligibility_response
+            action: list
+            targetRef: coverage_eligibility_responseCollection
+  - key: coverage_eligibility_request.route.list
+    module: financial
+    context: COLLECTION
+    expression:
+      allOf:
+        - permission:
+            resource: coverage_eligibility_request
+            action: list
+            targetRef: coverage_eligibility_requestCollection
+        - permission:
+            resource: hospital_context
+            action: read
+            targetRef: hospitalContext
+  - key: coverage_eligibility_response.action.delete
+    module: financial
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: coverage_eligibility_response
+            action: read
+            targetRef: coverage_eligibility_response
+        - permission:
+            resource: coverage_eligibility_response
+            action: delete
+            targetRef: coverage_eligibility_response
+  - key: coverage_eligibility_response.button.assign
+    module: financial
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: coverage_eligibility_response
+            action: read
+            targetRef: coverage_eligibility_response
+        - permission:
+            resource: coverage_eligibility_response
+            action: assign
+            targetRef: coverage_eligibility_response
+  - key: coverage_eligibility_response.route.details
+    module: financial
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: coverage_eligibility_response
+            action: read
+            targetRef: coverage_eligibility_response
+        - permission:
+            resource: detected_issue
+            action: read
+            targetRef: detected_issue
+  - key: coverage_eligibility_response.route.edit
+    module: financial
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: coverage_eligibility_response
+            action: read
+            targetRef: coverage_eligibility_response
+        - permission:
+            resource: coverage_eligibility_response
+            action: update
+            targetRef: coverage_eligibility_response
+        - permission:
+            resource: detected_issue
+            action: list
+            targetRef: detected_issueCollection
+  - key: coverage_eligibility_response.route.list
+    module: financial
+    context: COLLECTION
+    expression:
+      allOf:
+        - permission:
+            resource: coverage_eligibility_response
+            action: list
+            targetRef: coverage_eligibility_responseCollection
+        - permission:
+            resource: hospital_context
+            action: read
+            targetRef: hospitalContext
+  - key: detected_issue.action.delete
+    module: clinical
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: detected_issue
+            action: read
+            targetRef: detected_issue
+        - permission:
+            resource: detected_issue
+            action: delete
+            targetRef: detected_issue
+  - key: detected_issue.button.assign
+    module: clinical
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: detected_issue
+            action: read
+            targetRef: detected_issue
+        - permission:
+            resource: detected_issue
+            action: assign
+            targetRef: detected_issue
+  - key: detected_issue.route.details
+    module: clinical
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: detected_issue
+            action: read
+            targetRef: detected_issue
+        - permission:
+            resource: device
+            action: read
+            targetRef: device
+  - key: detected_issue.route.edit
+    module: clinical
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: detected_issue
+            action: read
+            targetRef: detected_issue
+        - permission:
+            resource: detected_issue
+            action: update
+            targetRef: detected_issue
+        - permission:
+            resource: device
+            action: list
+            targetRef: deviceCollection
+  - key: detected_issue.route.list
+    module: clinical
+    context: COLLECTION
+    expression:
+      allOf:
+        - permission:
+            resource: detected_issue
+            action: list
+            targetRef: detected_issueCollection
+        - permission:
+            resource: hospital_context
+            action: read
+            targetRef: hospitalContext
+  - key: device.action.delete
+    module: devices
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: device
+            action: read
+            targetRef: device
+        - permission:
+            resource: device
+            action: delete
+            targetRef: device
+  - key: device.button.assign
+    module: devices
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: device
+            action: read
+            targetRef: device
+        - permission:
+            resource: device
+            action: assign
+            targetRef: device
+  - key: device.route.details
+    module: devices
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: device
+            action: read
+            targetRef: device
+        - permission:
+            resource: device_association
+            action: read
+            targetRef: device_association
+  - key: device.route.edit
+    module: devices
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: device
+            action: read
+            targetRef: device
+        - permission:
+            resource: device
+            action: update
+            targetRef: device
+        - permission:
+            resource: device_association
+            action: list
+            targetRef: device_associationCollection
+  - key: device.route.list
+    module: devices
+    context: COLLECTION
+    expression:
+      allOf:
+        - permission:
+            resource: device
+            action: list
+            targetRef: deviceCollection
+        - permission:
+            resource: hospital_context
+            action: read
+            targetRef: hospitalContext
+  - key: device_association.action.delete
+    module: devices
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: device_association
+            action: read
+            targetRef: device_association
+        - permission:
+            resource: device_association
+            action: delete
+            targetRef: device_association
+  - key: device_association.button.assign
+    module: devices
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: device_association
+            action: read
+            targetRef: device_association
+        - permission:
+            resource: device_association
+            action: assign
+            targetRef: device_association
+  - key: device_association.route.details
+    module: devices
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: device_association
+            action: read
+            targetRef: device_association
+        - permission:
+            resource: device_definition
+            action: read
+            targetRef: device_definition
+  - key: device_association.route.edit
+    module: devices
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: device_association
+            action: read
+            targetRef: device_association
+        - permission:
+            resource: device_association
+            action: update
+            targetRef: device_association
+        - permission:
+            resource: device_definition
+            action: list
+            targetRef: device_definitionCollection
+  - key: device_association.route.list
+    module: devices
+    context: COLLECTION
+    expression:
+      allOf:
+        - permission:
+            resource: device_association
+            action: list
+            targetRef: device_associationCollection
+        - permission:
+            resource: hospital_context
+            action: read
+            targetRef: hospitalContext
+  - key: device_definition.action.delete
+    module: devices
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: device_definition
+            action: read
+            targetRef: device_definition
+        - permission:
+            resource: device_definition
+            action: delete
+            targetRef: device_definition
+  - key: device_definition.button.assign
+    module: devices
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: device_definition
+            action: read
+            targetRef: device_definition
+        - permission:
+            resource: device_definition
+            action: assign
+            targetRef: device_definition
+  - key: device_definition.route.details
+    module: devices
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: device_definition
+            action: read
+            targetRef: device_definition
+        - permission:
+            resource: device_dispense
+            action: read
+            targetRef: device_dispense
+  - key: device_definition.route.edit
+    module: devices
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: device_definition
+            action: read
+            targetRef: device_definition
+        - permission:
+            resource: device_definition
+            action: update
+            targetRef: device_definition
+        - permission:
+            resource: device_dispense
+            action: list
+            targetRef: device_dispenseCollection
+  - key: device_definition.route.list
+    module: devices
+    context: COLLECTION
+    expression:
+      allOf:
+        - permission:
+            resource: device_definition
+            action: list
+            targetRef: device_definitionCollection
+        - permission:
+            resource: hospital_context
+            action: read
+            targetRef: hospitalContext
+  - key: device_dispense.action.delete
+    module: devices
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: device_dispense
+            action: read
+            targetRef: device_dispense
+        - permission:
+            resource: device_dispense
+            action: delete
+            targetRef: device_dispense
+  - key: device_dispense.button.assign
+    module: devices
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: device_dispense
+            action: read
+            targetRef: device_dispense
+        - permission:
+            resource: device_dispense
+            action: assign
+            targetRef: device_dispense
+  - key: device_dispense.route.details
+    module: devices
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: device_dispense
+            action: read
+            targetRef: device_dispense
+        - permission:
+            resource: device_metric
+            action: read
+            targetRef: device_metric
+  - key: device_dispense.route.edit
+    module: devices
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: device_dispense
+            action: read
+            targetRef: device_dispense
+        - permission:
+            resource: device_dispense
+            action: update
+            targetRef: device_dispense
+        - permission:
+            resource: device_metric
+            action: list
+            targetRef: device_metricCollection
+  - key: device_dispense.route.list
+    module: devices
+    context: COLLECTION
+    expression:
+      allOf:
+        - permission:
+            resource: device_dispense
+            action: list
+            targetRef: device_dispenseCollection
+        - permission:
+            resource: hospital_context
+            action: read
+            targetRef: hospitalContext
+  - key: device_metric.action.delete
+    module: devices
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: device_metric
+            action: read
+            targetRef: device_metric
+        - permission:
+            resource: device_metric
+            action: delete
+            targetRef: device_metric
+  - key: device_metric.button.assign
+    module: devices
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: device_metric
+            action: read
+            targetRef: device_metric
+        - permission:
+            resource: device_metric
+            action: assign
+            targetRef: device_metric
+  - key: device_metric.route.details
+    module: devices
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: device_metric
+            action: read
+            targetRef: device_metric
+        - permission:
+            resource: device_request
+            action: read
+            targetRef: device_request
+  - key: device_metric.route.edit
+    module: devices
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: device_metric
+            action: read
+            targetRef: device_metric
+        - permission:
+            resource: device_metric
+            action: update
+            targetRef: device_metric
+        - permission:
+            resource: device_request
+            action: list
+            targetRef: device_requestCollection
+  - key: device_metric.route.list
+    module: devices
+    context: COLLECTION
+    expression:
+      allOf:
+        - permission:
+            resource: device_metric
+            action: list
+            targetRef: device_metricCollection
+        - permission:
+            resource: hospital_context
+            action: read
+            targetRef: hospitalContext
+  - key: device_request.action.delete
+    module: devices
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: device_request
+            action: read
+            targetRef: device_request
+        - permission:
+            resource: device_request
+            action: delete
+            targetRef: device_request
+  - key: device_request.button.assign
+    module: devices
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: device_request
+            action: read
+            targetRef: device_request
+        - permission:
+            resource: device_request
+            action: assign
+            targetRef: device_request
+  - key: device_request.route.details
+    module: devices
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: device_request
+            action: read
+            targetRef: device_request
+        - permission:
+            resource: device_usage
+            action: read
+            targetRef: device_usage
+  - key: device_request.route.edit
+    module: devices
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: device_request
+            action: read
+            targetRef: device_request
+        - permission:
+            resource: device_request
+            action: update
+            targetRef: device_request
+        - permission:
+            resource: device_usage
+            action: list
+            targetRef: device_usageCollection
+  - key: device_request.route.list
+    module: devices
+    context: COLLECTION
+    expression:
+      allOf:
+        - permission:
+            resource: device_request
+            action: list
+            targetRef: device_requestCollection
+        - permission:
+            resource: hospital_context
+            action: read
+            targetRef: hospitalContext
+  - key: device_usage.action.delete
+    module: devices
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: device_usage
+            action: read
+            targetRef: device_usage
+        - permission:
+            resource: device_usage
+            action: delete
+            targetRef: device_usage
+  - key: device_usage.button.assign
+    module: devices
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: device_usage
+            action: read
+            targetRef: device_usage
+        - permission:
+            resource: device_usage
+            action: assign
+            targetRef: device_usage
+  - key: device_usage.route.details
+    module: devices
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: device_usage
+            action: read
+            targetRef: device_usage
+        - permission:
+            resource: diagnostic_report
+            action: read
+            targetRef: diagnostic_report
+  - key: device_usage.route.edit
+    module: devices
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: device_usage
+            action: read
+            targetRef: device_usage
+        - permission:
+            resource: device_usage
+            action: update
+            targetRef: device_usage
+        - permission:
+            resource: diagnostic_report
+            action: list
+            targetRef: diagnostic_reportCollection
+  - key: device_usage.route.list
+    module: devices
+    context: COLLECTION
+    expression:
+      allOf:
+        - permission:
+            resource: device_usage
+            action: list
+            targetRef: device_usageCollection
+        - permission:
+            resource: hospital_context
+            action: read
+            targetRef: hospitalContext
+  - key: diagnostic_report.action.delete
+    module: diagnostics
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: diagnostic_report
+            action: read
+            targetRef: diagnostic_report
+        - permission:
+            resource: diagnostic_report
+            action: delete
+            targetRef: diagnostic_report
+  - key: diagnostic_report.button.assign
+    module: diagnostics
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: diagnostic_report
+            action: read
+            targetRef: diagnostic_report
+        - permission:
+            resource: diagnostic_report
+            action: assign
+            targetRef: diagnostic_report
+  - key: diagnostic_report.route.details
+    module: diagnostics
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: diagnostic_report
+            action: read
+            targetRef: diagnostic_report
+        - permission:
+            resource: document_reference
+            action: read
+            targetRef: document_reference
+  - key: diagnostic_report.route.edit
+    module: diagnostics
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: diagnostic_report
+            action: read
+            targetRef: diagnostic_report
+        - permission:
+            resource: diagnostic_report
+            action: update
+            targetRef: diagnostic_report
+        - permission:
+            resource: document_reference
+            action: list
+            targetRef: document_referenceCollection
+  - key: diagnostic_report.route.list
+    module: diagnostics
+    context: COLLECTION
+    expression:
+      allOf:
+        - permission:
+            resource: diagnostic_report
+            action: list
+            targetRef: diagnostic_reportCollection
+        - permission:
+            resource: hospital_context
+            action: read
+            targetRef: hospitalContext
+  - key: document_reference.action.delete
+    module: documents
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: document_reference
+            action: read
+            targetRef: document_reference
+        - permission:
+            resource: document_reference
+            action: delete
+            targetRef: document_reference
+  - key: document_reference.button.assign
+    module: documents
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: document_reference
+            action: read
+            targetRef: document_reference
+        - permission:
+            resource: document_reference
+            action: assign
+            targetRef: document_reference
+  - key: document_reference.route.details
+    module: documents
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: document_reference
+            action: read
+            targetRef: document_reference
+        - permission:
+            resource: encounter
+            action: read
+            targetRef: encounter
+  - key: document_reference.route.edit
+    module: documents
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: document_reference
+            action: read
+            targetRef: document_reference
+        - permission:
+            resource: document_reference
+            action: update
+            targetRef: document_reference
+        - permission:
+            resource: encounter
+            action: list
+            targetRef: encounterCollection
+  - key: document_reference.route.list
+    module: documents
+    context: COLLECTION
+    expression:
+      allOf:
+        - permission:
+            resource: document_reference
+            action: list
+            targetRef: document_referenceCollection
+        - permission:
+            resource: hospital_context
+            action: read
+            targetRef: hospitalContext
+  - key: encounter.action.delete
+    module: management
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: encounter
+            action: read
+            targetRef: encounter
+        - permission:
+            resource: encounter
+            action: delete
+            targetRef: encounter
+  - key: encounter.button.assign
+    module: management
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: encounter
+            action: read
+            targetRef: encounter
+        - permission:
+            resource: encounter
+            action: assign
+            targetRef: encounter
+  - key: encounter.route.details
+    module: management
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: encounter
+            action: read
+            targetRef: encounter
+        - permission:
+            resource: encounter_history
+            action: read
+            targetRef: encounter_history
+  - key: encounter.route.edit
+    module: management
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: encounter
+            action: read
+            targetRef: encounter
+        - permission:
+            resource: encounter
+            action: update
+            targetRef: encounter
+        - permission:
+            resource: encounter_history
+            action: list
+            targetRef: encounter_historyCollection
+  - key: encounter.route.list
+    module: management
+    context: COLLECTION
+    expression:
+      allOf:
+        - permission:
+            resource: encounter
+            action: list
+            targetRef: encounterCollection
+        - permission:
+            resource: hospital_context
+            action: read
+            targetRef: hospitalContext
+  - key: encounter_history.action.delete
+    module: management
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: encounter_history
+            action: read
+            targetRef: encounter_history
+        - permission:
+            resource: encounter_history
+            action: delete
+            targetRef: encounter_history
+  - key: encounter_history.button.assign
+    module: management
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: encounter_history
+            action: read
+            targetRef: encounter_history
+        - permission:
+            resource: encounter_history
+            action: assign
+            targetRef: encounter_history
+  - key: encounter_history.route.details
+    module: management
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: encounter_history
+            action: read
+            targetRef: encounter_history
+        - permission:
+            resource: endpoint
+            action: read
+            targetRef: endpoint
+  - key: encounter_history.route.edit
+    module: management
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: encounter_history
+            action: read
+            targetRef: encounter_history
+        - permission:
+            resource: encounter_history
+            action: update
+            targetRef: encounter_history
+        - permission:
+            resource: endpoint
+            action: list
+            targetRef: endpointCollection
+  - key: encounter_history.route.list
+    module: management
+    context: COLLECTION
+    expression:
+      allOf:
+        - permission:
+            resource: encounter_history
+            action: list
+            targetRef: encounter_historyCollection
+        - permission:
+            resource: hospital_context
+            action: read
+            targetRef: hospitalContext
+  - key: endpoint.action.delete
+    module: administrative
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: endpoint
+            action: read
+            targetRef: endpoint
+        - permission:
+            resource: endpoint
+            action: delete
+            targetRef: endpoint
+  - key: endpoint.button.assign
+    module: administrative
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: endpoint
+            action: read
+            targetRef: endpoint
+        - permission:
+            resource: endpoint
+            action: assign
+            targetRef: endpoint
+  - key: endpoint.route.details
+    module: administrative
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: endpoint
+            action: read
+            targetRef: endpoint
+        - permission:
+            resource: enrollment_request
+            action: read
+            targetRef: enrollment_request
+  - key: endpoint.route.edit
+    module: administrative
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: endpoint
+            action: read
+            targetRef: endpoint
+        - permission:
+            resource: endpoint
+            action: update
+            targetRef: endpoint
+        - permission:
+            resource: enrollment_request
+            action: list
+            targetRef: enrollment_requestCollection
+  - key: endpoint.route.list
+    module: administrative
+    context: COLLECTION
+    expression:
+      allOf:
+        - permission:
+            resource: endpoint
+            action: list
+            targetRef: endpointCollection
+        - permission:
+            resource: hospital_context
+            action: read
+            targetRef: hospitalContext
+  - key: enrollment_request.action.delete
+    module: financial
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: enrollment_request
+            action: read
+            targetRef: enrollment_request
+        - permission:
+            resource: enrollment_request
+            action: delete
+            targetRef: enrollment_request
+  - key: enrollment_request.button.assign
+    module: financial
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: enrollment_request
+            action: read
+            targetRef: enrollment_request
+        - permission:
+            resource: enrollment_request
+            action: assign
+            targetRef: enrollment_request
+  - key: enrollment_request.route.details
+    module: financial
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: enrollment_request
+            action: read
+            targetRef: enrollment_request
+        - permission:
+            resource: enrollment_response
+            action: read
+            targetRef: enrollment_response
+  - key: enrollment_request.route.edit
+    module: financial
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: enrollment_request
+            action: read
+            targetRef: enrollment_request
+        - permission:
+            resource: enrollment_request
+            action: update
+            targetRef: enrollment_request
+        - permission:
+            resource: enrollment_response
+            action: list
+            targetRef: enrollment_responseCollection
+  - key: enrollment_request.route.list
+    module: financial
+    context: COLLECTION
+    expression:
+      allOf:
+        - permission:
+            resource: enrollment_request
+            action: list
+            targetRef: enrollment_requestCollection
+        - permission:
+            resource: hospital_context
+            action: read
+            targetRef: hospitalContext
+  - key: enrollment_response.action.delete
+    module: financial
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: enrollment_response
+            action: read
+            targetRef: enrollment_response
+        - permission:
+            resource: enrollment_response
+            action: delete
+            targetRef: enrollment_response
+  - key: enrollment_response.button.assign
+    module: financial
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: enrollment_response
+            action: read
+            targetRef: enrollment_response
+        - permission:
+            resource: enrollment_response
+            action: assign
+            targetRef: enrollment_response
+  - key: enrollment_response.route.details
+    module: financial
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: enrollment_response
+            action: read
+            targetRef: enrollment_response
+        - permission:
+            resource: episode_of_care
+            action: read
+            targetRef: episode_of_care
+  - key: enrollment_response.route.edit
+    module: financial
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: enrollment_response
+            action: read
+            targetRef: enrollment_response
+        - permission:
+            resource: enrollment_response
+            action: update
+            targetRef: enrollment_response
+        - permission:
+            resource: episode_of_care
+            action: list
+            targetRef: episode_of_careCollection
+  - key: enrollment_response.route.list
+    module: financial
+    context: COLLECTION
+    expression:
+      allOf:
+        - permission:
+            resource: enrollment_response
+            action: list
+            targetRef: enrollment_responseCollection
+        - permission:
+            resource: hospital_context
+            action: read
+            targetRef: hospitalContext
+  - key: episode_of_care.action.delete
+    module: management
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: episode_of_care
+            action: read
+            targetRef: episode_of_care
+        - permission:
+            resource: episode_of_care
+            action: delete
+            targetRef: episode_of_care
+  - key: episode_of_care.button.assign
+    module: management
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: episode_of_care
+            action: read
+            targetRef: episode_of_care
+        - permission:
+            resource: episode_of_care
+            action: assign
+            targetRef: episode_of_care
+  - key: episode_of_care.route.details
+    module: management
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: episode_of_care
+            action: read
+            targetRef: episode_of_care
+        - permission:
+            resource: evidence
+            action: read
+            targetRef: evidence
+  - key: episode_of_care.route.edit
+    module: management
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: episode_of_care
+            action: read
+            targetRef: episode_of_care
+        - permission:
+            resource: episode_of_care
+            action: update
+            targetRef: episode_of_care
+        - permission:
+            resource: evidence
+            action: list
+            targetRef: evidenceCollection
+  - key: episode_of_care.route.list
+    module: management
+    context: COLLECTION
+    expression:
+      allOf:
+        - permission:
+            resource: episode_of_care
+            action: list
+            targetRef: episode_of_careCollection
+        - permission:
+            resource: hospital_context
+            action: read
+            targetRef: hospitalContext
+  - key: evidence.action.delete
+    module: research
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: evidence
+            action: read
+            targetRef: evidence
+        - permission:
+            resource: evidence
+            action: delete
+            targetRef: evidence
+  - key: evidence.button.assign
+    module: research
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: evidence
+            action: read
+            targetRef: evidence
+        - permission:
+            resource: evidence
+            action: assign
+            targetRef: evidence
+  - key: evidence.route.details
+    module: research
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: evidence
+            action: read
+            targetRef: evidence
+        - permission:
+            resource: evidence_report
+            action: read
+            targetRef: evidence_report
+  - key: evidence.route.edit
+    module: research
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: evidence
+            action: read
+            targetRef: evidence
+        - permission:
+            resource: evidence
+            action: update
+            targetRef: evidence
+        - permission:
+            resource: evidence_report
+            action: list
+            targetRef: evidence_reportCollection
+  - key: evidence.route.list
+    module: research
+    context: COLLECTION
+    expression:
+      allOf:
+        - permission:
+            resource: evidence
+            action: list
+            targetRef: evidenceCollection
+        - permission:
+            resource: hospital_context
+            action: read
+            targetRef: hospitalContext
+  - key: evidence_report.action.delete
+    module: research
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: evidence_report
+            action: read
+            targetRef: evidence_report
+        - permission:
+            resource: evidence_report
+            action: delete
+            targetRef: evidence_report
+  - key: evidence_report.button.assign
+    module: research
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: evidence_report
+            action: read
+            targetRef: evidence_report
+        - permission:
+            resource: evidence_report
+            action: assign
+            targetRef: evidence_report
+  - key: evidence_report.route.details
+    module: research
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: evidence_report
+            action: read
+            targetRef: evidence_report
+        - permission:
+            resource: evidence_variable
+            action: read
+            targetRef: evidence_variable
+  - key: evidence_report.route.edit
+    module: research
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: evidence_report
+            action: read
+            targetRef: evidence_report
+        - permission:
+            resource: evidence_report
+            action: update
+            targetRef: evidence_report
+        - permission:
+            resource: evidence_variable
+            action: list
+            targetRef: evidence_variableCollection
+  - key: evidence_report.route.list
+    module: research
+    context: COLLECTION
+    expression:
+      allOf:
+        - permission:
+            resource: evidence_report
+            action: list
+            targetRef: evidence_reportCollection
+        - permission:
+            resource: hospital_context
+            action: read
+            targetRef: hospitalContext
+  - key: evidence_variable.action.delete
+    module: research
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: evidence_variable
+            action: read
+            targetRef: evidence_variable
+        - permission:
+            resource: evidence_variable
+            action: delete
+            targetRef: evidence_variable
+  - key: evidence_variable.button.assign
+    module: research
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: evidence_variable
+            action: read
+            targetRef: evidence_variable
+        - permission:
+            resource: evidence_variable
+            action: assign
+            targetRef: evidence_variable
+  - key: evidence_variable.route.details
+    module: research
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: evidence_variable
+            action: read
+            targetRef: evidence_variable
+        - permission:
+            resource: example_scenario
+            action: read
+            targetRef: example_scenario
+  - key: evidence_variable.route.edit
+    module: research
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: evidence_variable
+            action: read
+            targetRef: evidence_variable
+        - permission:
+            resource: evidence_variable
+            action: update
+            targetRef: evidence_variable
+        - permission:
+            resource: example_scenario
+            action: list
+            targetRef: example_scenarioCollection
+  - key: evidence_variable.route.list
+    module: research
+    context: COLLECTION
+    expression:
+      allOf:
+        - permission:
+            resource: evidence_variable
+            action: list
+            targetRef: evidence_variableCollection
+        - permission:
+            resource: hospital_context
+            action: read
+            targetRef: hospitalContext
+  - key: example_scenario.action.delete
+    module: definitional
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: example_scenario
+            action: read
+            targetRef: example_scenario
+        - permission:
+            resource: example_scenario
+            action: delete
+            targetRef: example_scenario
+  - key: example_scenario.button.assign
+    module: definitional
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: example_scenario
+            action: read
+            targetRef: example_scenario
+        - permission:
+            resource: example_scenario
+            action: assign
+            targetRef: example_scenario
+  - key: example_scenario.route.details
+    module: definitional
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: example_scenario
+            action: read
+            targetRef: example_scenario
+        - permission:
+            resource: explanation_of_benefit
+            action: read
+            targetRef: explanation_of_benefit
+  - key: example_scenario.route.edit
+    module: definitional
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: example_scenario
+            action: read
+            targetRef: example_scenario
+        - permission:
+            resource: example_scenario
+            action: update
+            targetRef: example_scenario
+        - permission:
+            resource: explanation_of_benefit
+            action: list
+            targetRef: explanation_of_benefitCollection
+  - key: example_scenario.route.list
+    module: definitional
+    context: COLLECTION
+    expression:
+      allOf:
+        - permission:
+            resource: example_scenario
+            action: list
+            targetRef: example_scenarioCollection
+        - permission:
+            resource: hospital_context
+            action: read
+            targetRef: hospitalContext
+  - key: explanation_of_benefit.action.delete
+    module: financial
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: explanation_of_benefit
+            action: read
+            targetRef: explanation_of_benefit
+        - permission:
+            resource: explanation_of_benefit
+            action: delete
+            targetRef: explanation_of_benefit
+  - key: explanation_of_benefit.button.assign
+    module: financial
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: explanation_of_benefit
+            action: read
+            targetRef: explanation_of_benefit
+        - permission:
+            resource: explanation_of_benefit
+            action: assign
+            targetRef: explanation_of_benefit
+  - key: explanation_of_benefit.route.details
+    module: financial
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: explanation_of_benefit
+            action: read
+            targetRef: explanation_of_benefit
+        - permission:
+            resource: family_member_history
+            action: read
+            targetRef: family_member_history
+  - key: explanation_of_benefit.route.edit
+    module: financial
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: explanation_of_benefit
+            action: read
+            targetRef: explanation_of_benefit
+        - permission:
+            resource: explanation_of_benefit
+            action: update
+            targetRef: explanation_of_benefit
+        - permission:
+            resource: family_member_history
+            action: list
+            targetRef: family_member_historyCollection
+  - key: explanation_of_benefit.route.list
+    module: financial
+    context: COLLECTION
+    expression:
+      allOf:
+        - permission:
+            resource: explanation_of_benefit
+            action: list
+            targetRef: explanation_of_benefitCollection
+        - permission:
+            resource: hospital_context
+            action: read
+            targetRef: hospitalContext
+  - key: family_member_history.action.delete
+    module: clinical
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: family_member_history
+            action: read
+            targetRef: family_member_history
+        - permission:
+            resource: family_member_history
+            action: delete
+            targetRef: family_member_history
+  - key: family_member_history.button.assign
+    module: clinical
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: family_member_history
+            action: read
+            targetRef: family_member_history
+        - permission:
+            resource: family_member_history
+            action: assign
+            targetRef: family_member_history
+  - key: family_member_history.route.details
+    module: clinical
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: family_member_history
+            action: read
+            targetRef: family_member_history
+        - permission:
+            resource: flag
+            action: read
+            targetRef: flag
+  - key: family_member_history.route.edit
+    module: clinical
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: family_member_history
+            action: read
+            targetRef: family_member_history
+        - permission:
+            resource: family_member_history
+            action: update
+            targetRef: family_member_history
+        - permission:
+            resource: flag
+            action: list
+            targetRef: flagCollection
+  - key: family_member_history.route.list
+    module: clinical
+    context: COLLECTION
+    expression:
+      allOf:
+        - permission:
+            resource: family_member_history
+            action: list
+            targetRef: family_member_historyCollection
+        - permission:
+            resource: hospital_context
+            action: read
+            targetRef: hospitalContext
+  - key: flag.action.delete
+    module: management
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: flag
+            action: read
+            targetRef: flag
+        - permission:
+            resource: flag
+            action: delete
+            targetRef: flag
+  - key: flag.button.assign
+    module: management
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: flag
+            action: read
+            targetRef: flag
+        - permission:
+            resource: flag
+            action: assign
+            targetRef: flag
+  - key: flag.route.details
+    module: management
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: flag
+            action: read
+            targetRef: flag
+        - permission:
+            resource: genomic_study
+            action: read
+            targetRef: genomic_study
+  - key: flag.route.edit
+    module: management
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: flag
+            action: read
+            targetRef: flag
+        - permission:
+            resource: flag
+            action: update
+            targetRef: flag
+        - permission:
+            resource: genomic_study
+            action: list
+            targetRef: genomic_studyCollection
+  - key: flag.route.list
+    module: management
+    context: COLLECTION
+    expression:
+      allOf:
+        - permission:
+            resource: flag
+            action: list
+            targetRef: flagCollection
+        - permission:
+            resource: hospital_context
+            action: read
+            targetRef: hospitalContext
+  - key: genomic_study.action.delete
+    module: diagnostics
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: genomic_study
+            action: read
+            targetRef: genomic_study
+        - permission:
+            resource: genomic_study
+            action: delete
+            targetRef: genomic_study
+  - key: genomic_study.button.assign
+    module: diagnostics
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: genomic_study
+            action: read
+            targetRef: genomic_study
+        - permission:
+            resource: genomic_study
+            action: assign
+            targetRef: genomic_study
+  - key: genomic_study.route.details
+    module: diagnostics
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: genomic_study
+            action: read
+            targetRef: genomic_study
+        - permission:
+            resource: goal
+            action: read
+            targetRef: goal
+  - key: genomic_study.route.edit
+    module: diagnostics
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: genomic_study
+            action: read
+            targetRef: genomic_study
+        - permission:
+            resource: genomic_study
+            action: update
+            targetRef: genomic_study
+        - permission:
+            resource: goal
+            action: list
+            targetRef: goalCollection
+  - key: genomic_study.route.list
+    module: diagnostics
+    context: COLLECTION
+    expression:
+      allOf:
+        - permission:
+            resource: genomic_study
+            action: list
+            targetRef: genomic_studyCollection
+        - permission:
+            resource: hospital_context
+            action: read
+            targetRef: hospitalContext
+  - key: goal.action.delete
+    module: management
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: goal
+            action: read
+            targetRef: goal
+        - permission:
+            resource: goal
+            action: delete
+            targetRef: goal
+  - key: goal.button.assign
+    module: management
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: goal
+            action: read
+            targetRef: goal
+        - permission:
+            resource: goal
+            action: assign
+            targetRef: goal
+  - key: goal.route.details
+    module: management
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: goal
+            action: read
+            targetRef: goal
+        - permission:
+            resource: graph_definition
+            action: read
+            targetRef: graph_definition
+  - key: goal.route.edit
+    module: management
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: goal
+            action: read
+            targetRef: goal
+        - permission:
+            resource: goal
+            action: update
+            targetRef: goal
+        - permission:
+            resource: graph_definition
+            action: list
+            targetRef: graph_definitionCollection
+  - key: goal.route.list
+    module: management
+    context: COLLECTION
+    expression:
+      allOf:
+        - permission:
+            resource: goal
+            action: list
+            targetRef: goalCollection
+        - permission:
+            resource: hospital_context
+            action: read
+            targetRef: hospitalContext
+  - key: graph_definition.action.delete
+    module: definitional
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: graph_definition
+            action: read
+            targetRef: graph_definition
+        - permission:
+            resource: graph_definition
+            action: delete
+            targetRef: graph_definition
+  - key: graph_definition.button.assign
+    module: definitional
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: graph_definition
+            action: read
+            targetRef: graph_definition
+        - permission:
+            resource: graph_definition
+            action: assign
+            targetRef: graph_definition
+  - key: graph_definition.route.details
+    module: definitional
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: graph_definition
+            action: read
+            targetRef: graph_definition
+        - permission:
+            resource: group
+            action: read
+            targetRef: group
+  - key: graph_definition.route.edit
+    module: definitional
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: graph_definition
+            action: read
+            targetRef: graph_definition
+        - permission:
+            resource: graph_definition
+            action: update
+            targetRef: graph_definition
+        - permission:
+            resource: group
+            action: list
+            targetRef: groupCollection
+  - key: graph_definition.route.list
+    module: definitional
+    context: COLLECTION
+    expression:
+      allOf:
+        - permission:
+            resource: graph_definition
+            action: list
+            targetRef: graph_definitionCollection
+        - permission:
+            resource: hospital_context
+            action: read
+            targetRef: hospitalContext
+  - key: group.action.delete
+    module: administrative
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: group
+            action: read
+            targetRef: group
+        - permission:
+            resource: group
+            action: delete
+            targetRef: group
+  - key: group.button.assign
+    module: administrative
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: group
+            action: read
+            targetRef: group
+        - permission:
+            resource: group
+            action: assign
+            targetRef: group
+  - key: group.route.details
+    module: administrative
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: group
+            action: read
+            targetRef: group
+        - permission:
+            resource: guidance_response
+            action: read
+            targetRef: guidance_response
+  - key: group.route.edit
+    module: administrative
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: group
+            action: read
+            targetRef: group
+        - permission:
+            resource: group
+            action: update
+            targetRef: group
+        - permission:
+            resource: guidance_response
+            action: list
+            targetRef: guidance_responseCollection
+  - key: group.route.list
+    module: administrative
+    context: COLLECTION
+    expression:
+      allOf:
+        - permission:
+            resource: group
+            action: list
+            targetRef: groupCollection
+        - permission:
+            resource: hospital_context
+            action: read
+            targetRef: hospitalContext
+  - key: guidance_response.action.delete
+    module: care_provision
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: guidance_response
+            action: read
+            targetRef: guidance_response
+        - permission:
+            resource: guidance_response
+            action: delete
+            targetRef: guidance_response
+  - key: guidance_response.button.assign
+    module: care_provision
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: guidance_response
+            action: read
+            targetRef: guidance_response
+        - permission:
+            resource: guidance_response
+            action: assign
+            targetRef: guidance_response
+  - key: guidance_response.route.details
+    module: care_provision
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: guidance_response
+            action: read
+            targetRef: guidance_response
+        - permission:
+            resource: healthcare_service
+            action: read
+            targetRef: healthcare_service
+  - key: guidance_response.route.edit
+    module: care_provision
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: guidance_response
+            action: read
+            targetRef: guidance_response
+        - permission:
+            resource: guidance_response
+            action: update
+            targetRef: guidance_response
+        - permission:
+            resource: healthcare_service
+            action: list
+            targetRef: healthcare_serviceCollection
+  - key: guidance_response.route.list
+    module: care_provision
+    context: COLLECTION
+    expression:
+      allOf:
+        - permission:
+            resource: guidance_response
+            action: list
+            targetRef: guidance_responseCollection
+        - permission:
+            resource: hospital_context
+            action: read
+            targetRef: hospitalContext
+  - key: healthcare_service.action.delete
+    module: administrative
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: healthcare_service
+            action: read
+            targetRef: healthcare_service
+        - permission:
+            resource: healthcare_service
+            action: delete
+            targetRef: healthcare_service
+  - key: healthcare_service.button.assign
+    module: administrative
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: healthcare_service
+            action: read
+            targetRef: healthcare_service
+        - permission:
+            resource: healthcare_service
+            action: assign
+            targetRef: healthcare_service
+  - key: healthcare_service.route.details
+    module: administrative
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: healthcare_service
+            action: read
+            targetRef: healthcare_service
+        - permission:
+            resource: imaging_selection
+            action: read
+            targetRef: imaging_selection
+  - key: healthcare_service.route.edit
+    module: administrative
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: healthcare_service
+            action: read
+            targetRef: healthcare_service
+        - permission:
+            resource: healthcare_service
+            action: update
+            targetRef: healthcare_service
+        - permission:
+            resource: imaging_selection
+            action: list
+            targetRef: imaging_selectionCollection
+  - key: healthcare_service.route.list
+    module: administrative
+    context: COLLECTION
+    expression:
+      allOf:
+        - permission:
+            resource: healthcare_service
+            action: list
+            targetRef: healthcare_serviceCollection
+        - permission:
+            resource: hospital_context
+            action: read
+            targetRef: hospitalContext
+  - key: imaging_selection.action.delete
+    module: diagnostics
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: imaging_selection
+            action: read
+            targetRef: imaging_selection
+        - permission:
+            resource: imaging_selection
+            action: delete
+            targetRef: imaging_selection
+  - key: imaging_selection.button.assign
+    module: diagnostics
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: imaging_selection
+            action: read
+            targetRef: imaging_selection
+        - permission:
+            resource: imaging_selection
+            action: assign
+            targetRef: imaging_selection
+  - key: imaging_selection.route.details
+    module: diagnostics
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: imaging_selection
+            action: read
+            targetRef: imaging_selection
+        - permission:
+            resource: imaging_study
+            action: read
+            targetRef: imaging_study
+  - key: imaging_selection.route.edit
+    module: diagnostics
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: imaging_selection
+            action: read
+            targetRef: imaging_selection
+        - permission:
+            resource: imaging_selection
+            action: update
+            targetRef: imaging_selection
+        - permission:
+            resource: imaging_study
+            action: list
+            targetRef: imaging_studyCollection
+  - key: imaging_selection.route.list
+    module: diagnostics
+    context: COLLECTION
+    expression:
+      allOf:
+        - permission:
+            resource: imaging_selection
+            action: list
+            targetRef: imaging_selectionCollection
+        - permission:
+            resource: hospital_context
+            action: read
+            targetRef: hospitalContext
+  - key: imaging_study.action.delete
+    module: diagnostics
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: imaging_study
+            action: read
+            targetRef: imaging_study
+        - permission:
+            resource: imaging_study
+            action: delete
+            targetRef: imaging_study
+  - key: imaging_study.button.assign
+    module: diagnostics
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: imaging_study
+            action: read
+            targetRef: imaging_study
+        - permission:
+            resource: imaging_study
+            action: assign
+            targetRef: imaging_study
+  - key: imaging_study.route.details
+    module: diagnostics
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: imaging_study
+            action: read
+            targetRef: imaging_study
+        - permission:
+            resource: immunization
+            action: read
+            targetRef: immunization
+  - key: imaging_study.route.edit
+    module: diagnostics
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: imaging_study
+            action: read
+            targetRef: imaging_study
+        - permission:
+            resource: imaging_study
+            action: update
+            targetRef: imaging_study
+        - permission:
+            resource: immunization
+            action: list
+            targetRef: immunizationCollection
+  - key: imaging_study.route.list
+    module: diagnostics
+    context: COLLECTION
+    expression:
+      allOf:
+        - permission:
+            resource: imaging_study
+            action: list
+            targetRef: imaging_studyCollection
+        - permission:
+            resource: hospital_context
+            action: read
+            targetRef: hospitalContext
+  - key: immunization.action.delete
+    module: medications
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: immunization
+            action: read
+            targetRef: immunization
+        - permission:
+            resource: immunization
+            action: delete
+            targetRef: immunization
+  - key: immunization.button.assign
+    module: medications
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: immunization
+            action: read
+            targetRef: immunization
+        - permission:
+            resource: immunization
+            action: assign
+            targetRef: immunization
+  - key: immunization.route.details
+    module: medications
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: immunization
+            action: read
+            targetRef: immunization
+        - permission:
+            resource: immunization_evaluation
+            action: read
+            targetRef: immunization_evaluation
+  - key: immunization.route.edit
+    module: medications
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: immunization
+            action: read
+            targetRef: immunization
+        - permission:
+            resource: immunization
+            action: update
+            targetRef: immunization
+        - permission:
+            resource: immunization_evaluation
+            action: list
+            targetRef: immunization_evaluationCollection
+  - key: immunization.route.list
+    module: medications
+    context: COLLECTION
+    expression:
+      allOf:
+        - permission:
+            resource: immunization
+            action: list
+            targetRef: immunizationCollection
+        - permission:
+            resource: hospital_context
+            action: read
+            targetRef: hospitalContext
+  - key: immunization_evaluation.action.delete
+    module: medications
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: immunization_evaluation
+            action: read
+            targetRef: immunization_evaluation
+        - permission:
+            resource: immunization_evaluation
+            action: delete
+            targetRef: immunization_evaluation
+  - key: immunization_evaluation.button.assign
+    module: medications
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: immunization_evaluation
+            action: read
+            targetRef: immunization_evaluation
+        - permission:
+            resource: immunization_evaluation
+            action: assign
+            targetRef: immunization_evaluation
+  - key: immunization_evaluation.route.details
+    module: medications
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: immunization_evaluation
+            action: read
+            targetRef: immunization_evaluation
+        - permission:
+            resource: immunization_recommendation
+            action: read
+            targetRef: immunization_recommendation
+  - key: immunization_evaluation.route.edit
+    module: medications
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: immunization_evaluation
+            action: read
+            targetRef: immunization_evaluation
+        - permission:
+            resource: immunization_evaluation
+            action: update
+            targetRef: immunization_evaluation
+        - permission:
+            resource: immunization_recommendation
+            action: list
+            targetRef: immunization_recommendationCollection
+  - key: immunization_evaluation.route.list
+    module: medications
+    context: COLLECTION
+    expression:
+      allOf:
+        - permission:
+            resource: immunization_evaluation
+            action: list
+            targetRef: immunization_evaluationCollection
+        - permission:
+            resource: hospital_context
+            action: read
+            targetRef: hospitalContext
+  - key: immunization_recommendation.action.delete
+    module: medications
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: immunization_recommendation
+            action: read
+            targetRef: immunization_recommendation
+        - permission:
+            resource: immunization_recommendation
+            action: delete
+            targetRef: immunization_recommendation
+  - key: immunization_recommendation.button.assign
+    module: medications
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: immunization_recommendation
+            action: read
+            targetRef: immunization_recommendation
+        - permission:
+            resource: immunization_recommendation
+            action: assign
+            targetRef: immunization_recommendation
+  - key: immunization_recommendation.route.details
+    module: medications
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: immunization_recommendation
+            action: read
+            targetRef: immunization_recommendation
+        - permission:
+            resource: implementation_guide
+            action: read
+            targetRef: implementation_guide
+  - key: immunization_recommendation.route.edit
+    module: medications
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: immunization_recommendation
+            action: read
+            targetRef: immunization_recommendation
+        - permission:
+            resource: immunization_recommendation
+            action: update
+            targetRef: immunization_recommendation
+        - permission:
+            resource: implementation_guide
+            action: list
+            targetRef: implementation_guideCollection
+  - key: immunization_recommendation.route.list
+    module: medications
+    context: COLLECTION
+    expression:
+      allOf:
+        - permission:
+            resource: immunization_recommendation
+            action: list
+            targetRef: immunization_recommendationCollection
+        - permission:
+            resource: hospital_context
+            action: read
+            targetRef: hospitalContext
+  - key: implementation_guide.action.delete
+    module: conformance
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: implementation_guide
+            action: read
+            targetRef: implementation_guide
+        - permission:
+            resource: implementation_guide
+            action: delete
+            targetRef: implementation_guide
+  - key: implementation_guide.button.assign
+    module: conformance
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: implementation_guide
+            action: read
+            targetRef: implementation_guide
+        - permission:
+            resource: implementation_guide
+            action: assign
+            targetRef: implementation_guide
+  - key: implementation_guide.route.details
+    module: conformance
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: implementation_guide
+            action: read
+            targetRef: implementation_guide
+        - permission:
+            resource: ingredient
+            action: read
+            targetRef: ingredient
+  - key: implementation_guide.route.edit
+    module: conformance
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: implementation_guide
+            action: read
+            targetRef: implementation_guide
+        - permission:
+            resource: implementation_guide
+            action: update
+            targetRef: implementation_guide
+        - permission:
+            resource: ingredient
+            action: list
+            targetRef: ingredientCollection
+  - key: implementation_guide.route.list
+    module: conformance
+    context: COLLECTION
+    expression:
+      allOf:
+        - permission:
+            resource: implementation_guide
+            action: list
+            targetRef: implementation_guideCollection
+        - permission:
+            resource: hospital_context
+            action: read
+            targetRef: hospitalContext
+  - key: ingredient.action.delete
+    module: substances
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: ingredient
+            action: read
+            targetRef: ingredient
+        - permission:
+            resource: ingredient
+            action: delete
+            targetRef: ingredient
+  - key: ingredient.button.assign
+    module: substances
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: ingredient
+            action: read
+            targetRef: ingredient
+        - permission:
+            resource: ingredient
+            action: assign
+            targetRef: ingredient
+  - key: ingredient.route.details
+    module: substances
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: ingredient
+            action: read
+            targetRef: ingredient
+        - permission:
+            resource: insurance_plan
+            action: read
+            targetRef: insurance_plan
+  - key: ingredient.route.edit
+    module: substances
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: ingredient
+            action: read
+            targetRef: ingredient
+        - permission:
+            resource: ingredient
+            action: update
+            targetRef: ingredient
+        - permission:
+            resource: insurance_plan
+            action: list
+            targetRef: insurance_planCollection
+  - key: ingredient.route.list
+    module: substances
+    context: COLLECTION
+    expression:
+      allOf:
+        - permission:
+            resource: ingredient
+            action: list
+            targetRef: ingredientCollection
+        - permission:
+            resource: hospital_context
+            action: read
+            targetRef: hospitalContext
+  - key: insurance_plan.action.delete
+    module: financial
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: insurance_plan
+            action: read
+            targetRef: insurance_plan
+        - permission:
+            resource: insurance_plan
+            action: delete
+            targetRef: insurance_plan
+  - key: insurance_plan.button.assign
+    module: financial
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: insurance_plan
+            action: read
+            targetRef: insurance_plan
+        - permission:
+            resource: insurance_plan
+            action: assign
+            targetRef: insurance_plan
+  - key: insurance_plan.route.details
+    module: financial
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: insurance_plan
+            action: read
+            targetRef: insurance_plan
+        - permission:
+            resource: inventory_item
+            action: read
+            targetRef: inventory_item
+  - key: insurance_plan.route.edit
+    module: financial
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: insurance_plan
+            action: read
+            targetRef: insurance_plan
+        - permission:
+            resource: insurance_plan
+            action: update
+            targetRef: insurance_plan
+        - permission:
+            resource: inventory_item
+            action: list
+            targetRef: inventory_itemCollection
+  - key: insurance_plan.route.list
+    module: financial
+    context: COLLECTION
+    expression:
+      allOf:
+        - permission:
+            resource: insurance_plan
+            action: list
+            targetRef: insurance_planCollection
+        - permission:
+            resource: hospital_context
+            action: read
+            targetRef: hospitalContext
+  - key: inventory_item.action.delete
+    module: inventory
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: inventory_item
+            action: read
+            targetRef: inventory_item
+        - permission:
+            resource: inventory_item
+            action: delete
+            targetRef: inventory_item
+  - key: inventory_item.button.assign
+    module: inventory
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: inventory_item
+            action: read
+            targetRef: inventory_item
+        - permission:
+            resource: inventory_item
+            action: assign
+            targetRef: inventory_item
+  - key: inventory_item.route.details
+    module: inventory
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: inventory_item
+            action: read
+            targetRef: inventory_item
+        - permission:
+            resource: inventory_report
+            action: read
+            targetRef: inventory_report
+  - key: inventory_item.route.edit
+    module: inventory
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: inventory_item
+            action: read
+            targetRef: inventory_item
+        - permission:
+            resource: inventory_item
+            action: update
+            targetRef: inventory_item
+        - permission:
+            resource: inventory_report
+            action: list
+            targetRef: inventory_reportCollection
+  - key: inventory_item.route.list
+    module: inventory
+    context: COLLECTION
+    expression:
+      allOf:
+        - permission:
+            resource: inventory_item
+            action: list
+            targetRef: inventory_itemCollection
+        - permission:
+            resource: hospital_context
+            action: read
+            targetRef: hospitalContext
+  - key: inventory_report.action.delete
+    module: inventory
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: inventory_report
+            action: read
+            targetRef: inventory_report
+        - permission:
+            resource: inventory_report
+            action: delete
+            targetRef: inventory_report
+  - key: inventory_report.button.assign
+    module: inventory
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: inventory_report
+            action: read
+            targetRef: inventory_report
+        - permission:
+            resource: inventory_report
+            action: assign
+            targetRef: inventory_report
+  - key: inventory_report.route.details
+    module: inventory
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: inventory_report
+            action: read
+            targetRef: inventory_report
+        - permission:
+            resource: invoice
+            action: read
+            targetRef: invoice
+  - key: inventory_report.route.edit
+    module: inventory
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: inventory_report
+            action: read
+            targetRef: inventory_report
+        - permission:
+            resource: inventory_report
+            action: update
+            targetRef: inventory_report
+        - permission:
+            resource: invoice
+            action: list
+            targetRef: invoiceCollection
+  - key: inventory_report.route.list
+    module: inventory
+    context: COLLECTION
+    expression:
+      allOf:
+        - permission:
+            resource: inventory_report
+            action: list
+            targetRef: inventory_reportCollection
+        - permission:
+            resource: hospital_context
+            action: read
+            targetRef: hospitalContext
+  - key: invoice.action.delete
+    module: financial
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: invoice
+            action: read
+            targetRef: invoice
+        - permission:
+            resource: invoice
+            action: delete
+            targetRef: invoice
+  - key: invoice.button.assign
+    module: financial
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: invoice
+            action: read
+            targetRef: invoice
+        - permission:
+            resource: invoice
+            action: assign
+            targetRef: invoice
+  - key: invoice.route.details
+    module: financial
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: invoice
+            action: read
+            targetRef: invoice
+        - permission:
+            resource: linkage
+            action: read
+            targetRef: linkage
+  - key: invoice.route.edit
+    module: financial
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: invoice
+            action: read
+            targetRef: invoice
+        - permission:
+            resource: invoice
+            action: update
+            targetRef: invoice
+        - permission:
+            resource: linkage
+            action: list
+            targetRef: linkageCollection
+  - key: invoice.route.list
+    module: financial
+    context: COLLECTION
+    expression:
+      allOf:
+        - permission:
+            resource: invoice
+            action: list
+            targetRef: invoiceCollection
+        - permission:
+            resource: hospital_context
+            action: read
+            targetRef: hospitalContext
+  - key: linkage.action.delete
+    module: events
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: linkage
+            action: read
+            targetRef: linkage
+        - permission:
+            resource: linkage
+            action: delete
+            targetRef: linkage
+  - key: linkage.button.assign
+    module: events
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: linkage
+            action: read
+            targetRef: linkage
+        - permission:
+            resource: linkage
+            action: assign
+            targetRef: linkage
+  - key: linkage.route.details
+    module: events
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: linkage
+            action: read
+            targetRef: linkage
+        - permission:
+            resource: account
+            action: read
+            targetRef: account
+  - key: linkage.route.edit
+    module: events
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: linkage
+            action: read
+            targetRef: linkage
+        - permission:
+            resource: linkage
+            action: update
+            targetRef: linkage
+        - permission:
+            resource: account
+            action: list
+            targetRef: accountCollection
+  - key: linkage.route.list
+    module: events
+    context: COLLECTION
+    expression:
+      allOf:
+        - permission:
+            resource: linkage
+            action: list
+            targetRef: linkageCollection
+        - permission:
+            resource: hospital_context
+            action: read
+            targetRef: hospitalContext

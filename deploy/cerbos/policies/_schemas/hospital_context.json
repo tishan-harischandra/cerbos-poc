@@ -1,0 +1,52 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Hospital context authorization attributes",
+  "description": "Server-loaded isolation attributes plus the permissionContext the ADS assembles for the hospital_context capability leaf (§12.1, issue #10). permissionContext is data only: it carries the action sets, never a verdict (§6.3, §21).",
+  "type": "object",
+  "required": ["tenantId", "hospitalId", "permissionContext"],
+  "additionalProperties": false,
+  "properties": {
+    "tenantId": {
+      "type": "string",
+      "minLength": 1
+    },
+    "hospitalId": {
+      "type": "string",
+      "minLength": 1
+    },
+    "permissionContext": {
+      "type": "object",
+      "required": [
+        "roleGrantedActions",
+        "userGrantedActions",
+        "userRevokedActions",
+        "permissionRevision"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "roleGrantedActions": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "userGrantedActions": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "userRevokedActions": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "permissionRevision": {
+          "type": "integer",
+          "minimum": 0
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,228 @@
+---
+# The §19.1 minimum policy test matrix for hospital_context, following the
+# same shape as patient_record_test.yaml (issue #10).
+name: HospitalContextPrecedence
+description: Mandatory deny > user REVOKE > user GRANT > role grant > default deny
+
+principals:
+  doctor:
+    id: idp-user-123
+    roles:
+      - "sys:permission-evaluator"
+    attr:
+      tenantId: tenant-a
+      hospitalId: hospital-1
+      idpRoles:
+        - "kc:cerbos-poc:patient-app:doctor"
+
+  doctor_of_other_tenant:
+    id: idp-user-999
+    roles:
+      - "sys:permission-evaluator"
+    attr:
+      tenantId: tenant-b
+      hospitalId: hospital-1
+      idpRoles:
+        - "kc:cerbos-poc:patient-app:doctor"
+
+  doctor_of_other_hospital:
+    id: idp-user-888
+    roles:
+      - "sys:permission-evaluator"
+    attr:
+      tenantId: tenant-a
+      hospitalId: hospital-2
+      idpRoles:
+        - "kc:cerbos-poc:patient-app:doctor"
+
+resources:
+  revoked_over_role_grant:
+    kind: hospital_context
+    policyVersion: v1
+    id: hospital-1
+    attr:
+      tenantId: tenant-a
+      hospitalId: hospital-1
+      permissionContext:
+        roleGrantedActions: ["read"]
+        userGrantedActions: []
+        userRevokedActions: ["read"]
+        permissionRevision: 184
+
+  revoked_without_role_grant:
+    kind: hospital_context
+    policyVersion: v1
+    id: hospital-1
+    attr:
+      tenantId: tenant-a
+      hospitalId: hospital-1
+      permissionContext:
+        roleGrantedActions: []
+        userGrantedActions: []
+        userRevokedActions: ["read"]
+        permissionRevision: 184
+
+  user_granted_without_role_grant:
+    kind: hospital_context
+    policyVersion: v1
+    id: hospital-1
+    attr:
+      tenantId: tenant-a
+      hospitalId: hospital-1
+      permissionContext:
+        roleGrantedActions: []
+        userGrantedActions: ["read"]
+        userRevokedActions: []
+        permissionRevision: 184
+
+  inherited_with_role_grant:
+    kind: hospital_context
+    policyVersion: v1
+    id: hospital-1
+    attr:
+      tenantId: tenant-a
+      hospitalId: hospital-1
+      permissionContext:
+        roleGrantedActions: ["read"]
+        userGrantedActions: []
+        userRevokedActions: []
+        permissionRevision: 184
+
+  inherited_without_role_grant:
+    kind: hospital_context
+    policyVersion: v1
+    id: hospital-1
+    attr:
+      tenantId: tenant-a
+      hospitalId: hospital-1
+      permissionContext:
+        roleGrantedActions: []
+        userGrantedActions: []
+        userRevokedActions: []
+        permissionRevision: 184
+
+  other_tenant_context:
+    kind: hospital_context
+    policyVersion: v1
+    id: hospital-1
+    attr:
+      tenantId: tenant-b
+      hospitalId: hospital-1
+      permissionContext:
+        roleGrantedActions: ["read"]
+        userGrantedActions: ["read"]
+        userRevokedActions: []
+        permissionRevision: 184
+
+  other_hospital_context:
+    kind: hospital_context
+    policyVersion: v1
+    id: hospital-2
+    attr:
+      tenantId: tenant-a
+      hospitalId: hospital-2
+      permissionContext:
+        roleGrantedActions: ["read"]
+        userGrantedActions: ["read"]
+        userRevokedActions: []
+        permissionRevision: 184
+
+tests:
+  - name: a user revoke denies even when a role grants read
+    input:
+      principals: [doctor]
+      resources: [revoked_over_role_grant]
+      actions: ["read"]
+    expected:
+      - principal: doctor
+        resource: revoked_over_role_grant
+        actions:
+          read: EFFECT_DENY
+
+  - name: a user revoke denies when no role grants read
+    input:
+      principals: [doctor]
+      resources: [revoked_without_role_grant]
+      actions: ["read"]
+    expected:
+      - principal: doctor
+        resource: revoked_without_role_grant
+        actions:
+          read: EFFECT_DENY
+
+  - name: a user grant allows when no role grants read
+    input:
+      principals: [doctor]
+      resources: [user_granted_without_role_grant]
+      actions: ["read"]
+    expected:
+      - principal: doctor
+        resource: user_granted_without_role_grant
+        actions:
+          read: EFFECT_ALLOW
+
+  - name: an inherited override falls through to the role grant
+    input:
+      principals: [doctor]
+      resources: [inherited_with_role_grant]
+      actions: ["read"]
+    expected:
+      - principal: doctor
+        resource: inherited_with_role_grant
+        actions:
+          read: EFFECT_ALLOW
+
+  - name: an inherited override with no role grant falls through to default deny
+    input:
+      principals: [doctor]
+      resources: [inherited_without_role_grant]
+      actions: ["read"]
+    expected:
+      - principal: doctor
+        resource: inherited_without_role_grant
+        actions:
+          read: EFFECT_DENY
+
+  - name: a context in another tenant is denied
+    input:
+      principals: [doctor]
+      resources: [other_tenant_context]
+      actions: ["read"]
+    expected:
+      - principal: doctor
+        resource: other_tenant_context
+        actions:
+          read: EFFECT_DENY
+
+  - name: a principal from another tenant is denied
+    input:
+      principals: [doctor_of_other_tenant]
+      resources: [inherited_with_role_grant]
+      actions: ["read"]
+    expected:
+      - principal: doctor_of_other_tenant
+        resource: inherited_with_role_grant
+        actions:
+          read: EFFECT_DENY
+
+  - name: a context in another hospital of the same tenant is denied
+    input:
+      principals: [doctor]
+      resources: [other_hospital_context]
+      actions: ["read"]
+    expected:
+      - principal: doctor
+        resource: other_hospital_context
+        actions:
+          read: EFFECT_DENY
+
+  - name: a principal from another hospital is denied
+    input:
+      principals: [doctor_of_other_hospital]
+      resources: [inherited_with_role_grant]
+      actions: ["read"]
+    expected:
+      - principal: doctor_of_other_hospital
+        resource: inherited_with_role_grant
+        actions:
+          read: EFFECT_DENY

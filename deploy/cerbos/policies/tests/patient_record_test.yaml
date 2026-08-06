@@ -49,9 +49,9 @@ resources:
       hospitalId: hospital-1
       status: ACTIVE
       permissionContext:
-        roleGrantedActions: ["read", "update", "delete"]
+        roleGrantedActions: ["list", "read", "update", "delete"]
         userGrantedActions: []
-        userRevokedActions: ["read", "update", "delete"]
+        userRevokedActions: ["list", "read", "update", "delete"]
         permissionRevision: 184
 
   # Row 3: mandatory passes, user revokes, no role grant.
@@ -66,7 +66,7 @@ resources:
       permissionContext:
         roleGrantedActions: []
         userGrantedActions: []
-        userRevokedActions: ["read", "update", "delete"]
+        userRevokedActions: ["list", "read", "update", "delete"]
         permissionRevision: 184
 
   # Row 4: mandatory passes, user grants, no role grant.
@@ -80,7 +80,7 @@ resources:
       status: ACTIVE
       permissionContext:
         roleGrantedActions: []
-        userGrantedActions: ["read", "update", "delete"]
+        userGrantedActions: ["list", "read", "update", "delete"]
         userRevokedActions: []
         permissionRevision: 184
 
@@ -94,8 +94,8 @@ resources:
       hospitalId: hospital-1
       status: ACTIVE
       permissionContext:
-        roleGrantedActions: ["read", "update", "delete"]
-        userGrantedActions: ["read", "update", "delete"]
+        roleGrantedActions: ["list", "read", "update", "delete"]
+        userGrantedActions: ["list", "read", "update", "delete"]
         userRevokedActions: []
         permissionRevision: 184
 
@@ -109,7 +109,7 @@ resources:
       hospitalId: hospital-1
       status: ACTIVE
       permissionContext:
-        roleGrantedActions: ["read", "update", "delete"]
+        roleGrantedActions: ["list", "read", "update", "delete"]
         userGrantedActions: []
         userRevokedActions: []
         permissionRevision: 184
@@ -139,8 +139,8 @@ resources:
       hospitalId: hospital-1
       status: LOCKED
       permissionContext:
-        roleGrantedActions: ["read", "update", "delete"]
-        userGrantedActions: ["read", "update", "delete"]
+        roleGrantedActions: ["list", "read", "update", "delete"]
+        userGrantedActions: ["list", "read", "update", "delete"]
         userRevokedActions: []
         permissionRevision: 184
 
@@ -154,8 +154,8 @@ resources:
       hospitalId: hospital-1
       status: ACTIVE
       permissionContext:
-        roleGrantedActions: ["read", "update", "delete"]
-        userGrantedActions: ["read", "update", "delete"]
+        roleGrantedActions: ["list", "read", "update", "delete"]
+        userGrantedActions: ["list", "read", "update", "delete"]
         userRevokedActions: []
         permissionRevision: 184
 
@@ -168,8 +168,8 @@ resources:
       hospitalId: hospital-2
       status: ACTIVE
       permissionContext:
-        roleGrantedActions: ["read", "update", "delete"]
-        userGrantedActions: ["read", "update", "delete"]
+        roleGrantedActions: ["list", "read", "update", "delete"]
+        userGrantedActions: ["list", "read", "update", "delete"]
         userRevokedActions: []
         permissionRevision: 184
 
@@ -178,11 +178,12 @@ tests:
     input:
       principals: [doctor]
       resources: [revoked_over_role_grant]
-      actions: ["read", "update", "delete"]
+      actions: ["list", "read", "update", "delete"]
     expected:
       - principal: doctor
         resource: revoked_over_role_grant
         actions:
+          list: EFFECT_DENY
           read: EFFECT_DENY
           update: EFFECT_DENY
           delete: EFFECT_DENY
@@ -191,11 +192,12 @@ tests:
     input:
       principals: [doctor]
       resources: [revoked_without_role_grant]
-      actions: ["read", "update", "delete"]
+      actions: ["list", "read", "update", "delete"]
     expected:
       - principal: doctor
         resource: revoked_without_role_grant
         actions:
+          list: EFFECT_DENY
           read: EFFECT_DENY
           update: EFFECT_DENY
           delete: EFFECT_DENY
@@ -204,11 +206,12 @@ tests:
     input:
       principals: [doctor]
       resources: [user_granted_without_role_grant]
-      actions: ["read", "update", "delete"]
+      actions: ["list", "read", "update", "delete"]
     expected:
       - principal: doctor
         resource: user_granted_without_role_grant
         actions:
+          list: EFFECT_ALLOW
           read: EFFECT_ALLOW
           update: EFFECT_ALLOW
           delete: EFFECT_ALLOW
@@ -217,11 +220,12 @@ tests:
     input:
       principals: [doctor]
       resources: [user_granted_with_role_grant]
-      actions: ["read", "update", "delete"]
+      actions: ["list", "read", "update", "delete"]
     expected:
       - principal: doctor
         resource: user_granted_with_role_grant
         actions:
+          list: EFFECT_ALLOW
           read: EFFECT_ALLOW
           update: EFFECT_ALLOW
           delete: EFFECT_ALLOW
@@ -230,11 +234,12 @@ tests:
     input:
       principals: [doctor]
       resources: [inherited_with_role_grant]
-      actions: ["read", "update", "delete"]
+      actions: ["list", "read", "update", "delete"]
     expected:
       - principal: doctor
         resource: inherited_with_role_grant
         actions:
+          list: EFFECT_ALLOW
           read: EFFECT_ALLOW
           update: EFFECT_ALLOW
           delete: EFFECT_ALLOW
@@ -243,11 +248,12 @@ tests:
     input:
       principals: [doctor]
       resources: [inherited_without_role_grant]
-      actions: ["read", "update", "delete"]
+      actions: ["list", "read", "update", "delete"]
     expected:
       - principal: doctor
         resource: inherited_without_role_grant
         actions:
+          list: EFFECT_DENY
           read: EFFECT_DENY
           update: EFFECT_DENY
           delete: EFFECT_DENY
@@ -275,15 +281,27 @@ tests:
         actions:
           read: EFFECT_ALLOW
 
+  - name: locking a record does not withdraw the right to list it
+    input:
+      principals: [doctor]
+      resources: [locked_with_every_grant]
+      actions: ["list"]
+    expected:
+      - principal: doctor
+        resource: locked_with_every_grant
+        actions:
+          list: EFFECT_ALLOW
+
   - name: a record in another tenant is denied every action
     input:
       principals: [doctor]
       resources: [other_tenant_record]
-      actions: ["read", "update", "delete"]
+      actions: ["list", "read", "update", "delete"]
     expected:
       - principal: doctor
         resource: other_tenant_record
         actions:
+          list: EFFECT_DENY
           read: EFFECT_DENY
           update: EFFECT_DENY
           delete: EFFECT_DENY
@@ -292,11 +310,12 @@ tests:
     input:
       principals: [doctor_of_other_tenant]
       resources: [inherited_with_role_grant]
-      actions: ["read", "update", "delete"]
+      actions: ["list", "read", "update", "delete"]
     expected:
       - principal: doctor_of_other_tenant
         resource: inherited_with_role_grant
         actions:
+          list: EFFECT_DENY
           read: EFFECT_DENY
           update: EFFECT_DENY
           delete: EFFECT_DENY
@@ -305,11 +324,12 @@ tests:
     input:
       principals: [doctor]
       resources: [other_hospital_record]
-      actions: ["read", "update", "delete"]
+      actions: ["list", "read", "update", "delete"]
     expected:
       - principal: doctor
         resource: other_hospital_record
         actions:
+          list: EFFECT_DENY
           read: EFFECT_DENY
           update: EFFECT_DENY
           delete: EFFECT_DENY
@@ -318,11 +338,12 @@ tests:
     input:
       principals: [doctor_of_other_hospital]
       resources: [inherited_with_role_grant]
-      actions: ["read", "update", "delete"]
+      actions: ["list", "read", "update", "delete"]
     expected:
       - principal: doctor_of_other_hospital
         resource: inherited_with_role_grant
         actions:
+          list: EFFECT_DENY
           read: EFFECT_DENY
           update: EFFECT_DENY
           delete: EFFECT_DENY

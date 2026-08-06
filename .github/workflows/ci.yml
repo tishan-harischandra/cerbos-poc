@@ -55,6 +55,12 @@ jobs:
       - name: The generated catalog matches the manifest
         run: make catalog-check
 
+      # Fails the build on any UI capability catalog drift or validation
+      # violation: an empty allOf/anyOf, an unknown resource or action, a
+      # circular capability reference, or a negation construct (issue #10).
+      - name: The UI capability catalog matches the generator and validates
+        run: make capability-check
+
       # The policy suite is the authoritative statement of the precedence rules,
       # so it runs on every commit rather than only when Nx thinks it is
       # affected. It needs no Node, no Go and no running stack.

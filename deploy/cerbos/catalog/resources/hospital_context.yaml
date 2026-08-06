@@ -1,0 +1,13 @@
+# Hand-authored to match the hand-authored hospital_context policy
+# (ADR-006 reference pattern, deploy/cerbos/policies/resources/hospital_context.yaml).
+# hospital_context is the tenant/hospital scoping check the §12.1 composite UI
+# capabilities reuse across the board (issue #10); it is not a FHIR resource
+# and so is not part of libs/cataloggen's generated tree.
+resource: hospital_context
+version: v1
+displayName: Hospital context
+domain: administrative
+actions:
+  - key: read
+    displayName: View hospital context
+    context: INSTANCE

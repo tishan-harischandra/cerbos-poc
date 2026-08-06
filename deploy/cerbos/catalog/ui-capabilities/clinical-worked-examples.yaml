@@ -1,0 +1,111 @@
+# The five worked §12.1 examples, hand-authored (issue #10) rather than
+# archetype-generated, so the nested anyOf inside an allOf
+# (patient.button.create-order) is genuinely represented rather than
+# incidentally produced by the mechanical generator.
+#
+# §12.1's table (and its one fully-spelled-out YAML example, the design
+# doc's patient.route.edit/clinical-summary/create-order snippet) illustrates
+# these capabilities using resource names coined for the design doc itself:
+# patient_collection, patient_demographics, clinical_note_collection,
+# lab_result_collection, medication_order and laboratory_order. None of those
+# are concrete resources in the committed catalog
+# (deploy/cerbos/catalog/resources); the doc predates the FHIR manifest
+# (issue #8). Rather than fabricate five more hand-authored resources and
+# Cerbos policies purely to satisfy illustrative naming, every leaf below is
+# mapped onto a resource/action pair that already exists, so these
+# capabilities validate for real against the active catalog:
+#
+#   patient_collection:list        -> patient_record:list      (added, issue #10)
+#   patient_demographics:read      -> person:read               (FHIR Person)
+#   patient_record:read:clinical   -> patient_record:read       (no :clinical sub-action yet)
+#   clinical_note_collection:list  -> clinical_impression:list  (FHIR ClinicalImpression)
+#   lab_result_collection:list     -> observation:list          (FHIR Observation)
+#   medication_order:create        -> medication_request:create (FHIR MedicationRequest)
+#   laboratory_order:create        -> service_request:create    (FHIR ServiceRequest)
+#
+# The expression structure (allOf/anyOf composition and nesting) is
+# unchanged from the document.
+catalogRevision: 1
+capabilities:
+  - key: patients.route.list
+    module: clinical
+    context: COLLECTION
+    expression:
+      allOf:
+        - permission:
+            resource: patient_record
+            action: list
+            targetRef: patientCollection
+        - permission:
+            resource: hospital_context
+            action: read
+            targetRef: hospitalContext
+
+  - key: patient.route.details
+    module: clinical
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: patient_record
+            action: read
+            targetRef: patient
+        - permission:
+            resource: person
+            action: read
+            targetRef: patientDemographics
+
+  - key: patient.route.edit
+    module: clinical
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: patient_record
+            action: read
+            targetRef: patient
+        - permission:
+            resource: patient_record
+            action: update
+            targetRef: patient
+        - permission:
+            resource: clinical_impression
+            action: list
+            targetRef: patientClinicalNotes
+
+  - key: patient.component.clinical-summary
+    module: clinical
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: patient_record
+            action: read
+            targetRef: patient
+        - permission:
+            resource: clinical_impression
+            action: list
+            targetRef: patientClinicalNotes
+        - permission:
+            resource: observation
+            action: list
+            targetRef: patientLabResults
+
+  - key: patient.button.create-order
+    module: clinical
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: patient_record
+            action: read
+            targetRef: patient
+        - anyOf:
+            - permission:
+                resource: medication_request
+                action: create
+                targetRef: medicationOrderCollection
+            - permission:
+                resource: service_request
+                action: create
+                targetRef: laboratoryOrderCollection

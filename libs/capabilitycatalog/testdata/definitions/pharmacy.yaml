@@ -1,0 +1,10 @@
+catalogRevision: 1
+capabilities:
+  - key: medication.route.list
+    module: pharmacy
+    context: COLLECTION
+    expression:
+      permission:
+        resource: medication_request
+        action: list
+        targetRef: medicationRequestCollection

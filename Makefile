@@ -47,6 +47,14 @@ catalog-gen: ## Regenerate the FHIR catalog, policies, schemas, tests and DB see
 catalog-check: ## Fail if the committed catalog tree drifted from libs/cataloggen/manifest.yaml
 	bash scripts/go.sh libs/cataloggen run ./cmd/cataloggen -root /workspace -check
 
+.PHONY: capability-gen
+capability-gen: ## Regenerate the composite UI capability catalog and its DB seed
+	bash scripts/go.sh libs/capabilitycatalog run ./cmd/capabilitycatalog-gen -root /workspace
+
+.PHONY: capability-check
+capability-check: ## Fail if the UI capability catalog drifted or fails validation
+	bash scripts/go.sh libs/capabilitycatalog run ./cmd/capabilitycatalog-gen -root /workspace -check
+
 .PHONY: test
 test: ## Run every project's tests, the policy suite and the compose contract
 	$(NX) run-many --target=test --all
@@ -59,6 +67,7 @@ ci: ## Run exactly what CI runs, so a green local run means a green pipeline
 	$(NX) run-many --target=test --all
 	$(NX) run-many --target=build --all
 	$(MAKE) catalog-check
+	$(MAKE) capability-check
 	$(MAKE) policy-test
 	python3 scripts/tests/compose-contract.py
 	bash scripts/tests/nx-affected-isolation.sh
