@@ -2,6 +2,11 @@
 // from the environment.
 package config
 
+import (
+	"strings"
+	"time"
+)
+
 // Config is the Administration Service runtime configuration.
 type Config struct {
 	HTTPAddr string
@@ -19,6 +24,16 @@ type Config struct {
 	// loaded from - the same per-pod-mounted release tree Cerbos and the
 	// ADS read policies and UI capabilities from (§13.1).
 	CatalogDir string
+
+	// KafkaBrokers are the Kafka (or Redpanda) bootstrap addresses the
+	// outbox publisher loop writes PermissionChanged to (§10).
+	KafkaBrokers []string
+	// KafkaTopic is the topic the publisher writes to and the ADS reads
+	// from.
+	KafkaTopic string
+	// OutboxPublishInterval bounds how often the publisher loop polls for
+	// unpublished outbox rows.
+	OutboxPublishInterval time.Duration
 }
 
 // LookupFunc mirrors os.LookupEnv so configuration stays testable.
@@ -33,6 +48,10 @@ func FromEnv(lookup LookupFunc) Config {
 		PostgresDSN:  valueOr(lookup, "ASSIGNMENTSTORE_POSTGRES_DSN", ""),
 		IdPAddr:      valueOr(lookup, "IDP_ADDR", "keycloak:8080"),
 		CatalogDir:   valueOr(lookup, "AUTHORIZATION_CATALOG_DIR", "/etc/cerbos-catalog/resources"),
+
+		KafkaBrokers:          splitOr(lookup, "KAFKA_BROKERS", []string{"redpanda:9092"}),
+		KafkaTopic:            valueOr(lookup, "KAFKA_PERMISSION_CHANGED_TOPIC", "permission-changed"),
+		OutboxPublishInterval: durationOr(lookup, "OUTBOX_PUBLISH_INTERVAL", 2*time.Second),
 	}
 }
 
@@ -41,4 +60,35 @@ func valueOr(lookup LookupFunc, key, fallback string) string {
 		return value
 	}
 	return fallback
+}
+
+func splitOr(lookup LookupFunc, key string, fallback []string) []string {
+	value, ok := lookup(key)
+	if !ok || value == "" {
+		return fallback
+	}
+	parts := strings.Split(value, ",")
+	trimmed := make([]string, 0, len(parts))
+	for _, part := range parts {
+		part = strings.TrimSpace(part)
+		if part != "" {
+			trimmed = append(trimmed, part)
+		}
+	}
+	if len(trimmed) == 0 {
+		return fallback
+	}
+	return trimmed
+}
+
+func durationOr(lookup LookupFunc, key string, fallback time.Duration) time.Duration {
+	value, ok := lookup(key)
+	if !ok || value == "" {
+		return fallback
+	}
+	parsed, err := time.ParseDuration(value)
+	if err != nil || parsed <= 0 {
+		return fallback
+	}
+	return parsed
 }

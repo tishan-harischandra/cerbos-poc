@@ -3,6 +3,7 @@ package config
 
 import (
 	"strconv"
+	"strings"
 	"time"
 )
 
@@ -37,6 +38,20 @@ type Config struct {
 	// RootPolicyRevision is the immutable root-policy tag currently served
 	// (§12.4, §13.1), e.g. "root-v1.4.0".
 	RootPolicyRevision string
+
+	// KafkaBrokers are the Kafka (or Redpanda) bootstrap addresses the
+	// invalidation consumer reads PermissionChanged from (§10).
+	KafkaBrokers []string
+	// KafkaTopic is the topic the outbox publisher writes to and this
+	// consumer reads from.
+	KafkaTopic string
+	// KafkaConsumerGroup is this replica's consumer group. Every ADS
+	// replica shares one group so the topic's partitions are divided
+	// between them rather than each replica reading every message.
+	KafkaConsumerGroup string
+	// ReconcileInterval bounds how often the revision reconciler compares
+	// cached and actual tenant revisions (§10.3).
+	ReconcileInterval time.Duration
 }
 
 // LookupFunc mirrors os.LookupEnv so configuration stays testable.
@@ -56,7 +71,33 @@ func FromEnv(lookup LookupFunc) Config {
 		CapabilityCatalogDir:      valueOr(lookup, "CAPABILITY_CATALOG_DIR", "/etc/cerbos-catalog/ui-capabilities"),
 		CapabilityCatalogRevision: int64Or(lookup, "CAPABILITY_CATALOG_REVISION", 1),
 		RootPolicyRevision:        valueOr(lookup, "ROOT_POLICY_REVISION", "root-v1.4.0"),
+
+		KafkaBrokers:       splitOr(lookup, "KAFKA_BROKERS", []string{"redpanda:9092"}),
+		KafkaTopic:         valueOr(lookup, "KAFKA_PERMISSION_CHANGED_TOPIC", "permission-changed"),
+		KafkaConsumerGroup: valueOr(lookup, "KAFKA_CONSUMER_GROUP", "ads"),
+		ReconcileInterval:  durationOr(lookup, "ADS_RECONCILE_INTERVAL", 2*time.Second),
 	}
+}
+
+// splitOr falls back on an unreadable value. The value is a comma-separated
+// list, so a single broker needs no special-casing at the call site.
+func splitOr(lookup LookupFunc, key string, fallback []string) []string {
+	value, ok := lookup(key)
+	if !ok || value == "" {
+		return fallback
+	}
+	parts := strings.Split(value, ",")
+	trimmed := make([]string, 0, len(parts))
+	for _, part := range parts {
+		part = strings.TrimSpace(part)
+		if part != "" {
+			trimmed = append(trimmed, part)
+		}
+	}
+	if len(trimmed) == 0 {
+		return fallback
+	}
+	return trimmed
 }
 
 // int64Or falls back on an unreadable value, for the same reason

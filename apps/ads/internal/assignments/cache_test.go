@@ -220,3 +220,154 @@ func TestThePermissionRevisionIsCachedToo(t *testing.T) {
 		t.Errorf("three decisions made %d revision reads, want 1", inner.revisions)
 	}
 }
+
+// §10.1's whole point: invalidating one role must not touch an unrelated
+// cache entry. Two roles, two tenants and the revision are all cached here,
+// and only the one role named survives untouched by InvalidateRole.
+func TestInvalidateRoleDropsOnlyTheNamedRoleInTheNamedTenant(t *testing.T) {
+	inner := &recordingMatrix{
+		permissions: []assignmentstore.RolePermission{
+			grant("tenant-a", "role-doctor", "read", true),
+		},
+	}
+	cache := newCache(inner, func() time.Time { return decidedAt })
+	ctx := context.Background()
+
+	if _, err := cache.ActiveRolePermissions(ctx, matrixQuery("tenant-a", "role-doctor")); err != nil {
+		t.Fatalf("caching role-doctor in tenant-a: %v", err)
+	}
+	inner.permissions = []assignmentstore.RolePermission{grant("tenant-a", "role-nurse", "read", true)}
+	if _, err := cache.ActiveRolePermissions(ctx, matrixQuery("tenant-a", "role-nurse")); err != nil {
+		t.Fatalf("caching role-nurse in tenant-a: %v", err)
+	}
+	inner.permissions = []assignmentstore.RolePermission{grant("tenant-b", "role-doctor", "read", true)}
+	if _, err := cache.ActiveRolePermissions(ctx, matrixQuery("tenant-b", "role-doctor")); err != nil {
+		t.Fatalf("caching role-doctor in tenant-b: %v", err)
+	}
+
+	cache.InvalidateRole("tenant-a", "role-doctor")
+
+	// tenant-a/role-doctor must now miss and read through.
+	inner.permissions = nil
+	inner.queries = nil
+	invalidated, err := cache.ActiveRolePermissions(ctx, matrixQuery("tenant-a", "role-doctor"))
+	if err != nil {
+		t.Fatalf("reading the invalidated role: %v", err)
+	}
+	if len(invalidated) != 0 || len(inner.queries) != 1 {
+		t.Fatalf("tenant-a/role-doctor: got %d permissions and %d database reads, want a miss that reads through",
+			len(invalidated), len(inner.queries))
+	}
+
+	// tenant-a/role-nurse and tenant-b/role-doctor must still be cache hits.
+	inner.queries = nil
+	if _, err := cache.ActiveRolePermissions(ctx, matrixQuery("tenant-a", "role-nurse")); err != nil {
+		t.Fatalf("reading role-nurse: %v", err)
+	}
+	if _, err := cache.ActiveRolePermissions(ctx, matrixQuery("tenant-b", "role-doctor")); err != nil {
+		t.Fatalf("reading tenant-b/role-doctor: %v", err)
+	}
+	if len(inner.queries) != 0 {
+		t.Errorf("reading the untouched entries made %d database reads, want 0 (they should still be cached)",
+			len(inner.queries))
+	}
+}
+
+// InvalidateRevision must drop only the named tenant's cached revision.
+func TestInvalidateRevisionDropsOnlyTheNamedTenant(t *testing.T) {
+	inner := &recordingMatrix{
+		hasRevision: true,
+		revision:    assignmentstore.PermissionRevision{TenantID: "tenant-a", Revision: 1},
+	}
+	cache := newCache(inner, func() time.Time { return decidedAt })
+	ctx := context.Background()
+
+	if _, _, err := cache.PermissionRevision(ctx, "tenant-a"); err != nil {
+		t.Fatalf("caching tenant-a's revision: %v", err)
+	}
+	inner.revision = assignmentstore.PermissionRevision{TenantID: "tenant-b", Revision: 7}
+	if _, _, err := cache.PermissionRevision(ctx, "tenant-b"); err != nil {
+		t.Fatalf("caching tenant-b's revision: %v", err)
+	}
+
+	cache.InvalidateRevision("tenant-a")
+
+	if _, cached := cache.CachedRevision("tenant-a"); cached {
+		t.Error("tenant-a's revision is still cached after InvalidateRevision")
+	}
+	if revision, cached := cache.CachedRevision("tenant-b"); !cached || revision != 7 {
+		t.Errorf("tenant-b's revision = %d cached=%t, want 7 cached=true (untouched)", revision, cached)
+	}
+}
+
+// InvalidateTenant is the reconciler's tool: it drops everything cached for
+// one tenant, both roles and the revision, and nothing for any other tenant.
+func TestInvalidateTenantDropsEveryRoleAndTheRevisionForOneTenantOnly(t *testing.T) {
+	inner := &recordingMatrix{
+		permissions: []assignmentstore.RolePermission{grant("tenant-a", "role-doctor", "read", true)},
+		hasRevision: true,
+		revision:    assignmentstore.PermissionRevision{TenantID: "tenant-a", Revision: 1},
+	}
+	cache := newCache(inner, func() time.Time { return decidedAt })
+	ctx := context.Background()
+
+	if _, err := cache.ActiveRolePermissions(ctx, matrixQuery("tenant-a", "role-doctor")); err != nil {
+		t.Fatalf("caching tenant-a: %v", err)
+	}
+	if _, _, err := cache.PermissionRevision(ctx, "tenant-a"); err != nil {
+		t.Fatalf("caching tenant-a's revision: %v", err)
+	}
+	inner.permissions = []assignmentstore.RolePermission{grant("tenant-b", "role-doctor", "read", true)}
+	inner.revision = assignmentstore.PermissionRevision{TenantID: "tenant-b", Revision: 9}
+	if _, err := cache.ActiveRolePermissions(ctx, matrixQuery("tenant-b", "role-doctor")); err != nil {
+		t.Fatalf("caching tenant-b: %v", err)
+	}
+	if _, _, err := cache.PermissionRevision(ctx, "tenant-b"); err != nil {
+		t.Fatalf("caching tenant-b's revision: %v", err)
+	}
+
+	cache.InvalidateTenant("tenant-a")
+
+	if _, cached := cache.CachedRevision("tenant-a"); cached {
+		t.Error("tenant-a's revision is still cached after InvalidateTenant")
+	}
+	inner.permissions, inner.queries = nil, nil
+	if _, err := cache.ActiveRolePermissions(ctx, matrixQuery("tenant-a", "role-doctor")); err != nil {
+		t.Fatalf("reading tenant-a after invalidation: %v", err)
+	}
+	if len(inner.queries) != 1 {
+		t.Error("tenant-a's role permissions were still cached after InvalidateTenant")
+	}
+
+	if revision, cached := cache.CachedRevision("tenant-b"); !cached || revision != 9 {
+		t.Errorf("tenant-b's revision = %d cached=%t, want 9 cached=true (untouched)", revision, cached)
+	}
+}
+
+// KnownTenants must report every tenant with a live entry, and nothing else.
+func TestKnownTenantsListsEveryTenantWithALiveEntry(t *testing.T) {
+	inner := &recordingMatrix{permissions: []assignmentstore.RolePermission{grant("tenant-a", "role-doctor", "read", true)}}
+	cache := newCache(inner, func() time.Time { return decidedAt })
+	ctx := context.Background()
+
+	if _, err := cache.ActiveRolePermissions(ctx, matrixQuery("tenant-a", "role-doctor")); err != nil {
+		t.Fatalf("caching tenant-a: %v", err)
+	}
+	inner.hasRevision = true
+	inner.revision = assignmentstore.PermissionRevision{TenantID: "tenant-b", Revision: 1}
+	if _, _, err := cache.PermissionRevision(ctx, "tenant-b"); err != nil {
+		t.Fatalf("caching tenant-b's revision: %v", err)
+	}
+
+	known := cache.KnownTenants()
+	seen := map[string]bool{}
+	for _, tenant := range known {
+		seen[tenant] = true
+	}
+	if !seen["tenant-a"] || !seen["tenant-b"] {
+		t.Fatalf("KnownTenants = %v, want tenant-a and tenant-b", known)
+	}
+	if len(known) != 2 {
+		t.Errorf("KnownTenants = %v, want exactly tenant-a and tenant-b", known)
+	}
+}

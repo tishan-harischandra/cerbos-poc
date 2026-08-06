@@ -184,3 +184,77 @@ func (c *CachingRoleMatrix) PermissionRevision(ctx context.Context, tenantID str
 
 	return revision, found, nil
 }
+
+// InvalidateRole drops every cached entry for one role within one tenant,
+// across every resource it was cached under (§10.1's "every ADS replica
+// invalidates only the affected role or user cache keys"). An entry for a
+// different role, or the same role in a different tenant, is left exactly
+// as it was.
+func (c *CachingRoleMatrix) InvalidateRole(tenantID, roleID string) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	for key := range c.roles {
+		if key.tenantID == tenantID && key.roleID == roleID {
+			delete(c.roles, key)
+		}
+	}
+}
+
+// InvalidateRevision drops the cached permission revision for one tenant,
+// forcing the next read through to the database.
+func (c *CachingRoleMatrix) InvalidateRevision(tenantID string) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	delete(c.revisions, tenantID)
+}
+
+// InvalidateTenant drops every cached entry for one tenant - every role's
+// permissions and the revision. It is the reconciler's tool (§10.3): a
+// revision mismatch means something in the tenant changed, but the
+// reconciler does not know which role, so it cannot invalidate a narrower
+// key than the whole tenant.
+func (c *CachingRoleMatrix) InvalidateTenant(tenantID string) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	for key := range c.roles {
+		if key.tenantID == tenantID {
+			delete(c.roles, key)
+		}
+	}
+	delete(c.revisions, tenantID)
+}
+
+// CachedRevision reports the revision currently cached for a tenant, without
+// reading through on a miss - the reconciler needs to know what is cached,
+// not to warm what is not.
+func (c *CachingRoleMatrix) CachedRevision(tenantID string) (int64, bool) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	entry, cached := c.revisions[tenantID]
+	if !cached || !entry.found {
+		return 0, false
+	}
+	return entry.revision.Revision, true
+}
+
+// KnownTenants lists every tenant this cache currently holds any entry for -
+// a revision, or at least one role's permissions. The reconciler uses this to
+// know which tenants to check without needing its own enumeration of every
+// tenant in the system: a tenant this replica has never served has nothing
+// to reconcile.
+func (c *CachingRoleMatrix) KnownTenants() []string {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	seen := make(map[string]struct{})
+	for key := range c.roles {
+		seen[key.tenantID] = struct{}{}
+	}
+	for tenantID := range c.revisions {
+		seen[tenantID] = struct{}{}
+	}
+	tenants := make([]string, 0, len(seen))
+	for tenantID := range seen {
+		tenants = append(tenants, tenantID)
+	}
+	return tenants
+}

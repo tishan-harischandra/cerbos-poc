@@ -11,12 +11,17 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
+
 	"github.com/tishan-harischandra/cerbos-poc/apps/ads/internal/assignments"
 	"github.com/tishan-harischandra/cerbos-poc/apps/ads/internal/authz"
 	"github.com/tishan-harischandra/cerbos-poc/apps/ads/internal/capability"
 	"github.com/tishan-harischandra/cerbos-poc/apps/ads/internal/cerbos"
 	"github.com/tishan-harischandra/cerbos-poc/apps/ads/internal/config"
 	"github.com/tishan-harischandra/cerbos-poc/apps/ads/internal/directoryapi"
+	"github.com/tishan-harischandra/cerbos-poc/apps/ads/internal/invalidation"
+	"github.com/tishan-harischandra/cerbos-poc/apps/ads/internal/invalidationmetrics"
 	"github.com/tishan-harischandra/cerbos-poc/apps/ads/internal/netprobe"
 	"github.com/tishan-harischandra/cerbos-poc/apps/ads/internal/server"
 	"github.com/tishan-harischandra/cerbos-poc/apps/ads/internal/tokenauth"
@@ -77,6 +82,68 @@ func main() {
 		return tokenauth.Require(tokenauth.Config{Verifier: verifier, Logger: logger}, next)
 	}
 
+	// One shared cache behind both the authz and capability handlers
+	// (§10.1, §11.2): a targeted invalidation or a reconciliation pass has
+	// to reach every entry this replica holds, and two independent caches
+	// would let one of them silently keep serving a stale answer forever.
+	roleMatrixCache := assignments.NewCachingRoleMatrix(assignments.CacheConfig{
+		Matrix: store,
+		TTL:    cfg.RoleMatrixCacheTTL,
+	})
+
+	registry := prometheus.NewRegistry()
+	invalidationMetrics := invalidationmetrics.New(registry)
+
+	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
+	defer stop()
+
+	// §10.1's convergence path: the consumer applies a targeted
+	// invalidation the moment Kafka delivers one, and the reconciler
+	// (§10.3) repairs whatever it misses on its own schedule, independent
+	// of whether Kafka is reachable at all.
+	kafkaReader := invalidation.NewKafkaReader(cfg.KafkaBrokers, cfg.KafkaTopic, cfg.KafkaConsumerGroup)
+	consumer := &invalidation.Consumer{
+		Reader: kafkaReader,
+		Handler: &invalidation.Handler{
+			Cache:   roleMatrixCache,
+			Metrics: invalidationMetrics,
+		},
+		OnError: func(err error) {
+			logger.Error("invalidation consumer error", slog.Any("error", err))
+		},
+	}
+	go consumer.Run(ctx)
+
+	// Consumer lag is an observability signal, not something the
+	// invalidation path itself acts on - so it is polled on its own
+	// schedule rather than threaded through Handler.
+	go func() {
+		ticker := time.NewTicker(5 * time.Second)
+		defer ticker.Stop()
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case <-ticker.C:
+				invalidationMetrics.SetConsumerLag(float64(kafkaReader.Lag()))
+			}
+		}
+	}()
+
+	reconciler := invalidation.NewReconciler(invalidation.ReconcilerConfig{
+		Cache:    roleMatrixCache,
+		Store:    store,
+		Interval: cfg.ReconcileInterval,
+		OnDrift: func(tenantID string, cached, actual int64) {
+			logger.Info("reconciler repaired a drifted tenant",
+				slog.String("tenantId", tenantID), slog.Int64("cached", cached), slog.Int64("actual", actual))
+		},
+		OnError: func(err error) {
+			logger.Error("reconciler error", slog.Any("error", err))
+		},
+	})
+	go reconciler.Run(ctx)
+
 	handler := server.New(server.Config{
 		Dependencies: []server.Dependency{
 			{Name: "cerbos", Probe: cerbos.NewGRPCProbe(cfg.CerbosGRPCAddr)},
@@ -86,10 +153,7 @@ func main() {
 		AuthzHandler: authenticated(authz.NewHandler(authz.Config{
 			PDP: pdp,
 			Assignments: assignments.NewResolver(assignments.ResolverConfig{
-				Matrix: assignments.NewCachingRoleMatrix(assignments.CacheConfig{
-					Matrix: store,
-					TTL:    cfg.RoleMatrixCacheTTL,
-				}),
+				Matrix:    roleMatrixCache,
 				Overrides: assignments.NewDBOverrides(store, nil),
 			}),
 			Logger: logger,
@@ -107,15 +171,13 @@ func main() {
 			CapabilityCatalog: capability.NewFSCatalog(cfg.CapabilityCatalogDir, cfg.CapabilityCatalogRevision, nil),
 			TargetResolver:    capability.DefaultTargetResolver{},
 			Assignments: assignments.NewResolver(assignments.ResolverConfig{
-				Matrix: assignments.NewCachingRoleMatrix(assignments.CacheConfig{
-					Matrix: store,
-					TTL:    cfg.RoleMatrixCacheTTL,
-				}),
+				Matrix:    roleMatrixCache,
 				Overrides: assignments.NewDBOverrides(store, nil),
 			}),
 			RootPolicyRevision: cfg.RootPolicyRevision,
 			Logger:             logger,
 		})),
+		MetricsHandler: promhttp.HandlerFor(registry, promhttp.HandlerOpts{}),
 	})
 
 	httpServer := &http.Server{
@@ -123,9 +185,6 @@ func main() {
 		Handler:           handler,
 		ReadHeaderTimeout: 5 * time.Second,
 	}
-
-	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
-	defer stop()
 
 	go func() {
 		<-ctx.Done()
