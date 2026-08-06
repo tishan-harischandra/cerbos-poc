@@ -103,14 +103,11 @@ func Require(cfg Config, next http.Handler) http.Handler {
 
 func bearerToken(r *http.Request) (string, bool) {
 	header := r.Header.Get("Authorization")
-	if !strings.HasPrefix(header, bearerPrefix) {
+	if len(header) <= len(bearerPrefix) || !strings.EqualFold(header[:len(bearerPrefix)], bearerPrefix) {
 		return "", false
 	}
-	token := strings.TrimPrefix(header, bearerPrefix)
-	if token == "" {
-		return "", false
-	}
-	return token, true
+	token := strings.TrimSpace(header[len(bearerPrefix):])
+	return token, token != ""
 }
 
 func writeError(w http.ResponseWriter, status int, message string) {
