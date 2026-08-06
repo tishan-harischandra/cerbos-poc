@@ -1,0 +1,60 @@
+<h1>Resource catalog</h1>
+<p data-testid="catalog-revision">Root policy revision: {{ rootPolicyRevision() }}</p>
+
+@if (loadError()) {
+  <p data-testid="load-error" class="error">{{ loadError() }}</p>
+}
+
+<label>
+  Filter resources and actions
+  <input type="text" data-testid="filter-input" [(ngModel)]="filter" />
+</label>
+
+@for (group of domains(); track group.domain) {
+  <details class="domain-group" [attr.data-testid]="'domain-' + group.domain" [open]="filter() !== ''">
+    <summary>{{ group.domain }}</summary>
+    @for (resource of group.resources; track resource.resourceKey) {
+      <fieldset [attr.data-testid]="'resource-' + resource.resourceKey">
+        <legend>{{ resource.displayName }}</legend>
+        @for (action of resource.actions; track action.key) {
+          <button
+            type="button"
+            [attr.data-testid]="'action-' + resource.resourceKey + '-' + action.key"
+            (click)="selectAction(resource.resourceKey, action.key)"
+          >
+            {{ action.displayName }}
+            <span [attr.data-testid]="'risk-' + resource.resourceKey + '-' + action.key" class="risk-badge">
+              {{ action.risk }}
+            </span>
+          </button>
+        }
+      </fieldset>
+    }
+  </details>
+}
+
+@if (selectedActionKey()) {
+  <section class="capability-impact" data-testid="capability-impact">
+    <h2>Capabilities depending on {{ selectedResourceKey() }}:{{ selectedActionKey() }}</h2>
+
+    @if (impactLoading()) {
+      <p data-testid="impact-loading">Loading...</p>
+    }
+    @if (impactError()) {
+      <p data-testid="impact-error" class="error">{{ impactError() }}</p>
+    }
+    @if (impactCapabilities(); as capabilities) {
+      @if (capabilities.length > 0) {
+        <ul data-testid="impact-list">
+          @for (capability of capabilities; track capability.key) {
+            <li>{{ capability.key }} ({{ capability.module }})</li>
+          }
+        </ul>
+      } @else {
+        <p data-testid="impact-empty">
+          No composite capability depends on this resource-action.
+        </p>
+      }
+    }
+  </section>
+}
