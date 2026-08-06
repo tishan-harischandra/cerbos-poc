@@ -82,9 +82,10 @@ type ResourceDecision struct {
 }
 
 // Decision is the outcome for one action. Only an explicit allow from the PDP
-// sets Allowed (§11.3).
+// sets Allowed (§11.3). Source labels why, per Appendix A.
 type Decision struct {
-	Allowed bool `json:"allowed"`
+	Allowed bool   `json:"allowed"`
+	Source  Source `json:"source"`
 }
 
 // NewHandler builds the POST /internal/authz/check handler.
@@ -196,7 +197,10 @@ func NewHandler(cfg Config) http.Handler {
 			for _, action := range resource.Actions {
 				// A leaf the PDP did not answer for stays denied.
 				decision := result.Decisions[cerbosclient.Leaf{Resource: ref, Action: action}]
-				actions[action] = Decision{Allowed: decision.Allowed}
+				actions[action] = Decision{
+					Allowed: decision.Allowed,
+					Source:  decisionSource(action, decision.Allowed, result.FiredRules[ref]),
+				}
 			}
 			response.Resources = append(response.Resources, ResourceDecision{
 				Kind:               resource.Kind,

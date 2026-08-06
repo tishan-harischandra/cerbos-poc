@@ -140,6 +140,41 @@ func TestTheDecisionForEveryRequestedActionIsReturned(t *testing.T) {
 	}
 }
 
+// The response's decision source comes from the PDP's own fired-rule
+// reporting, not from any Go-side precedence logic (§21). This asserts the
+// wiring end to end: a fired rule name on cerbosclient.Result surfaces as the
+// matching Appendix A source label in the HTTP response.
+func TestTheDecisionSourceComesFromThePDPsFiredRules(t *testing.T) {
+	pdp := &recordingPDP{
+		result: cerbosclient.Result{
+			CallID: "call-1",
+			Decisions: map[cerbosclient.Leaf]cerbosclient.Decision{
+				leaf("patient-456", "read"):   {Allowed: true},
+				leaf("patient-456", "update"): {Allowed: false},
+			},
+			FiredRules: map[cerbosclient.ResourceRef]([]string){
+				{Kind: "patient_record", ID: "patient-456"}: {"grant_read_to_user", "revoke_update"},
+			},
+		},
+	}
+	handler := authz.NewHandler(authz.Config{PDP: pdp, Assignments: emptyAssignments{}})
+
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, post(validRequest))
+
+	var body authz.Response
+	if err := json.Unmarshal(rec.Body.Bytes(), &body); err != nil {
+		t.Fatalf("response is not JSON: %v", err)
+	}
+	actions := body.Resources[0].Actions
+	if actions["read"].Source != authz.SourceUserGrant {
+		t.Errorf("read source = %q, want %q", actions["read"].Source, authz.SourceUserGrant)
+	}
+	if actions["update"].Source != authz.SourceUserRevoke {
+		t.Errorf("update source = %q, want %q", actions["update"].Source, authz.SourceUserRevoke)
+	}
+}
+
 // The ADS supplies data. This asserts the assembled permissionContext reaches
 // the PDP as resource attributes; whether a revoke beats a grant is proven by
 // the Cerbos policy suite, not here.
