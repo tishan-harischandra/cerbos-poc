@@ -120,6 +120,15 @@ func Run(t *testing.T, newStore Factory) {
 	t.Run("unpublished outbox events are listed oldest first and can be marked published", func(t *testing.T) {
 		assertUnpublishedOutboxEvents(t, newStore(t))
 	})
+	t.Run("SaveUserOverrideWrite commits a GRANT or REVOKE with its audit, outbox and revision together", func(t *testing.T) {
+		assertSaveUserOverrideWriteAtomicSuccess(t, newStore(t))
+	})
+	t.Run("SaveUserOverrideWrite rejects a stale expected revision and writes nothing", func(t *testing.T) {
+		assertSaveUserOverrideWriteStaleRevision(t, newStore(t))
+	})
+	t.Run("SaveUserOverrideWrite with no effect clears an existing override row", func(t *testing.T) {
+		assertSaveUserOverrideWriteInheritClearsTheRow(t, newStore(t))
+	})
 }
 
 // The hot path resolves every role a principal holds at once (§11.2). What that
@@ -1496,6 +1505,180 @@ func assertUnpublishedOutboxEvents(t *testing.T, store assignmentstore.Store) {
 	}
 	if published.PublishedAt == nil {
 		t.Error("publishedAt is still nil after MarkOutboxEventPublished")
+	}
+}
+
+// A successful SaveUserOverrideWrite for a GRANT or REVOKE must leave all
+// four side effects visible: the override row (with its reason), the audit
+// event, the outbox event and the advanced tenant revision (§9.3, §9.4,
+// §10.1) - the same atomicity SaveRoleMatrix gives role permissions.
+func assertSaveUserOverrideWriteAtomicSuccess(t *testing.T, store assignmentstore.Store) {
+	t.Helper()
+	defer closeStore(t, store)
+	ctx := context.Background()
+	truncate(t, store, "user_permission_override", "permission_audit_event", "outbox_event", "permission_revision")
+
+	created := time.Date(2026, 6, 1, 12, 0, 0, 0, time.UTC)
+	write := assignmentstore.UserOverrideWrite{
+		Key: assignmentstore.UserOverrideKey{
+			TenantID: "tenant-a", HospitalID: "hospital-1", UserExternalID: "user-1",
+			ResourceKey: "patient_record", ActionKey: "delete",
+		},
+		Effect:           assignmentstore.EffectRevoke,
+		Reason:           "clinician under investigation",
+		ValidFrom:        created.AddDate(-1, 0, 0),
+		ExpectedRevision: 0,
+		Audit: assignmentstore.AuditEvent{
+			EventID:       "audit-override-atomic-1",
+			ActorID:       "admin-1",
+			Operation:     "USER_OVERRIDE_SAVE",
+			TargetType:    "user_permission_override",
+			BeforeJSON:    `{}`,
+			AfterJSON:     `{"patient_record.delete":"REVOKE"}`,
+			CorrelationID: "corr-override-atomic-1",
+			CreatedAt:     created,
+		},
+		Outbox: assignmentstore.OutboxEvent{
+			EventID:      "outbox-override-atomic-1",
+			AggregateKey: "tenant-a:user-1",
+			EventType:    "permission.changed",
+			Payload:      `{"revision":1}`,
+			CreatedAt:    created,
+		},
+	}
+
+	newRevision, err := store.SaveUserOverrideWrite(ctx, write)
+	if err != nil {
+		t.Fatalf("SaveUserOverrideWrite: %v", err)
+	}
+	if newRevision != 1 {
+		t.Errorf("newRevision = %d, want 1", newRevision)
+	}
+
+	override, found, err := store.UserOverride(ctx, write.Key)
+	if err != nil || !found {
+		t.Fatalf("reading the override back: found=%t err=%v", found, err)
+	}
+	if override.Effect != assignmentstore.EffectRevoke || !override.Enabled || override.Revision != 1 {
+		t.Errorf("override = %+v, want REVOKE enabled=true revision=1", override)
+	}
+	if override.Reason != "clinician under investigation" {
+		t.Errorf("override.Reason = %q, want the write's reason", override.Reason)
+	}
+
+	if _, found, err := store.AuditEvent(ctx, "audit-override-atomic-1"); err != nil || !found {
+		t.Fatalf("reading the audit event back: found=%t err=%v", found, err)
+	}
+	if _, found, err := store.OutboxEvent(ctx, "outbox-override-atomic-1"); err != nil || !found {
+		t.Fatalf("reading the outbox event back: found=%t err=%v", found, err)
+	}
+
+	revision, found, err := store.PermissionRevision(ctx, "tenant-a")
+	if err != nil || !found {
+		t.Fatalf("reading the permission revision back: found=%t err=%v", found, err)
+	}
+	if revision.Revision != 1 {
+		t.Errorf("tenant revision = %d, want 1", revision.Revision)
+	}
+}
+
+// A stale ExpectedRevision must fail cleanly and write nothing: not the
+// override, not the audit event, not the outbox event, and the tenant
+// revision must not move - the same guarantee SaveRoleMatrix gives.
+func assertSaveUserOverrideWriteStaleRevision(t *testing.T, store assignmentstore.Store) {
+	t.Helper()
+	defer closeStore(t, store)
+	ctx := context.Background()
+	truncate(t, store, "user_permission_override", "permission_audit_event", "outbox_event", "permission_revision")
+
+	created := time.Date(2026, 6, 1, 12, 0, 0, 0, time.UTC)
+	key := assignmentstore.UserOverrideKey{
+		TenantID: "tenant-a", HospitalID: "hospital-1", UserExternalID: "user-2",
+		ResourceKey: "patient_record", ActionKey: "update",
+	}
+	first := assignmentstore.UserOverrideWrite{
+		Key: key, Effect: assignmentstore.EffectGrant, Reason: "temporary cover",
+		ValidFrom: created, ExpectedRevision: 0,
+		Audit:  assignmentstore.AuditEvent{EventID: "audit-override-stale-1", Operation: "USER_OVERRIDE_SAVE", CreatedAt: created},
+		Outbox: assignmentstore.OutboxEvent{EventID: "outbox-override-stale-1", AggregateKey: "tenant-a:user-2", EventType: "permission.changed", Payload: `{}`, CreatedAt: created},
+	}
+	if _, err := store.SaveUserOverrideWrite(ctx, first); err != nil {
+		t.Fatalf("the first write: %v", err)
+	}
+
+	// The tenant is now at revision 1. A second write that still believes
+	// revision 0 is current must be rejected.
+	stale := assignmentstore.UserOverrideWrite{
+		Key: key, Effect: assignmentstore.EffectRevoke, Reason: "changed my mind",
+		ValidFrom: created, ExpectedRevision: 0,
+		Audit:  assignmentstore.AuditEvent{EventID: "audit-override-stale-2", Operation: "USER_OVERRIDE_SAVE", CreatedAt: created},
+		Outbox: assignmentstore.OutboxEvent{EventID: "outbox-override-stale-2", AggregateKey: "tenant-a:user-2", EventType: "permission.changed", Payload: `{}`, CreatedAt: created},
+	}
+	if _, err := store.SaveUserOverrideWrite(ctx, stale); !errors.Is(err, assignmentstore.ErrRevisionConflict) {
+		t.Fatalf("SaveUserOverrideWrite with a stale revision returned %v, want ErrRevisionConflict", err)
+	}
+
+	override, found, err := store.UserOverride(ctx, key)
+	if err != nil || !found {
+		t.Fatalf("reading the override back: found=%t err=%v", found, err)
+	}
+	if override.Effect != assignmentstore.EffectGrant {
+		t.Errorf("override.Effect = %s, want the first write's GRANT to survive the rejected second write", override.Effect)
+	}
+	if _, found, err := store.AuditEvent(ctx, "audit-override-stale-2"); err != nil {
+		t.Fatalf("reading the rejected audit event: %v", err)
+	} else if found {
+		t.Error("the rejected write's audit event was written anyway")
+	}
+	if _, found, err := store.OutboxEvent(ctx, "outbox-override-stale-2"); err != nil {
+		t.Fatalf("reading the rejected outbox event: %v", err)
+	} else if found {
+		t.Error("the rejected write's outbox event was written anyway")
+	}
+}
+
+// SaveUserOverrideWrite with Effect left at its zero value is INHERIT: it
+// must clear an existing row rather than upsert one carrying no effect
+// (§8.3: INHERIT is the absence of a row, not a storable effect), and the
+// role result then applies unmodified.
+func assertSaveUserOverrideWriteInheritClearsTheRow(t *testing.T, store assignmentstore.Store) {
+	t.Helper()
+	defer closeStore(t, store)
+	ctx := context.Background()
+	truncate(t, store, "user_permission_override", "permission_audit_event", "outbox_event", "permission_revision")
+
+	created := time.Date(2026, 6, 1, 12, 0, 0, 0, time.UTC)
+	key := assignmentstore.UserOverrideKey{
+		TenantID: "tenant-a", HospitalID: "hospital-1", UserExternalID: "user-3",
+		ResourceKey: "patient_record", ActionKey: "read",
+	}
+	grant := assignmentstore.UserOverrideWrite{
+		Key: key, Effect: assignmentstore.EffectGrant, Reason: "exceptional access",
+		ValidFrom: created, ExpectedRevision: 0,
+		Audit:  assignmentstore.AuditEvent{EventID: "audit-override-inherit-1", Operation: "USER_OVERRIDE_SAVE", CreatedAt: created},
+		Outbox: assignmentstore.OutboxEvent{EventID: "outbox-override-inherit-1", AggregateKey: "tenant-a:user-3", EventType: "permission.changed", Payload: `{}`, CreatedAt: created},
+	}
+	if _, err := store.SaveUserOverrideWrite(ctx, grant); err != nil {
+		t.Fatalf("the grant write: %v", err)
+	}
+
+	inherit := assignmentstore.UserOverrideWrite{
+		Key: key, ExpectedRevision: 1,
+		Audit:  assignmentstore.AuditEvent{EventID: "audit-override-inherit-2", Operation: "USER_OVERRIDE_SAVE", CreatedAt: created},
+		Outbox: assignmentstore.OutboxEvent{EventID: "outbox-override-inherit-2", AggregateKey: "tenant-a:user-3", EventType: "permission.changed", Payload: `{}`, CreatedAt: created},
+	}
+	newRevision, err := store.SaveUserOverrideWrite(ctx, inherit)
+	if err != nil {
+		t.Fatalf("the inherit write: %v", err)
+	}
+	if newRevision != 2 {
+		t.Errorf("newRevision = %d, want 2", newRevision)
+	}
+
+	if _, found, err := store.UserOverride(ctx, key); err != nil {
+		t.Fatalf("reading the cleared override: %v", err)
+	} else if found {
+		t.Error("the override row still exists after an INHERIT write")
 	}
 }
 

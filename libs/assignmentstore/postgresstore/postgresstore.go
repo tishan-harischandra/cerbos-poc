@@ -164,8 +164,8 @@ func (s *Store) SaveUserOverride(ctx context.Context, override assignmentstore.U
 	const statement = `
 		INSERT INTO user_permission_override (
 			tenant_id, hospital_id, user_external_id, resource_key, action_key,
-			resource_instance_id, effect, enabled, valid_from, valid_until, revision)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+			resource_instance_id, effect, enabled, valid_from, valid_until, revision, reason)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
 		ON CONFLICT (tenant_id, hospital_id, user_external_id, resource_key,
 			action_key, resource_instance_id)
 		DO UPDATE SET
@@ -173,13 +173,15 @@ func (s *Store) SaveUserOverride(ctx context.Context, override assignmentstore.U
 			enabled = EXCLUDED.enabled,
 			valid_from = EXCLUDED.valid_from,
 			valid_until = EXCLUDED.valid_until,
-			revision = EXCLUDED.revision`
+			revision = EXCLUDED.revision,
+			reason = EXCLUDED.reason`
 
 	key := assignmentstore.NormalizeOverrideKey(override.Key)
 	_, err := s.pool.Exec(ctx, statement,
 		key.TenantID, key.HospitalID, key.UserExternalID, key.ResourceKey,
 		key.ActionKey, key.ResourceInstanceID, string(override.Effect),
-		override.Enabled, override.ValidFrom, override.ValidUntil, override.Revision)
+		override.Enabled, override.ValidFrom, override.ValidUntil, override.Revision,
+		nullableString(override.Reason))
 	if err != nil {
 		return fmt.Errorf("postgresstore: saving a user override: %w", err)
 	}
@@ -189,7 +191,7 @@ func (s *Store) SaveUserOverride(ctx context.Context, override assignmentstore.U
 // UserOverride reads one override by its §8.2 key.
 func (s *Store) UserOverride(ctx context.Context, key assignmentstore.UserOverrideKey) (assignmentstore.UserOverride, bool, error) {
 	const query = `
-		SELECT effect, enabled, valid_from, valid_until, revision
+		SELECT effect, enabled, valid_from, valid_until, revision, reason
 		FROM user_permission_override
 		WHERE tenant_id = $1 AND hospital_id = $2 AND user_external_id = $3
 		  AND resource_key = $4 AND action_key = $5 AND resource_instance_id = $6`
@@ -197,10 +199,12 @@ func (s *Store) UserOverride(ctx context.Context, key assignmentstore.UserOverri
 	key = assignmentstore.NormalizeOverrideKey(key)
 	override := assignmentstore.UserOverride{Key: key}
 	var effect string
+	var validUntil *time.Time
+	var reason *string
 	err := s.pool.QueryRow(ctx, query,
 		key.TenantID, key.HospitalID, key.UserExternalID, key.ResourceKey,
 		key.ActionKey, key.ResourceInstanceID).
-		Scan(&effect, &override.Enabled, &override.ValidFrom, &override.ValidUntil, &override.Revision)
+		Scan(&effect, &override.Enabled, &override.ValidFrom, &validUntil, &override.Revision, &reason)
 	if isNoRows(err) {
 		return assignmentstore.UserOverride{}, false, nil
 	}
@@ -208,7 +212,25 @@ func (s *Store) UserOverride(ctx context.Context, key assignmentstore.UserOverri
 		return assignmentstore.UserOverride{}, false, fmt.Errorf("postgresstore: reading a user override: %w", err)
 	}
 	override.Effect = assignmentstore.OverrideEffect(effect)
+	if validUntil != nil {
+		override.ValidUntil = *validUntil
+	}
+	if reason != nil {
+		override.Reason = *reason
+	}
 	return override, true, nil
+}
+
+// nullableString turns an empty string into a genuine SQL NULL rather than
+// storing "" - reason is absent for INHERIT and for rows SaveUserOverride
+// seeds directly, and a NULL is what a later SELECT tells apart from an
+// administrator who wrote an empty-but-present reason, if that ever became
+// something worth distinguishing.
+func nullableString(value string) any {
+	if value == "" {
+		return nil
+	}
+	return value
 }
 
 // ActiveUserOverrides reads every override in force for one principal and one
@@ -226,7 +248,7 @@ func (s *Store) ActiveUserOverrides(ctx context.Context, query assignmentstore.A
 	}
 
 	const statement = `
-		SELECT action_key, resource_instance_id, effect, enabled, valid_from, valid_until, revision
+		SELECT action_key, resource_instance_id, effect, enabled, valid_from, valid_until, revision, reason
 		FROM user_permission_override
 		WHERE tenant_id = $1
 		  AND hospital_id = $2
@@ -254,13 +276,17 @@ func (s *Store) ActiveUserOverrides(ctx context.Context, query assignmentstore.A
 		}
 		var effect string
 		var validUntil *time.Time
+		var reason *string
 		if err := rows.Scan(&override.Key.ActionKey, &override.Key.ResourceInstanceID,
-			&effect, &override.Enabled, &override.ValidFrom, &validUntil, &override.Revision); err != nil {
+			&effect, &override.Enabled, &override.ValidFrom, &validUntil, &override.Revision, &reason); err != nil {
 			return nil, fmt.Errorf("postgresstore: scanning a user override: %w", err)
 		}
 		override.Effect = assignmentstore.OverrideEffect(effect)
 		if validUntil != nil {
 			override.ValidUntil = *validUntil
+		}
+		if reason != nil {
+			override.Reason = *reason
 		}
 		overrides = append(overrides, override)
 	}
@@ -502,6 +528,100 @@ func (s *Store) SaveRoleMatrix(ctx context.Context, write assignmentstore.RoleMa
 
 	if err := tx.Commit(ctx); err != nil {
 		return 0, fmt.Errorf("postgresstore: committing the role matrix transaction: %w", err)
+	}
+	return newRevision, nil
+}
+
+// SaveUserOverrideWrite atomically applies one tri-state change to a user
+// override (§9.3, §9.4, §10.1). See SaveRoleMatrix for why the revision row
+// is seeded before it is locked.
+func (s *Store) SaveUserOverrideWrite(ctx context.Context, write assignmentstore.UserOverrideWrite) (int64, error) {
+	tx, err := s.pool.Begin(ctx)
+	if err != nil {
+		return 0, fmt.Errorf("postgresstore: beginning the user override transaction: %w", err)
+	}
+	defer func() { _ = tx.Rollback(ctx) }()
+
+	if _, err := tx.Exec(ctx, `
+		INSERT INTO permission_revision (tenant_id, revision, changed_at)
+		VALUES ($1, 0, $2)
+		ON CONFLICT (tenant_id) DO NOTHING`,
+		write.Key.TenantID, write.Audit.CreatedAt); err != nil {
+		return 0, fmt.Errorf("postgresstore: seeding the permission revision: %w", err)
+	}
+
+	var current int64
+	if err := tx.QueryRow(ctx, `
+		SELECT revision FROM permission_revision WHERE tenant_id = $1 FOR UPDATE`,
+		write.Key.TenantID).Scan(&current); err != nil {
+		return 0, fmt.Errorf("postgresstore: locking the permission revision: %w", err)
+	}
+	if current != write.ExpectedRevision {
+		return 0, assignmentstore.ErrRevisionConflict
+	}
+
+	newRevision := current + 1
+	key := assignmentstore.NormalizeOverrideKey(write.Key)
+	if write.Effect == "" {
+		// INHERIT: the override row is cleared rather than upserted (§8.3).
+		if _, err := tx.Exec(ctx, `
+			DELETE FROM user_permission_override
+			WHERE tenant_id = $1 AND hospital_id = $2 AND user_external_id = $3
+			  AND resource_key = $4 AND action_key = $5 AND resource_instance_id = $6`,
+			key.TenantID, key.HospitalID, key.UserExternalID, key.ResourceKey,
+			key.ActionKey, key.ResourceInstanceID); err != nil {
+			return 0, fmt.Errorf("postgresstore: clearing a user override: %w", err)
+		}
+	} else {
+		if _, err := tx.Exec(ctx, `
+			INSERT INTO user_permission_override (
+				tenant_id, hospital_id, user_external_id, resource_key, action_key,
+				resource_instance_id, effect, enabled, valid_from, valid_until, revision, reason)
+			VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+			ON CONFLICT (tenant_id, hospital_id, user_external_id, resource_key,
+				action_key, resource_instance_id)
+			DO UPDATE SET
+				effect = EXCLUDED.effect,
+				enabled = EXCLUDED.enabled,
+				valid_from = EXCLUDED.valid_from,
+				valid_until = EXCLUDED.valid_until,
+				revision = EXCLUDED.revision,
+				reason = EXCLUDED.reason`,
+			key.TenantID, key.HospitalID, key.UserExternalID, key.ResourceKey,
+			key.ActionKey, key.ResourceInstanceID, string(write.Effect), true,
+			write.ValidFrom, endOrNull(write.ValidUntil), newRevision, nullableString(write.Reason)); err != nil {
+			return 0, fmt.Errorf("postgresstore: writing a user override: %w", err)
+		}
+	}
+
+	if _, err := tx.Exec(ctx, `
+		INSERT INTO permission_audit_event (
+			event_id, actor_id, operation, target_type, before_json, after_json,
+			tenant_id, hospital_id, correlation_id, created_at)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
+		write.Audit.EventID, write.Audit.ActorID, write.Audit.Operation, write.Audit.TargetType,
+		write.Audit.BeforeJSON, write.Audit.AfterJSON, key.TenantID, key.HospitalID,
+		write.Audit.CorrelationID, write.Audit.CreatedAt); err != nil {
+		return 0, fmt.Errorf("postgresstore: appending the audit event: %w", err)
+	}
+
+	if _, err := tx.Exec(ctx, `
+		INSERT INTO outbox_event (
+			event_id, aggregate_key, event_type, payload, created_at, published_at)
+		VALUES ($1, $2, $3, $4, $5, $6)`,
+		write.Outbox.EventID, write.Outbox.AggregateKey, write.Outbox.EventType,
+		write.Outbox.Payload, write.Outbox.CreatedAt, write.Outbox.PublishedAt); err != nil {
+		return 0, fmt.Errorf("postgresstore: appending the outbox event: %w", err)
+	}
+
+	if _, err := tx.Exec(ctx, `
+		UPDATE permission_revision SET revision = $2, changed_at = $3 WHERE tenant_id = $1`,
+		key.TenantID, newRevision, write.Audit.CreatedAt); err != nil {
+		return 0, fmt.Errorf("postgresstore: advancing the permission revision: %w", err)
+	}
+
+	if err := tx.Commit(ctx); err != nil {
+		return 0, fmt.Errorf("postgresstore: committing the user override transaction: %w", err)
 	}
 	return newRevision, nil
 }

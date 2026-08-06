@@ -34,6 +34,15 @@ type Config struct {
 	// OutboxPublishInterval bounds how often the publisher loop polls for
 	// unpublished outbox rows.
 	OutboxPublishInterval time.Duration
+
+	// HighRiskActions names the action keys the user-override write path
+	// (§9.3, issue #15) defaults to a bounded expiry when a GRANT or
+	// REVOKE names none.
+	HighRiskActions []string
+	// HighRiskOverrideValidity bounds a high-risk GRANT or REVOKE that
+	// names no ValidUntil. Non-positive falls back to
+	// useroverride.DefaultHighRiskValidityWindow.
+	HighRiskOverrideValidity time.Duration
 }
 
 // LookupFunc mirrors os.LookupEnv so configuration stays testable.
@@ -52,6 +61,9 @@ func FromEnv(lookup LookupFunc) Config {
 		KafkaBrokers:          splitOr(lookup, "KAFKA_BROKERS", []string{"redpanda:9092"}),
 		KafkaTopic:            valueOr(lookup, "KAFKA_PERMISSION_CHANGED_TOPIC", "permission-changed"),
 		OutboxPublishInterval: durationOr(lookup, "OUTBOX_PUBLISH_INTERVAL", 2*time.Second),
+
+		HighRiskActions:          splitOr(lookup, "USER_OVERRIDE_HIGH_RISK_ACTIONS", []string{"update", "delete", "assign"}),
+		HighRiskOverrideValidity: durationOr(lookup, "USER_OVERRIDE_HIGH_RISK_VALIDITY", 90*24*time.Hour),
 	}
 }
 

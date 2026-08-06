@@ -10,6 +10,7 @@ import (
 
 	"github.com/tishan-harischandra/cerbos-poc/apps/admin-service/internal/rolematrix"
 	"github.com/tishan-harischandra/cerbos-poc/apps/admin-service/internal/tokenauth"
+	"github.com/tishan-harischandra/cerbos-poc/apps/admin-service/internal/useroverride"
 )
 
 // DefaultReadinessTimeout bounds how long readiness waits on its dependencies.
@@ -38,6 +39,10 @@ type Config struct {
 	// RoleMatrix serves the role-matrix endpoints. Nil means the routes
 	// are not registered.
 	RoleMatrix *rolematrix.Handler
+
+	// UserOverride serves the user-override endpoints. Nil means the
+	// routes are not registered.
+	UserOverride *useroverride.Handler
 }
 
 // New builds the Administration Service HTTP handler.
@@ -47,14 +52,22 @@ func New(cfg Config) http.Handler {
 		writeJSON(w, http.StatusOK, map[string]any{"status": "ok"})
 	})
 
-	if cfg.RoleMatrix != nil && cfg.Verifier != nil {
+	if cfg.Verifier != nil {
 		authenticated := func(next http.HandlerFunc) http.Handler {
 			return tokenauth.Require(tokenauth.Config{Verifier: cfg.Verifier}, next)
 		}
-		mux.Handle("PUT /admin/authz/tenants/{tenant}/roles/{role}/permissions",
-			authenticated(cfg.RoleMatrix.Save))
-		mux.Handle("GET /admin/authz/tenants/{tenant}/permission-revision",
-			authenticated(cfg.RoleMatrix.CurrentRevision))
+		if cfg.RoleMatrix != nil {
+			mux.Handle("PUT /admin/authz/tenants/{tenant}/roles/{role}/permissions",
+				authenticated(cfg.RoleMatrix.Save))
+			mux.Handle("GET /admin/authz/tenants/{tenant}/permission-revision",
+				authenticated(cfg.RoleMatrix.CurrentRevision))
+		}
+		if cfg.UserOverride != nil {
+			mux.Handle("PUT /admin/authz/tenants/{tenant}/hospitals/{hospital}/users/{user}/overrides",
+				authenticated(cfg.UserOverride.Save))
+			mux.Handle("GET /admin/authz/tenants/{tenant}/hospitals/{hospital}/users/{user}/overrides",
+				authenticated(cfg.UserOverride.Read))
+		}
 	}
 
 	timeout := cfg.ReadinessTimeout

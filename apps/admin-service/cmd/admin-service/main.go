@@ -16,6 +16,7 @@ import (
 	"github.com/tishan-harischandra/cerbos-poc/apps/admin-service/internal/config"
 	"github.com/tishan-harischandra/cerbos-poc/apps/admin-service/internal/rolematrix"
 	"github.com/tishan-harischandra/cerbos-poc/apps/admin-service/internal/server"
+	"github.com/tishan-harischandra/cerbos-poc/apps/admin-service/internal/useroverride"
 	"github.com/tishan-harischandra/cerbos-poc/libs/assignmentstore/postgresstore"
 	"github.com/tishan-harischandra/cerbos-poc/libs/capabilitycatalog"
 	"github.com/tishan-harischandra/cerbos-poc/libs/idpdirectory/provider"
@@ -62,6 +63,12 @@ func main() {
 		RoleMatrix: &rolematrix.Handler{
 			Store:   store,
 			Catalog: catalog,
+		},
+		UserOverride: &useroverride.Handler{
+			Store:                   store,
+			Catalog:                 catalog,
+			HighRiskActions:         cfg.HighRiskActions,
+			DefaultHighRiskValidity: cfg.HighRiskOverrideValidity,
 		},
 	})
 
