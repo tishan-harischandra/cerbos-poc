@@ -10,6 +10,7 @@ package assignmentstore
 
 import (
 	"context"
+	"errors"
 	"time"
 )
 
@@ -150,6 +151,42 @@ type OutboxEvent struct {
 	PublishedAt  *time.Time
 }
 
+// RolePermissionInput is one row of a role-matrix slice a caller wants
+// written (§9.4). It carries no revision of its own: SaveRoleMatrix stamps
+// every row it writes with the transaction's new tenant-wide revision
+// (§10.1), because the point of the expected-revision check is that the whole
+// slice moves forward together.
+type RolePermissionInput struct {
+	ResourceKey string
+	ActionKey   string
+	Enabled     bool
+	ValidFrom   time.Time
+	ValidUntil  time.Time
+}
+
+// RoleMatrixWrite is the input to SaveRoleMatrix: one role's whole permission
+// slice within one tenant, plus the audit event and outbox event that must
+// commit with it (§9.4, §10.1, §16.1).
+type RoleMatrixWrite struct {
+	TenantID       string
+	RoleExternalID string
+	// ExpectedRevision is the tenant permission revision the caller last
+	// read (§9.4's "Replace role permissions using expected revision").
+	// Zero means the caller believes the tenant has never had a matrix
+	// saved.
+	ExpectedRevision int64
+	Permissions      []RolePermissionInput
+	// Audit.TenantID is ignored; the write always audits against
+	// RoleMatrixWrite.TenantID so the two can never disagree.
+	Audit  AuditEvent
+	Outbox OutboxEvent
+}
+
+// ErrRevisionConflict is returned by SaveRoleMatrix, with nothing written,
+// when ExpectedRevision no longer matches the tenant's stored permission
+// revision (§10.1).
+var ErrRevisionConflict = errors.New("assignmentstore: expected revision is stale")
+
 // Capability is one composite UI capability definition (§8.1).
 type Capability struct {
 	CapabilityKey   string
@@ -247,6 +284,23 @@ type Store interface {
 
 	AppendOutboxEvent(ctx context.Context, event OutboxEvent) error
 	OutboxEvent(ctx context.Context, eventID string) (OutboxEvent, bool, error)
+
+	// UnpublishedOutboxEvents reads up to limit outbox rows that have not
+	// yet been published, oldest first, so a publisher drains them in the
+	// order they were written.
+	UnpublishedOutboxEvents(ctx context.Context, limit int) ([]OutboxEvent, error)
+	// MarkOutboxEventPublished records that an outbox row was published.
+	// Marking an already-published row again is not an error: at-least-once
+	// delivery means a publisher may see the same row twice.
+	MarkOutboxEventPublished(ctx context.Context, eventID string, publishedAt time.Time) error
+
+	// SaveRoleMatrix atomically writes one role's permission slice: every
+	// row's upsert, the audit event, the outbox event and the tenant's
+	// permission-revision bump commit as a single unit or none do (§9.4,
+	// §10.1, §16.1). It returns ErrRevisionConflict, with nothing written,
+	// if write.ExpectedRevision no longer matches the tenant's stored
+	// revision.
+	SaveRoleMatrix(ctx context.Context, write RoleMatrixWrite) (newRevision int64, err error)
 
 	SaveCapability(ctx context.Context, capability Capability) error
 	Capability(ctx context.Context, capabilityKey string) (Capability, bool, error)

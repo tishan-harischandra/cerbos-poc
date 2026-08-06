@@ -380,6 +380,132 @@ func (s *Store) OutboxEvent(ctx context.Context, eventID string) (assignmentstor
 	return event, true, nil
 }
 
+// UnpublishedOutboxEvents reads up to limit unpublished rows, oldest first.
+func (s *Store) UnpublishedOutboxEvents(ctx context.Context, limit int) ([]assignmentstore.OutboxEvent, error) {
+	const query = `
+		SELECT event_id, aggregate_key, event_type, payload, created_at
+		FROM outbox_event
+		WHERE published_at IS NULL
+		ORDER BY created_at, event_id
+		LIMIT $1`
+
+	rows, err := s.pool.Query(ctx, query, limit)
+	if err != nil {
+		return nil, fmt.Errorf("postgresstore: reading unpublished outbox events: %w", err)
+	}
+	defer rows.Close()
+
+	var events []assignmentstore.OutboxEvent
+	for rows.Next() {
+		var event assignmentstore.OutboxEvent
+		if err := rows.Scan(&event.EventID, &event.AggregateKey, &event.EventType,
+			&event.Payload, &event.CreatedAt); err != nil {
+			return nil, fmt.Errorf("postgresstore: scanning an outbox event: %w", err)
+		}
+		events = append(events, event)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("postgresstore: reading unpublished outbox events: %w", err)
+	}
+	return events, nil
+}
+
+// MarkOutboxEventPublished records that an outbox row was published.
+func (s *Store) MarkOutboxEventPublished(ctx context.Context, eventID string, publishedAt time.Time) error {
+	const statement = `UPDATE outbox_event SET published_at = $2 WHERE event_id = $1`
+	if _, err := s.pool.Exec(ctx, statement, eventID, publishedAt); err != nil {
+		return fmt.Errorf("postgresstore: marking an outbox event published: %w", err)
+	}
+	return nil
+}
+
+// SaveRoleMatrix atomically writes one role's permission slice (§9.4,
+// §10.1, §16.1).
+//
+// The tenant's permission_revision row is seeded first, if absent, so the
+// lock below always has a row to take: without that seed, a genuinely
+// concurrent first write for a brand-new tenant would have nothing to
+// serialize it against its sibling. SELECT ... FOR UPDATE then blocks a
+// second concurrent writer until the first commits or rolls back; the second
+// writer's subsequent read sees whatever the first one left behind, which is
+// what turns a stale ExpectedRevision into a clean conflict rather than a
+// race.
+func (s *Store) SaveRoleMatrix(ctx context.Context, write assignmentstore.RoleMatrixWrite) (int64, error) {
+	tx, err := s.pool.Begin(ctx)
+	if err != nil {
+		return 0, fmt.Errorf("postgresstore: beginning the role matrix transaction: %w", err)
+	}
+	defer func() { _ = tx.Rollback(ctx) }()
+
+	if _, err := tx.Exec(ctx, `
+		INSERT INTO permission_revision (tenant_id, revision, changed_at)
+		VALUES ($1, 0, $2)
+		ON CONFLICT (tenant_id) DO NOTHING`,
+		write.TenantID, write.Audit.CreatedAt); err != nil {
+		return 0, fmt.Errorf("postgresstore: seeding the permission revision: %w", err)
+	}
+
+	var current int64
+	if err := tx.QueryRow(ctx, `
+		SELECT revision FROM permission_revision WHERE tenant_id = $1 FOR UPDATE`,
+		write.TenantID).Scan(&current); err != nil {
+		return 0, fmt.Errorf("postgresstore: locking the permission revision: %w", err)
+	}
+	if current != write.ExpectedRevision {
+		return 0, assignmentstore.ErrRevisionConflict
+	}
+
+	newRevision := current + 1
+	for _, permission := range write.Permissions {
+		if _, err := tx.Exec(ctx, `
+			INSERT INTO role_permission (
+				tenant_id, role_external_id, resource_key, action_key,
+				enabled, valid_from, valid_until, revision)
+			VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+			ON CONFLICT (tenant_id, role_external_id, resource_key, action_key)
+			DO UPDATE SET
+				enabled = EXCLUDED.enabled,
+				valid_from = EXCLUDED.valid_from,
+				valid_until = EXCLUDED.valid_until,
+				revision = EXCLUDED.revision`,
+			write.TenantID, write.RoleExternalID, permission.ResourceKey, permission.ActionKey,
+			permission.Enabled, permission.ValidFrom, endOrNull(permission.ValidUntil), newRevision); err != nil {
+			return 0, fmt.Errorf("postgresstore: writing a role permission: %w", err)
+		}
+	}
+
+	if _, err := tx.Exec(ctx, `
+		INSERT INTO permission_audit_event (
+			event_id, actor_id, operation, target_type, before_json, after_json,
+			tenant_id, hospital_id, correlation_id, created_at)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
+		write.Audit.EventID, write.Audit.ActorID, write.Audit.Operation, write.Audit.TargetType,
+		write.Audit.BeforeJSON, write.Audit.AfterJSON, write.TenantID, write.Audit.HospitalID,
+		write.Audit.CorrelationID, write.Audit.CreatedAt); err != nil {
+		return 0, fmt.Errorf("postgresstore: appending the audit event: %w", err)
+	}
+
+	if _, err := tx.Exec(ctx, `
+		INSERT INTO outbox_event (
+			event_id, aggregate_key, event_type, payload, created_at, published_at)
+		VALUES ($1, $2, $3, $4, $5, $6)`,
+		write.Outbox.EventID, write.Outbox.AggregateKey, write.Outbox.EventType,
+		write.Outbox.Payload, write.Outbox.CreatedAt, write.Outbox.PublishedAt); err != nil {
+		return 0, fmt.Errorf("postgresstore: appending the outbox event: %w", err)
+	}
+
+	if _, err := tx.Exec(ctx, `
+		UPDATE permission_revision SET revision = $2, changed_at = $3 WHERE tenant_id = $1`,
+		write.TenantID, newRevision, write.Audit.CreatedAt); err != nil {
+		return 0, fmt.Errorf("postgresstore: advancing the permission revision: %w", err)
+	}
+
+	if err := tx.Commit(ctx); err != nil {
+		return 0, fmt.Errorf("postgresstore: committing the role matrix transaction: %w", err)
+	}
+	return newRevision, nil
+}
+
 // SaveCapability inserts or updates one capability definition.
 func (s *Store) SaveCapability(ctx context.Context, capability assignmentstore.Capability) error {
 	const statement = `

@@ -9,8 +9,11 @@ package storecontract
 import (
 	"context"
 	"encoding/json"
+	"errors"
+	"fmt"
 	"slices"
 	"sort"
+	"sync"
 	"testing"
 	"time"
 
@@ -98,6 +101,24 @@ func Run(t *testing.T, newStore Factory) {
 	})
 	t.Run("listing resources pages within one tenant and hospital", func(t *testing.T) {
 		assertListResources(t, newStore(t))
+	})
+	t.Run("SaveRoleMatrix commits the permission, audit, outbox and revision together", func(t *testing.T) {
+		assertSaveRoleMatrixAtomicSuccess(t, newStore(t))
+	})
+	t.Run("SaveRoleMatrix rejects a stale expected revision and writes nothing", func(t *testing.T) {
+		assertSaveRoleMatrixStaleRevision(t, newStore(t))
+	})
+	t.Run("two concurrent SaveRoleMatrix calls against the same role yield one success and one conflict", func(t *testing.T) {
+		assertSaveRoleMatrixConcurrentWrites(t, newStore(t))
+	})
+	t.Run("a mid-transaction failure in SaveRoleMatrix rolls back all four writes", func(t *testing.T) {
+		assertSaveRoleMatrixRollsBackOnFailure(t, newStore(t))
+	})
+	t.Run("audit history survives SaveRoleMatrix updating the same role permission in place", func(t *testing.T) {
+		assertSaveRoleMatrixAuditHistoryIsAppendOnly(t, newStore(t))
+	})
+	t.Run("unpublished outbox events are listed oldest first and can be marked published", func(t *testing.T) {
+		assertUnpublishedOutboxEvents(t, newStore(t))
 	})
 }
 
@@ -1094,6 +1115,387 @@ func assertNullableTimestamp(t *testing.T, store assignmentstore.Store) {
 	}
 	if !event.CreatedAt.Equal(created) {
 		t.Errorf("createdAt = %s, want %s", event.CreatedAt, created)
+	}
+}
+
+// A successful SaveRoleMatrix must leave all four side effects visible: the
+// role permission row, the audit event, the outbox event and the advanced
+// tenant revision (§9.4, §10.1, §16.1).
+func assertSaveRoleMatrixAtomicSuccess(t *testing.T, store assignmentstore.Store) {
+	t.Helper()
+	defer closeStore(t, store)
+	ctx := context.Background()
+	truncate(t, store, "role_permission", "permission_audit_event", "outbox_event", "permission_revision")
+
+	created := time.Date(2026, 6, 1, 12, 0, 0, 0, time.UTC)
+	write := assignmentstore.RoleMatrixWrite{
+		TenantID:         "tenant-a",
+		RoleExternalID:   "role-doctor",
+		ExpectedRevision: 0,
+		Permissions: []assignmentstore.RolePermissionInput{
+			{ResourceKey: "patient_record", ActionKey: "read", Enabled: true,
+				ValidFrom: created.AddDate(-1, 0, 0)},
+		},
+		Audit: assignmentstore.AuditEvent{
+			EventID:       "audit-atomic-1",
+			ActorID:       "admin-1",
+			Operation:     "ROLE_MATRIX_SAVE",
+			TargetType:    "role_permission",
+			BeforeJSON:    `{}`,
+			AfterJSON:     `{"patient_record.read":true}`,
+			HospitalID:    "",
+			CorrelationID: "corr-atomic-1",
+			CreatedAt:     created,
+		},
+		Outbox: assignmentstore.OutboxEvent{
+			EventID:      "outbox-atomic-1",
+			AggregateKey: "tenant-a:role-doctor",
+			EventType:    "permission.changed",
+			Payload:      `{"revision":1}`,
+			CreatedAt:    created,
+		},
+	}
+
+	newRevision, err := store.SaveRoleMatrix(ctx, write)
+	if err != nil {
+		t.Fatalf("SaveRoleMatrix: %v", err)
+	}
+	if newRevision != 1 {
+		t.Errorf("newRevision = %d, want 1", newRevision)
+	}
+
+	permission, found, err := store.RolePermission(ctx, assignmentstore.RolePermissionKey{
+		TenantID: "tenant-a", RoleExternalID: "role-doctor",
+		ResourceKey: "patient_record", ActionKey: "read",
+	})
+	if err != nil || !found {
+		t.Fatalf("reading the role permission back: found=%t err=%v", found, err)
+	}
+	if !permission.Enabled || permission.Revision != 1 {
+		t.Errorf("permission = %+v, want enabled=true revision=1", permission)
+	}
+
+	audit, found, err := store.AuditEvent(ctx, "audit-atomic-1")
+	if err != nil || !found {
+		t.Fatalf("reading the audit event back: found=%t err=%v", found, err)
+	}
+	if audit.TenantID != "tenant-a" || audit.CorrelationID != "corr-atomic-1" {
+		t.Errorf("audit = %+v, want tenant-a and corr-atomic-1", audit)
+	}
+
+	if _, found, err := store.OutboxEvent(ctx, "outbox-atomic-1"); err != nil || !found {
+		t.Fatalf("reading the outbox event back: found=%t err=%v", found, err)
+	}
+
+	revision, found, err := store.PermissionRevision(ctx, "tenant-a")
+	if err != nil || !found {
+		t.Fatalf("reading the permission revision back: found=%t err=%v", found, err)
+	}
+	if revision.Revision != 1 {
+		t.Errorf("tenant revision = %d, want 1", revision.Revision)
+	}
+}
+
+// A stale ExpectedRevision must fail cleanly and write nothing: not the
+// permission, not the audit event, not the outbox event, and the tenant
+// revision must not move.
+func assertSaveRoleMatrixStaleRevision(t *testing.T, store assignmentstore.Store) {
+	t.Helper()
+	defer closeStore(t, store)
+	ctx := context.Background()
+	truncate(t, store, "role_permission", "permission_audit_event", "outbox_event", "permission_revision")
+
+	created := time.Date(2026, 6, 1, 12, 0, 0, 0, time.UTC)
+	first := assignmentstore.RoleMatrixWrite{
+		TenantID:         "tenant-a",
+		RoleExternalID:   "role-nurse",
+		ExpectedRevision: 0,
+		Permissions: []assignmentstore.RolePermissionInput{
+			{ResourceKey: "patient_record", ActionKey: "list", Enabled: true, ValidFrom: created},
+		},
+		Audit:  assignmentstore.AuditEvent{EventID: "audit-stale-1", Operation: "ROLE_MATRIX_SAVE", CreatedAt: created},
+		Outbox: assignmentstore.OutboxEvent{EventID: "outbox-stale-1", AggregateKey: "tenant-a:role-nurse", EventType: "permission.changed", Payload: `{}`, CreatedAt: created},
+	}
+	if _, err := store.SaveRoleMatrix(ctx, first); err != nil {
+		t.Fatalf("the first save: %v", err)
+	}
+
+	// The tenant is now at revision 1. A second save that still believes
+	// revision 0 is current must be rejected.
+	stale := assignmentstore.RoleMatrixWrite{
+		TenantID:         "tenant-a",
+		RoleExternalID:   "role-nurse",
+		ExpectedRevision: 0,
+		Permissions: []assignmentstore.RolePermissionInput{
+			{ResourceKey: "patient_record", ActionKey: "delete", Enabled: true, ValidFrom: created},
+		},
+		Audit:  assignmentstore.AuditEvent{EventID: "audit-stale-2", Operation: "ROLE_MATRIX_SAVE", CreatedAt: created},
+		Outbox: assignmentstore.OutboxEvent{EventID: "outbox-stale-2", AggregateKey: "tenant-a:role-nurse", EventType: "permission.changed", Payload: `{}`, CreatedAt: created},
+	}
+	if _, err := store.SaveRoleMatrix(ctx, stale); !errors.Is(err, assignmentstore.ErrRevisionConflict) {
+		t.Fatalf("SaveRoleMatrix with a stale revision returned %v, want ErrRevisionConflict", err)
+	}
+
+	if _, found, err := store.RolePermission(ctx, assignmentstore.RolePermissionKey{
+		TenantID: "tenant-a", RoleExternalID: "role-nurse",
+		ResourceKey: "patient_record", ActionKey: "delete",
+	}); err != nil {
+		t.Fatalf("reading the rejected permission: %v", err)
+	} else if found {
+		t.Error("the rejected write's role permission was written anyway")
+	}
+	if _, found, err := store.AuditEvent(ctx, "audit-stale-2"); err != nil {
+		t.Fatalf("reading the rejected audit event: %v", err)
+	} else if found {
+		t.Error("the rejected write's audit event was written anyway")
+	}
+	if _, found, err := store.OutboxEvent(ctx, "outbox-stale-2"); err != nil {
+		t.Fatalf("reading the rejected outbox event: %v", err)
+	} else if found {
+		t.Error("the rejected write's outbox event was written anyway")
+	}
+
+	revision, _, err := store.PermissionRevision(ctx, "tenant-a")
+	if err != nil {
+		t.Fatalf("reading the tenant revision: %v", err)
+	}
+	if revision.Revision != 1 {
+		t.Errorf("tenant revision = %d after a rejected write, want it unchanged at 1", revision.Revision)
+	}
+}
+
+// Two callers who both read revision 0 and race to save must not both
+// succeed: exactly one commits and advances the revision, and the other sees
+// its expected revision has gone stale by the time it gets the lock.
+func assertSaveRoleMatrixConcurrentWrites(t *testing.T, store assignmentstore.Store) {
+	t.Helper()
+	defer closeStore(t, store)
+	ctx := context.Background()
+	truncate(t, store, "role_permission", "permission_audit_event", "outbox_event", "permission_revision")
+
+	created := time.Date(2026, 6, 1, 12, 0, 0, 0, time.UTC)
+	write := func(eventSuffix string) assignmentstore.RoleMatrixWrite {
+		return assignmentstore.RoleMatrixWrite{
+			TenantID:         "tenant-a",
+			RoleExternalID:   "role-porter",
+			ExpectedRevision: 0,
+			Permissions: []assignmentstore.RolePermissionInput{
+				{ResourceKey: "patient_record", ActionKey: "read", Enabled: true, ValidFrom: created},
+			},
+			Audit: assignmentstore.AuditEvent{
+				EventID: "audit-concurrent-" + eventSuffix, Operation: "ROLE_MATRIX_SAVE", CreatedAt: created,
+			},
+			Outbox: assignmentstore.OutboxEvent{
+				EventID: "outbox-concurrent-" + eventSuffix, AggregateKey: "tenant-a:role-porter",
+				EventType: "permission.changed", Payload: `{}`, CreatedAt: created,
+			},
+		}
+	}
+
+	var wg sync.WaitGroup
+	errs := make([]error, 2)
+	start := make(chan struct{})
+	for i := range 2 {
+		wg.Add(1)
+		go func(i int) {
+			defer wg.Done()
+			<-start
+			_, errs[i] = store.SaveRoleMatrix(ctx, write(fmt.Sprintf("%d", i)))
+		}(i)
+	}
+	close(start)
+	wg.Wait()
+
+	successes, conflicts := 0, 0
+	for _, err := range errs {
+		switch {
+		case err == nil:
+			successes++
+		case errors.Is(err, assignmentstore.ErrRevisionConflict):
+			conflicts++
+		default:
+			t.Fatalf("an unexpected error from a concurrent save: %v", err)
+		}
+	}
+	if successes != 1 || conflicts != 1 {
+		t.Fatalf("got %d successes and %d conflicts, want exactly one of each (errors: %v)",
+			successes, conflicts, errs)
+	}
+
+	revision, _, err := store.PermissionRevision(ctx, "tenant-a")
+	if err != nil {
+		t.Fatalf("reading the tenant revision: %v", err)
+	}
+	if revision.Revision != 1 {
+		t.Errorf("tenant revision = %d after one concurrent success, want 1", revision.Revision)
+	}
+}
+
+// A failure partway through the transaction - forced here by a duplicate
+// outbox event id, which the unique primary key refuses - must roll back
+// every write that came before it too: the role permission, the audit event
+// and the revision bump must all be absent, exactly as if the call had never
+// happened.
+func assertSaveRoleMatrixRollsBackOnFailure(t *testing.T, store assignmentstore.Store) {
+	t.Helper()
+	defer closeStore(t, store)
+	ctx := context.Background()
+	truncate(t, store, "role_permission", "permission_audit_event", "outbox_event", "permission_revision")
+
+	created := time.Date(2026, 6, 1, 12, 0, 0, 0, time.UTC)
+	if err := store.AppendOutboxEvent(ctx, assignmentstore.OutboxEvent{
+		EventID: "outbox-rollback-1", AggregateKey: "pre-existing", EventType: "permission.changed",
+		Payload: `{}`, CreatedAt: created,
+	}); err != nil {
+		t.Fatalf("seeding a conflicting outbox event: %v", err)
+	}
+
+	write := assignmentstore.RoleMatrixWrite{
+		TenantID:         "tenant-a",
+		RoleExternalID:   "role-doctor",
+		ExpectedRevision: 0,
+		Permissions: []assignmentstore.RolePermissionInput{
+			{ResourceKey: "patient_record", ActionKey: "update", Enabled: true, ValidFrom: created},
+		},
+		Audit: assignmentstore.AuditEvent{EventID: "audit-rollback-1", Operation: "ROLE_MATRIX_SAVE", CreatedAt: created},
+		// The same event id as the row seeded above: the unique key forces
+		// this insert to fail after the permission and audit writes above
+		// it in the transaction have already run.
+		Outbox: assignmentstore.OutboxEvent{
+			EventID: "outbox-rollback-1", AggregateKey: "tenant-a:role-doctor",
+			EventType: "permission.changed", Payload: `{}`, CreatedAt: created,
+		},
+	}
+
+	if _, err := store.SaveRoleMatrix(ctx, write); err == nil {
+		t.Fatal("SaveRoleMatrix succeeded despite a duplicate outbox event id")
+	}
+
+	if _, found, err := store.RolePermission(ctx, assignmentstore.RolePermissionKey{
+		TenantID: "tenant-a", RoleExternalID: "role-doctor",
+		ResourceKey: "patient_record", ActionKey: "update",
+	}); err != nil {
+		t.Fatalf("reading the role permission: %v", err)
+	} else if found {
+		t.Error("the role permission was written despite the transaction failing")
+	}
+	if _, found, err := store.AuditEvent(ctx, "audit-rollback-1"); err != nil {
+		t.Fatalf("reading the audit event: %v", err)
+	} else if found {
+		t.Error("the audit event was written despite the transaction failing")
+	}
+	if _, found, err := store.PermissionRevision(ctx, "tenant-a"); err != nil {
+		t.Fatalf("reading the tenant revision: %v", err)
+	} else if found {
+		t.Error("the permission revision was seeded despite the transaction failing")
+	}
+}
+
+// §8.1's audit trail is append-only: saving the same role permission twice
+// must leave both audit events readable, not have the second overwrite the
+// first, even though the role permission row itself is updated in place.
+func assertSaveRoleMatrixAuditHistoryIsAppendOnly(t *testing.T, store assignmentstore.Store) {
+	t.Helper()
+	defer closeStore(t, store)
+	ctx := context.Background()
+	truncate(t, store, "role_permission", "permission_audit_event", "outbox_event", "permission_revision")
+
+	created := time.Date(2026, 6, 1, 12, 0, 0, 0, time.UTC)
+	newRevision, err := store.SaveRoleMatrix(ctx, assignmentstore.RoleMatrixWrite{
+		TenantID: "tenant-a", RoleExternalID: "role-doctor", ExpectedRevision: 0,
+		Permissions: []assignmentstore.RolePermissionInput{
+			{ResourceKey: "patient_record", ActionKey: "update", Enabled: true, ValidFrom: created},
+		},
+		Audit:  assignmentstore.AuditEvent{EventID: "audit-history-1", Operation: "ROLE_MATRIX_SAVE", BeforeJSON: `{}`, AfterJSON: `{"enabled":true}`, CreatedAt: created},
+		Outbox: assignmentstore.OutboxEvent{EventID: "outbox-history-1", AggregateKey: "tenant-a:role-doctor", EventType: "permission.changed", Payload: `{}`, CreatedAt: created},
+	})
+	if err != nil {
+		t.Fatalf("the first save: %v", err)
+	}
+
+	if _, err := store.SaveRoleMatrix(ctx, assignmentstore.RoleMatrixWrite{
+		TenantID: "tenant-a", RoleExternalID: "role-doctor", ExpectedRevision: newRevision,
+		Permissions: []assignmentstore.RolePermissionInput{
+			{ResourceKey: "patient_record", ActionKey: "update", Enabled: false, ValidFrom: created},
+		},
+		Audit:  assignmentstore.AuditEvent{EventID: "audit-history-2", Operation: "ROLE_MATRIX_SAVE", BeforeJSON: `{"enabled":true}`, AfterJSON: `{"enabled":false}`, CreatedAt: created},
+		Outbox: assignmentstore.OutboxEvent{EventID: "outbox-history-2", AggregateKey: "tenant-a:role-doctor", EventType: "permission.changed", Payload: `{}`, CreatedAt: created},
+	}); err != nil {
+		t.Fatalf("the second save: %v", err)
+	}
+
+	for _, eventID := range []string{"audit-history-1", "audit-history-2"} {
+		if _, found, err := store.AuditEvent(ctx, eventID); err != nil || !found {
+			t.Errorf("%s: found=%t err=%v, want it still readable", eventID, found, err)
+		}
+	}
+
+	permission, found, err := store.RolePermission(ctx, assignmentstore.RolePermissionKey{
+		TenantID: "tenant-a", RoleExternalID: "role-doctor",
+		ResourceKey: "patient_record", ActionKey: "update",
+	})
+	if err != nil || !found {
+		t.Fatalf("reading the updated permission: found=%t err=%v", found, err)
+	}
+	if permission.Enabled {
+		t.Error("the role permission still reads enabled after the second save disabled it")
+	}
+}
+
+// The publisher loop drains outbox rows oldest first and must not see a row
+// again once it has been marked published.
+func assertUnpublishedOutboxEvents(t *testing.T, store assignmentstore.Store) {
+	t.Helper()
+	defer closeStore(t, store)
+	ctx := context.Background()
+	truncate(t, store, "outbox_event")
+
+	base := time.Date(2026, 6, 1, 12, 0, 0, 0, time.UTC)
+	for i, id := range []string{"outbox-unpub-1", "outbox-unpub-2", "outbox-unpub-3"} {
+		if err := store.AppendOutboxEvent(ctx, assignmentstore.OutboxEvent{
+			EventID: id, AggregateKey: "tenant-a:role-doctor", EventType: "permission.changed",
+			Payload: `{}`, CreatedAt: base.Add(time.Duration(i) * time.Minute),
+		}); err != nil {
+			t.Fatalf("seeding %s: %v", id, err)
+		}
+	}
+
+	unpublished, err := store.UnpublishedOutboxEvents(ctx, 10)
+	if err != nil {
+		t.Fatalf("reading unpublished events: %v", err)
+	}
+	if len(unpublished) != 3 {
+		t.Fatalf("got %d unpublished events, want 3", len(unpublished))
+	}
+	for i, want := range []string{"outbox-unpub-1", "outbox-unpub-2", "outbox-unpub-3"} {
+		if unpublished[i].EventID != want {
+			t.Errorf("event %d = %s, want %s (oldest first)", i, unpublished[i].EventID, want)
+		}
+	}
+
+	if err := store.MarkOutboxEventPublished(ctx, "outbox-unpub-2", base.Add(time.Hour)); err != nil {
+		t.Fatalf("marking published: %v", err)
+	}
+
+	remaining, err := store.UnpublishedOutboxEvents(ctx, 10)
+	if err != nil {
+		t.Fatalf("reading unpublished events after marking one published: %v", err)
+	}
+	if len(remaining) != 2 {
+		t.Fatalf("got %d unpublished events after marking one published, want 2", len(remaining))
+	}
+	for _, event := range remaining {
+		if event.EventID == "outbox-unpub-2" {
+			t.Error("a published event was still reported as unpublished")
+		}
+	}
+
+	published, found, err := store.OutboxEvent(ctx, "outbox-unpub-2")
+	if err != nil || !found {
+		t.Fatalf("reading the published event back: found=%t err=%v", found, err)
+	}
+	if published.PublishedAt == nil {
+		t.Error("publishedAt is still nil after MarkOutboxEventPublished")
 	}
 }
 
