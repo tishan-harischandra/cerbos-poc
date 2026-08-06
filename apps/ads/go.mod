@@ -3,6 +3,7 @@ module github.com/tishan-harischandra/cerbos-poc/apps/ads
 go 1.25.11
 
 require (
+	github.com/tishan-harischandra/cerbos-poc/libs/authzcache v0.0.0-00010101000000-000000000000
 	github.com/tishan-harischandra/cerbos-poc/libs/canonicalid v0.0.0
 	google.golang.org/grpc v1.82.1
 )
