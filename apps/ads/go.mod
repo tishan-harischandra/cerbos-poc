@@ -55,6 +55,7 @@ require (
 	github.com/segmentio/asm v1.2.1 // indirect
 	github.com/sourcegraph/conc v0.3.0 // indirect
 	github.com/stretchr/testify v1.11.1 // indirect
+	github.com/tishan-harischandra/cerbos-poc/libs/cataloggen v0.0.0 // indirect
 	github.com/valyala/fastjson v1.6.10 // indirect
 	github.com/zalando/go-keyring v0.2.8 // indirect
 	go.opentelemetry.io/auto/sdk v1.2.1 // indirect
@@ -73,6 +74,8 @@ require (
 
 require (
 	github.com/tishan-harischandra/cerbos-poc/libs/assignmentstore v0.0.0
+	github.com/tishan-harischandra/cerbos-poc/libs/capabilitycatalog v0.0.0
+	github.com/tishan-harischandra/cerbos-poc/libs/capabilityeval v0.0.0
 	github.com/tishan-harischandra/cerbos-poc/libs/cerbosclient v0.0.0
 	github.com/tishan-harischandra/cerbos-poc/libs/idpdirectory v0.0.0
 	github.com/tishan-harischandra/cerbos-poc/libs/permissioncontext v0.0.0
@@ -85,6 +88,14 @@ require (
 )
 
 replace github.com/tishan-harischandra/cerbos-poc/libs/assignmentstore => ../../libs/assignmentstore
+
+replace github.com/tishan-harischandra/cerbos-poc/libs/authzcache => ../../libs/authzcache
+
+replace github.com/tishan-harischandra/cerbos-poc/libs/capabilitycatalog => ../../libs/capabilitycatalog
+
+replace github.com/tishan-harischandra/cerbos-poc/libs/capabilityeval => ../../libs/capabilityeval
+
+replace github.com/tishan-harischandra/cerbos-poc/libs/cataloggen => ../../libs/cataloggen
 
 replace github.com/tishan-harischandra/cerbos-poc/libs/cerbosclient => ../../libs/cerbosclient
 
