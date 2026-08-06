@@ -228,6 +228,31 @@ func TestUpdateAsksTheADSAboutTheStoresOwnAttributesNotTheRequestBody(t *testing
 	}
 }
 
+// The mandatory-deny path (issue #9) covers delete as well as update: a
+// LOCKED record's own status, not the request, is what the ADS is asked
+// about, and a deny must leave the row in place.
+func TestDeleteAsksTheADSAboutTheStoresOwnAttributesNotTheRequestBody(t *testing.T) {
+	store := newFakeStore()
+	store.put(assignmentstore.Resource{
+		ResourceType: "condition", ResourceID: "condition-1",
+		TenantID: "tenant-a", HospitalID: "hospital-1", Status: "LOCKED",
+	})
+	ads := newFakeADS()
+	ads.deny("condition", "condition-1", "delete", "MANDATORY_RULE")
+
+	handler := pep.NewHandler(pep.Config{Store: store, ADS: ads, Clock: fixedClock})
+	req := withIdentity(httptest.NewRequest(http.MethodDelete, "/fhir/condition/condition-1", nil), testIdentity())
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusForbidden {
+		t.Fatalf("status = %d, want %d; a LOCKED record must deny delete", rec.Code, http.StatusForbidden)
+	}
+	if len(store.deleted) != 0 {
+		t.Error("the resource was deleted despite a denied decision")
+	}
+}
+
 func TestDeleteRemovesFromTheStoreOnlyWhenAllowed(t *testing.T) {
 	store := newFakeStore()
 	store.put(assignmentstore.Resource{
