@@ -11,10 +11,15 @@ import (
 
 var seededAt = time.Date(2026, 6, 1, 12, 0, 0, 0, time.UTC)
 
+type resourceKey struct {
+	resourceType, resourceID string
+}
+
 type recordingWriter struct {
 	permissions map[assignmentstore.RolePermissionKey]assignmentstore.RolePermission
 	overrides   map[assignmentstore.UserOverrideKey]assignmentstore.UserOverride
 	revisions   map[string]assignmentstore.PermissionRevision
+	resources   map[resourceKey]assignmentstore.Resource
 	writes      int
 }
 
@@ -23,7 +28,23 @@ func newRecordingWriter() *recordingWriter {
 		permissions: make(map[assignmentstore.RolePermissionKey]assignmentstore.RolePermission),
 		overrides:   make(map[assignmentstore.UserOverrideKey]assignmentstore.UserOverride),
 		revisions:   make(map[string]assignmentstore.PermissionRevision),
+		resources:   make(map[resourceKey]assignmentstore.Resource),
 	}
+}
+
+func (w *recordingWriter) SaveResource(_ context.Context, resource assignmentstore.Resource) error {
+	w.writes++
+	w.resources[resourceKey{resource.ResourceType, resource.ResourceID}] = resource
+	return nil
+}
+
+func (w *recordingWriter) resource(t *testing.T, resourceType, resourceID string) assignmentstore.Resource {
+	t.Helper()
+	resource, found := w.resources[resourceKey{resourceType, resourceID}]
+	if !found {
+		t.Fatalf("the seed wrote no %s/%s resource", resourceType, resourceID)
+	}
+	return resource
 }
 
 func (w *recordingWriter) SaveRolePermission(_ context.Context, permission assignmentstore.RolePermission) error {
@@ -213,6 +234,51 @@ func TestTheInstanceScopedGrantNamesOneResource(t *testing.T) {
 	}
 }
 
+// The mandatory locked_record_restriction deny path (issue #9) needs a real
+// LOCKED row to evaluate against, not an attribute a caller could simply
+// choose not to send.
+func TestTheLockedResourceIsSeededAsLocked(t *testing.T) {
+	resource := applySeed(t).resource(t, demoseed.ResourceKey, demoseed.LockedResourceID)
+	if resource.Status != "LOCKED" {
+		t.Errorf("status = %q, want LOCKED", resource.Status)
+	}
+	if resource.TenantID != demoseed.TenantID || resource.HospitalID != demoseed.HospitalID {
+		t.Errorf("locked resource tenant/hospital = %s/%s, want %s/%s",
+			resource.TenantID, resource.HospitalID, demoseed.TenantID, demoseed.HospitalID)
+	}
+}
+
+// The active instance is ACTIVE's opposite of the locked one, and must exist
+// so "read is still allowed" is not vacuously true for want of a row.
+func TestTheActiveResourceIsSeededAsActive(t *testing.T) {
+	resource := applySeed(t).resource(t, demoseed.ResourceKey, demoseed.ActiveResourceID)
+	if resource.Status != "ACTIVE" {
+		t.Errorf("status = %q, want ACTIVE", resource.Status)
+	}
+}
+
+// A resource type other than patient_record has to be seeded too, or "the
+// resource service is generic" would be proven only for the one type it was
+// built alongside.
+func TestAGenericResourceTypeIsSeededTooAndTheOtherTenantsInstanceIsSeparate(t *testing.T) {
+	writer := applySeed(t)
+
+	active := writer.resource(t, demoseed.GenericResourceType, demoseed.GenericResourceID)
+	if active.Status != "ACTIVE" {
+		t.Errorf("generic resource status = %q, want ACTIVE", active.Status)
+	}
+	locked := writer.resource(t, demoseed.GenericResourceType, demoseed.GenericLockedResourceID)
+	if locked.Status != "LOCKED" {
+		t.Errorf("generic locked resource status = %q, want LOCKED", locked.Status)
+	}
+
+	otherTenant := writer.resource(t, demoseed.GenericResourceType, demoseed.GenericOtherTenantResource)
+	if otherTenant.TenantID != demoseed.OtherTenantID {
+		t.Errorf("the other-tenant resource's tenant = %q, want %q",
+			otherTenant.TenantID, demoseed.OtherTenantID)
+	}
+}
+
 func TestTheDemoTenantCarriesTheDemoRevision(t *testing.T) {
 	revision, found := applySeed(t).revisions[demoseed.TenantID]
 	if !found {
@@ -234,6 +300,7 @@ func TestSeedingTwiceLeavesTheSameRows(t *testing.T) {
 		t.Fatalf("first Apply: %v", err)
 	}
 	afterFirst := len(writer.permissions)
+	resourcesAfterFirst := len(writer.resources)
 	writesPerRun := writer.writes
 
 	if err := demoseed.Apply(ctx, writer, seededAt); err != nil {
@@ -242,6 +309,9 @@ func TestSeedingTwiceLeavesTheSameRows(t *testing.T) {
 
 	if len(writer.permissions) != afterFirst {
 		t.Errorf("a second seeding left %d rows, want %d", len(writer.permissions), afterFirst)
+	}
+	if len(writer.resources) != resourcesAfterFirst {
+		t.Errorf("a second seeding left %d resources, want %d", len(writer.resources), resourcesAfterFirst)
 	}
 	if writer.writes != 2*writesPerRun {
 		t.Errorf("the second run made %d writes, want %d", writer.writes-writesPerRun, writesPerRun)
