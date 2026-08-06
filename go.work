@@ -1,6 +1,7 @@
 go 1.25.11
 
 use (
+./apps/admin-service
 ./apps/ads
 ./apps/resource-service
 ./libs/assignmentstore
@@ -11,6 +12,7 @@ use (
 ./libs/cataloggen
 ./libs/cerbosclient
 ./libs/idpdirectory
+./libs/outbox
 ./libs/permissioncontext
 ./libs/tokenverifier
 ./tests/architecture

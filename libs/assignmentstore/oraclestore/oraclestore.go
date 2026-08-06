@@ -436,6 +436,137 @@ func (s *Store) OutboxEvent(ctx context.Context, eventID string) (assignmentstor
 	return event, true, nil
 }
 
+// UnpublishedOutboxEvents reads up to limit unpublished rows, oldest first.
+//
+// Oracle has no LIMIT clause; FETCH FIRST is the ANSI equivalent it supports.
+func (s *Store) UnpublishedOutboxEvents(ctx context.Context, limit int) ([]assignmentstore.OutboxEvent, error) {
+	const query = `
+		SELECT event_id, aggregate_key, event_type, payload, created_at
+		FROM outbox_event
+		WHERE published_at IS NULL
+		ORDER BY created_at, event_id
+		FETCH FIRST :1 ROWS ONLY`
+
+	rows, err := s.db.QueryContext(ctx, query, limit)
+	if err != nil {
+		return nil, fmt.Errorf("oraclestore: reading unpublished outbox events: %w", err)
+	}
+	defer func() { _ = rows.Close() }()
+
+	var events []assignmentstore.OutboxEvent
+	for rows.Next() {
+		var event assignmentstore.OutboxEvent
+		if err := rows.Scan(&event.EventID, &event.AggregateKey, &event.EventType,
+			&event.Payload, &event.CreatedAt); err != nil {
+			return nil, fmt.Errorf("oraclestore: scanning an outbox event: %w", err)
+		}
+		events = append(events, event)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("oraclestore: reading unpublished outbox events: %w", err)
+	}
+	return events, nil
+}
+
+// MarkOutboxEventPublished records that an outbox row was published.
+func (s *Store) MarkOutboxEventPublished(ctx context.Context, eventID string, publishedAt time.Time) error {
+	const statement = `UPDATE outbox_event SET published_at = :2 WHERE event_id = :1`
+	if _, err := s.db.ExecContext(ctx, statement, eventID, publishedAt); err != nil {
+		return fmt.Errorf("oraclestore: marking an outbox event published: %w", err)
+	}
+	return nil
+}
+
+// SaveRoleMatrix atomically writes one role's permission slice (§9.4,
+// §10.1, §16.1). See the PostgreSQL adapter's SaveRoleMatrix for why the
+// revision row is seeded before it is locked.
+func (s *Store) SaveRoleMatrix(ctx context.Context, write assignmentstore.RoleMatrixWrite) (int64, error) {
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return 0, fmt.Errorf("oraclestore: beginning the role matrix transaction: %w", err)
+	}
+	defer func() { _ = tx.Rollback() }()
+
+	if _, err := tx.ExecContext(ctx, `
+		MERGE INTO permission_revision t
+		USING (SELECT :1 AS tenant_id FROM dual) s
+		ON (t.tenant_id = s.tenant_id)
+		WHEN NOT MATCHED THEN INSERT (tenant_id, revision, changed_at)
+		VALUES (s.tenant_id, 0, :2)`,
+		write.TenantID, write.Audit.CreatedAt); err != nil {
+		return 0, fmt.Errorf("oraclestore: seeding the permission revision: %w", err)
+	}
+
+	var current int64
+	if err := tx.QueryRowContext(ctx, `
+		SELECT revision FROM permission_revision WHERE tenant_id = :1 FOR UPDATE`,
+		write.TenantID).Scan(&current); err != nil {
+		return 0, fmt.Errorf("oraclestore: locking the permission revision: %w", err)
+	}
+	if current != write.ExpectedRevision {
+		return 0, assignmentstore.ErrRevisionConflict
+	}
+
+	newRevision := current + 1
+	for _, permission := range write.Permissions {
+		enabled := boolToNumber(permission.Enabled)
+		validUntil := endOrNull(permission.ValidUntil)
+		if _, err := tx.ExecContext(ctx, `
+			MERGE INTO role_permission t
+			USING (SELECT :1 AS tenant_id, :2 AS role_external_id,
+			              :3 AS resource_key, :4 AS action_key FROM dual) s
+			ON (t.tenant_id = s.tenant_id AND t.role_external_id = s.role_external_id
+			    AND t.resource_key = s.resource_key AND t.action_key = s.action_key)
+			WHEN MATCHED THEN UPDATE SET
+				enabled = :5, valid_from = :6, valid_until = :7, revision = :8
+			WHEN NOT MATCHED THEN INSERT (
+				tenant_id, role_external_id, resource_key, action_key,
+				enabled, valid_from, valid_until, revision)
+			VALUES (s.tenant_id, s.role_external_id, s.resource_key, s.action_key,
+				:9, :10, :11, :12)`,
+			write.TenantID, write.RoleExternalID, permission.ResourceKey, permission.ActionKey,
+			enabled, permission.ValidFrom, validUntil, newRevision,
+			enabled, permission.ValidFrom, validUntil, newRevision); err != nil {
+			return 0, fmt.Errorf("oraclestore: writing a role permission: %w", err)
+		}
+	}
+
+	if _, err := tx.ExecContext(ctx, `
+		INSERT INTO permission_audit_event (
+			event_id, actor_id, operation, target_type, before_json, after_json,
+			tenant_id, hospital_id, correlation_id, created_at)
+		VALUES (:1, :2, :3, :4, :5, :6, :7, :8, :9, :10)`,
+		write.Audit.EventID, write.Audit.ActorID, write.Audit.Operation, write.Audit.TargetType,
+		write.Audit.BeforeJSON, write.Audit.AfterJSON, write.TenantID, write.Audit.HospitalID,
+		write.Audit.CorrelationID, write.Audit.CreatedAt); err != nil {
+		return 0, fmt.Errorf("oraclestore: appending the audit event: %w", err)
+	}
+
+	var publishedAt any
+	if write.Outbox.PublishedAt != nil {
+		publishedAt = *write.Outbox.PublishedAt
+	}
+	if _, err := tx.ExecContext(ctx, `
+		INSERT INTO outbox_event (
+			event_id, aggregate_key, event_type, payload, created_at, published_at)
+		VALUES (:1, :2, :3, :4, :5, :6)`,
+		write.Outbox.EventID, write.Outbox.AggregateKey, write.Outbox.EventType,
+		write.Outbox.Payload, write.Outbox.CreatedAt, publishedAt); err != nil {
+		return 0, fmt.Errorf("oraclestore: appending the outbox event: %w", err)
+	}
+
+	if _, err := tx.ExecContext(ctx, `
+		UPDATE permission_revision SET revision = :2, changed_at = :3 WHERE tenant_id = :1`,
+		write.TenantID, newRevision, write.Audit.CreatedAt); err != nil {
+		return 0, fmt.Errorf("oraclestore: advancing the permission revision: %w", err)
+	}
+
+	if err := tx.Commit(); err != nil {
+		return 0, fmt.Errorf("oraclestore: committing the role matrix transaction: %w", err)
+	}
+	return newRevision, nil
+}
+
 // SaveCapability inserts or updates one capability definition.
 func (s *Store) SaveCapability(ctx context.Context, capability assignmentstore.Capability) error {
 	const statement = `
