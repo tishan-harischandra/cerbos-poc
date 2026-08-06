@@ -12,18 +12,24 @@ actions:
   - key: create
     displayName: Create device usage
     context: COLLECTION
+    risk: STANDARD
   - key: list
     displayName: List device usage
     context: COLLECTION
+    risk: STANDARD
   - key: read
     displayName: Read device usage
     context: INSTANCE
+    risk: STANDARD
   - key: update
     displayName: Update device usage
     context: INSTANCE
+    risk: ELEVATED
   - key: delete
     displayName: Delete device usage
     context: INSTANCE
+    risk: ELEVATED
   - key: assign
     displayName: Assign device usage
     context: INSTANCE
+    risk: ELEVATED

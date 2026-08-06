@@ -65,6 +65,7 @@ type catalogResourceEntry struct {
 		Key         string `yaml:"key"`
 		DisplayName string `yaml:"displayName"`
 		Context     string `yaml:"context"`
+		Risk        string `yaml:"risk"`
 	} `yaml:"actions"`
 }
 
@@ -75,6 +76,11 @@ type ActionEntry struct {
 	Key         string `json:"key"`
 	DisplayName string `json:"displayName"`
 	Context     string `json:"context"`
+	// Risk is STANDARD or ELEVATED (§6.1, issue #18's resource catalog
+	// risk metadata), the same classification
+	// libs/cataloggen.RenderActionSeedCSV assigns the DB seed's
+	// risk_level column from the manifest's lockableActions list.
+	Risk string `json:"risk"`
 }
 
 // ResourceEntry is one resource's full administration-facing catalog entry:
@@ -156,7 +162,7 @@ func LoadResourceCatalogDir(dir string) ([]ResourceEntry, error) {
 		}
 		actions := make([]ActionEntry, 0, len(e.Actions))
 		for _, a := range e.Actions {
-			actions = append(actions, ActionEntry{Key: a.Key, DisplayName: a.DisplayName, Context: a.Context})
+			actions = append(actions, ActionEntry{Key: a.Key, DisplayName: a.DisplayName, Context: a.Context, Risk: a.Risk})
 		}
 		all = append(all, ResourceEntry{
 			ResourceKey: e.Resource, Version: e.Version,

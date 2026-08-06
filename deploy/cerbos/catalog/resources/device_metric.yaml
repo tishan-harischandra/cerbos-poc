@@ -12,18 +12,24 @@ actions:
   - key: create
     displayName: Create device metric
     context: COLLECTION
+    risk: STANDARD
   - key: list
     displayName: List device metric
     context: COLLECTION
+    risk: STANDARD
   - key: read
     displayName: Read device metric
     context: INSTANCE
+    risk: STANDARD
   - key: update
     displayName: Update device metric
     context: INSTANCE
+    risk: ELEVATED
   - key: delete
     displayName: Delete device metric
     context: INSTANCE
+    risk: ELEVATED
   - key: assign
     displayName: Assign device metric
     context: INSTANCE
+    risk: ELEVATED

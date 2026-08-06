@@ -12,18 +12,24 @@ actions:
   - key: create
     displayName: Create binary
     context: COLLECTION
+    risk: STANDARD
   - key: list
     displayName: List binary
     context: COLLECTION
+    risk: STANDARD
   - key: read
     displayName: Read binary
     context: INSTANCE
+    risk: STANDARD
   - key: update
     displayName: Update binary
     context: INSTANCE
+    risk: ELEVATED
   - key: delete
     displayName: Delete binary
     context: INSTANCE
+    risk: ELEVATED
   - key: assign
     displayName: Assign binary
     context: INSTANCE
+    risk: ELEVATED

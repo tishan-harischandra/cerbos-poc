@@ -12,18 +12,24 @@ actions:
   - key: create
     displayName: Create encounter
     context: COLLECTION
+    risk: STANDARD
   - key: list
     displayName: List encounter
     context: COLLECTION
+    risk: STANDARD
   - key: read
     displayName: Read encounter
     context: INSTANCE
+    risk: STANDARD
   - key: update
     displayName: Update encounter
     context: INSTANCE
+    risk: ELEVATED
   - key: delete
     displayName: Delete encounter
     context: INSTANCE
+    risk: ELEVATED
   - key: assign
     displayName: Assign encounter
     context: INSTANCE
+    risk: ELEVATED

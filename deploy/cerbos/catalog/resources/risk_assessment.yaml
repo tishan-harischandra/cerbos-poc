@@ -12,18 +12,24 @@ actions:
   - key: create
     displayName: Create risk assessment
     context: COLLECTION
+    risk: STANDARD
   - key: list
     displayName: List risk assessment
     context: COLLECTION
+    risk: STANDARD
   - key: read
     displayName: Read risk assessment
     context: INSTANCE
+    risk: STANDARD
   - key: update
     displayName: Update risk assessment
     context: INSTANCE
+    risk: ELEVATED
   - key: delete
     displayName: Delete risk assessment
     context: INSTANCE
+    risk: ELEVATED
   - key: assign
     displayName: Assign risk assessment
     context: INSTANCE
+    risk: ELEVATED

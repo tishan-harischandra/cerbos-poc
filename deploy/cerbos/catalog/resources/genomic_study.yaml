@@ -12,18 +12,24 @@ actions:
   - key: create
     displayName: Create genomic study
     context: COLLECTION
+    risk: STANDARD
   - key: list
     displayName: List genomic study
     context: COLLECTION
+    risk: STANDARD
   - key: read
     displayName: Read genomic study
     context: INSTANCE
+    risk: STANDARD
   - key: update
     displayName: Update genomic study
     context: INSTANCE
+    risk: ELEVATED
   - key: delete
     displayName: Delete genomic study
     context: INSTANCE
+    risk: ELEVATED
   - key: assign
     displayName: Assign genomic study
     context: INSTANCE
+    risk: ELEVATED

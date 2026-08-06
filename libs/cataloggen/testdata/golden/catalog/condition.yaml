@@ -12,6 +12,8 @@ actions:
   - key: read
     displayName: Read condition
     context: INSTANCE
+    risk: STANDARD
   - key: update
     displayName: Update condition
     context: INSTANCE
+    risk: ELEVATED

@@ -12,18 +12,24 @@ actions:
   - key: create
     displayName: Create goal
     context: COLLECTION
+    risk: STANDARD
   - key: list
     displayName: List goal
     context: COLLECTION
+    risk: STANDARD
   - key: read
     displayName: Read goal
     context: INSTANCE
+    risk: STANDARD
   - key: update
     displayName: Update goal
     context: INSTANCE
+    risk: ELEVATED
   - key: delete
     displayName: Delete goal
     context: INSTANCE
+    risk: ELEVATED
   - key: assign
     displayName: Assign goal
     context: INSTANCE
+    risk: ELEVATED

@@ -12,18 +12,24 @@ actions:
   - key: create
     displayName: Create clinical use definition
     context: COLLECTION
+    risk: STANDARD
   - key: list
     displayName: List clinical use definition
     context: COLLECTION
+    risk: STANDARD
   - key: read
     displayName: Read clinical use definition
     context: INSTANCE
+    risk: STANDARD
   - key: update
     displayName: Update clinical use definition
     context: INSTANCE
+    risk: ELEVATED
   - key: delete
     displayName: Delete clinical use definition
     context: INSTANCE
+    risk: ELEVATED
   - key: assign
     displayName: Assign clinical use definition
     context: INSTANCE
+    risk: ELEVATED

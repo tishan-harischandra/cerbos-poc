@@ -12,18 +12,24 @@ actions:
   - key: create
     displayName: Create clinical impression
     context: COLLECTION
+    risk: STANDARD
   - key: list
     displayName: List clinical impression
     context: COLLECTION
+    risk: STANDARD
   - key: read
     displayName: Read clinical impression
     context: INSTANCE
+    risk: STANDARD
   - key: update
     displayName: Update clinical impression
     context: INSTANCE
+    risk: ELEVATED
   - key: delete
     displayName: Delete clinical impression
     context: INSTANCE
+    risk: ELEVATED
   - key: assign
     displayName: Assign clinical impression
     context: INSTANCE
+    risk: ELEVATED

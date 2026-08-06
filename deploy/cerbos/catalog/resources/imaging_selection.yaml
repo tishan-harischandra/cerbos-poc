@@ -12,18 +12,24 @@ actions:
   - key: create
     displayName: Create imaging selection
     context: COLLECTION
+    risk: STANDARD
   - key: list
     displayName: List imaging selection
     context: COLLECTION
+    risk: STANDARD
   - key: read
     displayName: Read imaging selection
     context: INSTANCE
+    risk: STANDARD
   - key: update
     displayName: Update imaging selection
     context: INSTANCE
+    risk: ELEVATED
   - key: delete
     displayName: Delete imaging selection
     context: INSTANCE
+    risk: ELEVATED
   - key: assign
     displayName: Assign imaging selection
     context: INSTANCE
+    risk: ELEVATED

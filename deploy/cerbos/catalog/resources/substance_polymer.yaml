@@ -12,18 +12,24 @@ actions:
   - key: create
     displayName: Create substance polymer
     context: COLLECTION
+    risk: STANDARD
   - key: list
     displayName: List substance polymer
     context: COLLECTION
+    risk: STANDARD
   - key: read
     displayName: Read substance polymer
     context: INSTANCE
+    risk: STANDARD
   - key: update
     displayName: Update substance polymer
     context: INSTANCE
+    risk: ELEVATED
   - key: delete
     displayName: Delete substance polymer
     context: INSTANCE
+    risk: ELEVATED
   - key: assign
     displayName: Assign substance polymer
     context: INSTANCE
+    risk: ELEVATED

@@ -12,18 +12,24 @@ actions:
   - key: create
     displayName: Create request orchestration
     context: COLLECTION
+    risk: STANDARD
   - key: list
     displayName: List request orchestration
     context: COLLECTION
+    risk: STANDARD
   - key: read
     displayName: Read request orchestration
     context: INSTANCE
+    risk: STANDARD
   - key: update
     displayName: Update request orchestration
     context: INSTANCE
+    risk: ELEVATED
   - key: delete
     displayName: Delete request orchestration
     context: INSTANCE
+    risk: ELEVATED
   - key: assign
     displayName: Assign request orchestration
     context: INSTANCE
+    risk: ELEVATED

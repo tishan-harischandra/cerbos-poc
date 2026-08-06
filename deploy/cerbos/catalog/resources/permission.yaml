@@ -12,18 +12,24 @@ actions:
   - key: create
     displayName: Create permission
     context: COLLECTION
+    risk: STANDARD
   - key: list
     displayName: List permission
     context: COLLECTION
+    risk: STANDARD
   - key: read
     displayName: Read permission
     context: INSTANCE
+    risk: STANDARD
   - key: update
     displayName: Update permission
     context: INSTANCE
+    risk: ELEVATED
   - key: delete
     displayName: Delete permission
     context: INSTANCE
+    risk: ELEVATED
   - key: assign
     displayName: Assign permission
     context: INSTANCE
+    risk: ELEVATED

@@ -12,18 +12,24 @@ actions:
   - key: create
     displayName: Create test script
     context: COLLECTION
+    risk: STANDARD
   - key: list
     displayName: List test script
     context: COLLECTION
+    risk: STANDARD
   - key: read
     displayName: Read test script
     context: INSTANCE
+    risk: STANDARD
   - key: update
     displayName: Update test script
     context: INSTANCE
+    risk: ELEVATED
   - key: delete
     displayName: Delete test script
     context: INSTANCE
+    risk: ELEVATED
   - key: assign
     displayName: Assign test script
     context: INSTANCE
+    risk: ELEVATED

@@ -12,18 +12,24 @@ actions:
   - key: create
     displayName: Create substance
     context: COLLECTION
+    risk: STANDARD
   - key: list
     displayName: List substance
     context: COLLECTION
+    risk: STANDARD
   - key: read
     displayName: Read substance
     context: INSTANCE
+    risk: STANDARD
   - key: update
     displayName: Update substance
     context: INSTANCE
+    risk: ELEVATED
   - key: delete
     displayName: Delete substance
     context: INSTANCE
+    risk: ELEVATED
   - key: assign
     displayName: Assign substance
     context: INSTANCE
+    risk: ELEVATED

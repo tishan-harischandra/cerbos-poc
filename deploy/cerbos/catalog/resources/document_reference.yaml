@@ -12,18 +12,24 @@ actions:
   - key: create
     displayName: Create document reference
     context: COLLECTION
+    risk: STANDARD
   - key: list
     displayName: List document reference
     context: COLLECTION
+    risk: STANDARD
   - key: read
     displayName: Read document reference
     context: INSTANCE
+    risk: STANDARD
   - key: update
     displayName: Update document reference
     context: INSTANCE
+    risk: ELEVATED
   - key: delete
     displayName: Delete document reference
     context: INSTANCE
+    risk: ELEVATED
   - key: assign
     displayName: Assign document reference
     context: INSTANCE
+    risk: ELEVATED

@@ -12,18 +12,24 @@ actions:
   - key: create
     displayName: Create molecular sequence
     context: COLLECTION
+    risk: STANDARD
   - key: list
     displayName: List molecular sequence
     context: COLLECTION
+    risk: STANDARD
   - key: read
     displayName: Read molecular sequence
     context: INSTANCE
+    risk: STANDARD
   - key: update
     displayName: Update molecular sequence
     context: INSTANCE
+    risk: ELEVATED
   - key: delete
     displayName: Delete molecular sequence
     context: INSTANCE
+    risk: ELEVATED
   - key: assign
     displayName: Assign molecular sequence
     context: INSTANCE
+    risk: ELEVATED

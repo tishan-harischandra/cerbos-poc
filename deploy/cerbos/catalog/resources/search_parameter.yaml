@@ -12,18 +12,24 @@ actions:
   - key: create
     displayName: Create search parameter
     context: COLLECTION
+    risk: STANDARD
   - key: list
     displayName: List search parameter
     context: COLLECTION
+    risk: STANDARD
   - key: read
     displayName: Read search parameter
     context: INSTANCE
+    risk: STANDARD
   - key: update
     displayName: Update search parameter
     context: INSTANCE
+    risk: ELEVATED
   - key: delete
     displayName: Delete search parameter
     context: INSTANCE
+    risk: ELEVATED
   - key: assign
     displayName: Assign search parameter
     context: INSTANCE
+    risk: ELEVATED

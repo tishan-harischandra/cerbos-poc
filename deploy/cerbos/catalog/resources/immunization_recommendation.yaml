@@ -12,18 +12,24 @@ actions:
   - key: create
     displayName: Create immunization recommendation
     context: COLLECTION
+    risk: STANDARD
   - key: list
     displayName: List immunization recommendation
     context: COLLECTION
+    risk: STANDARD
   - key: read
     displayName: Read immunization recommendation
     context: INSTANCE
+    risk: STANDARD
   - key: update
     displayName: Update immunization recommendation
     context: INSTANCE
+    risk: ELEVATED
   - key: delete
     displayName: Delete immunization recommendation
     context: INSTANCE
+    risk: ELEVATED
   - key: assign
     displayName: Assign immunization recommendation
     context: INSTANCE
+    risk: ELEVATED

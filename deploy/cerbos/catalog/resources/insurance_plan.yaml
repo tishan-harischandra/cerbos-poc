@@ -12,18 +12,24 @@ actions:
   - key: create
     displayName: Create insurance plan
     context: COLLECTION
+    risk: STANDARD
   - key: list
     displayName: List insurance plan
     context: COLLECTION
+    risk: STANDARD
   - key: read
     displayName: Read insurance plan
     context: INSTANCE
+    risk: STANDARD
   - key: update
     displayName: Update insurance plan
     context: INSTANCE
+    risk: ELEVATED
   - key: delete
     displayName: Delete insurance plan
     context: INSTANCE
+    risk: ELEVATED
   - key: assign
     displayName: Assign insurance plan
     context: INSTANCE
+    risk: ELEVATED

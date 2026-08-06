@@ -12,18 +12,24 @@ actions:
   - key: create
     displayName: Create account
     context: COLLECTION
+    risk: STANDARD
   - key: list
     displayName: List account
     context: COLLECTION
+    risk: STANDARD
   - key: read
     displayName: Read account
     context: INSTANCE
+    risk: STANDARD
   - key: update
     displayName: Update account
     context: INSTANCE
+    risk: ELEVATED
   - key: delete
     displayName: Delete account
     context: INSTANCE
+    risk: ELEVATED
   - key: assign
     displayName: Assign account
     context: INSTANCE
+    risk: ELEVATED

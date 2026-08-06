@@ -12,18 +12,24 @@ actions:
   - key: create
     displayName: Create test report
     context: COLLECTION
+    risk: STANDARD
   - key: list
     displayName: List test report
     context: COLLECTION
+    risk: STANDARD
   - key: read
     displayName: Read test report
     context: INSTANCE
+    risk: STANDARD
   - key: update
     displayName: Update test report
     context: INSTANCE
+    risk: ELEVATED
   - key: delete
     displayName: Delete test report
     context: INSTANCE
+    risk: ELEVATED
   - key: assign
     displayName: Assign test report
     context: INSTANCE
+    risk: ELEVATED

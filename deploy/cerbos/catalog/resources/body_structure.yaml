@@ -12,18 +12,24 @@ actions:
   - key: create
     displayName: Create body structure
     context: COLLECTION
+    risk: STANDARD
   - key: list
     displayName: List body structure
     context: COLLECTION
+    risk: STANDARD
   - key: read
     displayName: Read body structure
     context: INSTANCE
+    risk: STANDARD
   - key: update
     displayName: Update body structure
     context: INSTANCE
+    risk: ELEVATED
   - key: delete
     displayName: Delete body structure
     context: INSTANCE
+    risk: ELEVATED
   - key: assign
     displayName: Assign body structure
     context: INSTANCE
+    risk: ELEVATED

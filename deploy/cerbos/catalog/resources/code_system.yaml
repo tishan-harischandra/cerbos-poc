@@ -12,18 +12,24 @@ actions:
   - key: create
     displayName: Create code system
     context: COLLECTION
+    risk: STANDARD
   - key: list
     displayName: List code system
     context: COLLECTION
+    risk: STANDARD
   - key: read
     displayName: Read code system
     context: INSTANCE
+    risk: STANDARD
   - key: update
     displayName: Update code system
     context: INSTANCE
+    risk: ELEVATED
   - key: delete
     displayName: Delete code system
     context: INSTANCE
+    risk: ELEVATED
   - key: assign
     displayName: Assign code system
     context: INSTANCE
+    risk: ELEVATED

@@ -12,18 +12,24 @@ actions:
   - key: create
     displayName: Create vision prescription
     context: COLLECTION
+    risk: STANDARD
   - key: list
     displayName: List vision prescription
     context: COLLECTION
+    risk: STANDARD
   - key: read
     displayName: Read vision prescription
     context: INSTANCE
+    risk: STANDARD
   - key: update
     displayName: Update vision prescription
     context: INSTANCE
+    risk: ELEVATED
   - key: delete
     displayName: Delete vision prescription
     context: INSTANCE
+    risk: ELEVATED
   - key: assign
     displayName: Assign vision prescription
     context: INSTANCE
+    risk: ELEVATED

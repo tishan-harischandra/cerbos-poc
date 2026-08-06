@@ -12,18 +12,24 @@ actions:
   - key: create
     displayName: Create communication
     context: COLLECTION
+    risk: STANDARD
   - key: list
     displayName: List communication
     context: COLLECTION
+    risk: STANDARD
   - key: read
     displayName: Read communication
     context: INSTANCE
+    risk: STANDARD
   - key: update
     displayName: Update communication
     context: INSTANCE
+    risk: ELEVATED
   - key: delete
     displayName: Delete communication
     context: INSTANCE
+    risk: ELEVATED
   - key: assign
     displayName: Assign communication
     context: INSTANCE
+    risk: ELEVATED

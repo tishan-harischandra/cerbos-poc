@@ -12,18 +12,24 @@ actions:
   - key: create
     displayName: Create medication dispense
     context: COLLECTION
+    risk: STANDARD
   - key: list
     displayName: List medication dispense
     context: COLLECTION
+    risk: STANDARD
   - key: read
     displayName: Read medication dispense
     context: INSTANCE
+    risk: STANDARD
   - key: update
     displayName: Update medication dispense
     context: INSTANCE
+    risk: ELEVATED
   - key: delete
     displayName: Delete medication dispense
     context: INSTANCE
+    risk: ELEVATED
   - key: assign
     displayName: Assign medication dispense
     context: INSTANCE
+    risk: ELEVATED

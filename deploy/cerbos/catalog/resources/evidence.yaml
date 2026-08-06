@@ -12,18 +12,24 @@ actions:
   - key: create
     displayName: Create evidence
     context: COLLECTION
+    risk: STANDARD
   - key: list
     displayName: List evidence
     context: COLLECTION
+    risk: STANDARD
   - key: read
     displayName: Read evidence
     context: INSTANCE
+    risk: STANDARD
   - key: update
     displayName: Update evidence
     context: INSTANCE
+    risk: ELEVATED
   - key: delete
     displayName: Delete evidence
     context: INSTANCE
+    risk: ELEVATED
   - key: assign
     displayName: Assign evidence
     context: INSTANCE
+    risk: ELEVATED
