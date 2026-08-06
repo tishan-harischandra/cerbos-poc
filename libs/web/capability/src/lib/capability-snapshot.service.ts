@@ -7,6 +7,17 @@ import { UiCapabilitySnapshot } from './capability-decision';
 import { CapabilityStore } from './capability-store';
 
 /**
+ * RevisionPair is the pair of revisions that must independently stay
+ * current for a cached snapshot to remain valid (§12.6): the
+ * authorization revision (role/user assignment changes) and the
+ * capability-catalog revision (UI-capability definition changes).
+ */
+export interface RevisionPair {
+  authorizationRevision?: number;
+  capabilityCatalogRevision?: string;
+}
+
+/**
  * CapabilitySnapshotService fetches §12.4 capability snapshots from the
  * ADS capability evaluator (issue #11's `POST
  * /internal/capabilities/evaluate`) and replaces them into the
@@ -25,15 +36,25 @@ export class CapabilitySnapshotService {
   // below, a tenant/hospital switch (clear()), or a browser tab do.
   private readonly instanceSnapshots = new Map<string, UiCapabilitySnapshot>();
 
+  // The most recent revision pair any loaded snapshot carried. noteRevisions
+  // compares an API response's revisions against this to decide whether the
+  // cache has gone stale (§12.6).
+  private lastKnownRevisions: RevisionPair | undefined;
+
   /**
    * loadModule fetches a module- and collection-level snapshot (§12.6):
-   * at login, and again on every tenant or hospital switch.
+   * at login, and again on every tenant or hospital switch. Every cached
+   * instance snapshot is dropped first - it was scoped to whichever
+   * tenant and hospital were active when it was fetched, and calling
+   * loadModule is itself the signal that this may have just changed.
    */
   async loadModule(
     module: string,
     capabilityKeys: string[],
   ): Promise<UiCapabilitySnapshot> {
+    this.invalidateAllInstances();
     const snapshot = await this.fetch(module, capabilityKeys);
+    this.rememberRevisions(snapshot);
     this.store.replace(snapshot);
     return snapshot;
   }
@@ -57,6 +78,7 @@ export class CapabilitySnapshotService {
     }
 
     const snapshot = await this.fetch(module, capabilityKeys, context);
+    this.rememberRevisions(snapshot);
     this.instanceSnapshots.set(instanceKey, snapshot);
     this.store.replace(snapshot);
     return snapshot;
@@ -78,6 +100,40 @@ export class CapabilitySnapshotService {
    */
   invalidateAllInstances(): void {
     this.instanceSnapshots.clear();
+  }
+
+  /**
+   * noteRevisions is how a business API response reports its revisions
+   * back to the shared library (§12.6: "return authorization and
+   * capability-catalog revisions from backend APIs and refresh when
+   * either changes"). A revision that differs from the last one any
+   * loaded snapshot carried invalidates every cached instance snapshot,
+   * so the next load for that resource fetches a fresh one.
+   */
+  noteRevisions(revisions: RevisionPair): void {
+    if (this.lastKnownRevisions && this.revisionsMatch(this.lastKnownRevisions, revisions)) {
+      return;
+    }
+    this.lastKnownRevisions = revisions;
+    this.invalidateAllInstances();
+  }
+
+  private rememberRevisions(snapshot: UiCapabilitySnapshot): void {
+    this.lastKnownRevisions = {
+      authorizationRevision: snapshot.authorizationRevision,
+      capabilityCatalogRevision: snapshot.capabilityCatalogRevision,
+    };
+  }
+
+  private revisionsMatch(a: RevisionPair, b: RevisionPair): boolean {
+    return (
+      (a.authorizationRevision === undefined ||
+        b.authorizationRevision === undefined ||
+        a.authorizationRevision === b.authorizationRevision) &&
+      (a.capabilityCatalogRevision === undefined ||
+        b.capabilityCatalogRevision === undefined ||
+        a.capabilityCatalogRevision === b.capabilityCatalogRevision)
+    );
   }
 
   private fetch(

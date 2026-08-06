@@ -108,4 +108,84 @@ describe('CapabilitySnapshotService', () => {
       .flush(snapshot());
     await second;
   });
+
+  it('refetches every cached instance snapshot once a business response reports a new revision', async () => {
+    const first = service.loadInstance(
+      'clinical',
+      ['patient.route.details'],
+      'patient:patient-456',
+      { patientId: 'patient-456' },
+    );
+    httpMock
+      .expectOne('/api/ads/internal/capabilities/evaluate')
+      .flush(snapshot({ authorizationRevision: 1 }));
+    await first;
+
+    service.noteRevisions({ authorizationRevision: 2 });
+
+    const second = service.loadInstance(
+      'clinical',
+      ['patient.route.details'],
+      'patient:patient-456',
+      { patientId: 'patient-456' },
+    );
+    httpMock
+      .expectOne('/api/ads/internal/capabilities/evaluate')
+      .flush(snapshot({ authorizationRevision: 2 }));
+    await second;
+  });
+
+  it('does not refetch when noteRevisions reports the same revision already cached', async () => {
+    const first = service.loadInstance(
+      'clinical',
+      ['patient.route.details'],
+      'patient:patient-456',
+      { patientId: 'patient-456' },
+    );
+    httpMock
+      .expectOne('/api/ads/internal/capabilities/evaluate')
+      .flush(snapshot({ authorizationRevision: 1 }));
+    await first;
+
+    service.noteRevisions({ authorizationRevision: 1 });
+
+    await service.loadInstance(
+      'clinical',
+      ['patient.route.details'],
+      'patient:patient-456',
+      { patientId: 'patient-456' },
+    );
+    httpMock.expectNone('/api/ads/internal/capabilities/evaluate');
+  });
+
+  it('fetches a fresh module snapshot and drops cached instance snapshots on loadModule (tenant or hospital switch)', async () => {
+    const instance = service.loadInstance(
+      'clinical',
+      ['patient.route.details'],
+      'patient:patient-456',
+      { patientId: 'patient-456' },
+    );
+    httpMock
+      .expectOne('/api/ads/internal/capabilities/evaluate')
+      .flush(snapshot());
+    await instance;
+
+    // Simulate a tenant or hospital switch: the module snapshot is always
+    // fetched fresh (§12.6), and doing so must not leave a now-irrelevant
+    // instance snapshot from the old tenant/hospital reusable.
+    const module = service.loadModule('clinical', ['patients.route.list']);
+    httpMock
+      .expectOne('/api/ads/internal/capabilities/evaluate')
+      .flush(snapshot({ capabilities: { 'patients.route.list': { allowed: true } } }));
+    await module;
+
+    const secondInstance = service.loadInstance(
+      'clinical',
+      ['patient.route.details'],
+      'patient:patient-456',
+      { patientId: 'patient-456' },
+    );
+    httpMock.expectOne('/api/ads/internal/capabilities/evaluate').flush(snapshot());
+    await secondInstance;
+  });
 });
