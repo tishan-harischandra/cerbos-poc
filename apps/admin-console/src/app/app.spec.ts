@@ -4,13 +4,12 @@ import {
   provideHttpClientTesting,
 } from '@angular/common/http/testing';
 import { TestBed } from '@angular/core/testing';
-import { Router } from '@angular/router';
+import { Router, provideRouter } from '@angular/router';
 import { RouterTestingHarness } from '@angular/router/testing';
 
 import { App } from './app';
 import { appRoutes } from './app.routes';
 import { AuthService } from './auth/auth.service';
-import { provideRouter } from '@angular/router';
 
 describe('App', () => {
   it('redirects an authenticated administrator from / to the role matrix, inside the shell', async () => {
