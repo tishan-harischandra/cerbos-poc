@@ -9,3 +9,7 @@ tmp/
 .agentloop/
 .code-review-graph/
 __screenshots__/
+
+.angular
+
+vitest.config.*.timestamp*

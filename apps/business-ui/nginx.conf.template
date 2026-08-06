@@ -1,0 +1,38 @@
+# Rendered by the nginx image's envsubst step. NGINX_LOCAL_RESOLVERS is published
+# by the image's own 15-local-resolvers.envsh, which reads the container's
+# resolv.conf; NGINX_ENTRYPOINT_LOCAL_RESOLVERS in the Dockerfile switches it on.
+# That keeps this working on Docker (127.0.0.11) and Podman (aardvark-dns) without
+# hardcoding either address.
+#
+# The resolver matters: with a literal hostname in proxy_pass, nginx resolves
+# `ads` once at startup and caches it forever, so rebuilding the ADS leaves the
+# console proxying to an address nobody answers on. Resolving through a variable
+# with a short TTL follows the container around instead.
+resolver ${NGINX_LOCAL_RESOLVERS} valid=10s ipv6=off;
+
+server {
+  listen 80;
+  server_name _;
+
+  root /usr/share/nginx/html;
+  index index.html;
+
+  # The browser never talks to the ADS directly; the console proxies it so the
+  # backend stays on the internal compose network.
+  location /api/ads/ {
+    set $ads_upstream "http://ads:8080";
+
+    # proxy_pass with a variable does not strip the location prefix the way a
+    # literal upstream with a trailing slash does, so strip it explicitly.
+    rewrite ^/api/ads/(.*)$ /$1 break;
+
+    proxy_pass $ads_upstream;
+    proxy_set_header Host $host;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto $scheme;
+  }
+
+  location / {
+    try_files $uri $uri/ /index.html;
+  }
+}

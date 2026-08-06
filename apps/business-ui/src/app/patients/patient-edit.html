@@ -1,0 +1,13 @@
+<h2>Edit patient</h2>
+<button type="button" data-testid="save" (click)="save()">Save</button>
+@switch (status()) {
+  @case ('saving') {
+    <p data-testid="status">Saving…</p>
+  }
+  @case ('saved') {
+    <p data-testid="status">Saved</p>
+  }
+  @case ('denied') {
+    <p data-testid="status">You no longer have permission to edit this patient.</p>
+  }
+}

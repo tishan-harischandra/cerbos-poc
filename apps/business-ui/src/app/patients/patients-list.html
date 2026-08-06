@@ -1,0 +1,14 @@
+<h1>Patients</h1>
+<ul>
+  @for (row of rows; track row.id) {
+    <li data-testid="patient-row">
+      {{ row.name }}
+      <a
+        *libCapability="'patient.row.edit'; decisions: row.capabilities"
+        [routerLink]="['/patients', row.id, 'edit']"
+        data-testid="patient-row-edit"
+        >Edit</a
+      >
+    </li>
+  }
+</ul>
