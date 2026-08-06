@@ -67,6 +67,35 @@ func TestFromEnvFallsBackToTheComposeDefaults(t *testing.T) {
 	}
 }
 
+func TestCapabilityCatalogSettingsFallBackToTheComposeDefaults(t *testing.T) {
+	cfg := config.FromEnv(func(string) (string, bool) { return "", false })
+
+	if cfg.CapabilityCatalogDir != "/etc/cerbos-catalog/ui-capabilities" {
+		t.Errorf("CapabilityCatalogDir = %q, want the compose default", cfg.CapabilityCatalogDir)
+	}
+	if cfg.CapabilityCatalogRevision != 1 {
+		t.Errorf("CapabilityCatalogRevision = %d, want 1", cfg.CapabilityCatalogRevision)
+	}
+	if cfg.RootPolicyRevision != "root-v1.4.0" {
+		t.Errorf("RootPolicyRevision = %q, want %q", cfg.RootPolicyRevision, "root-v1.4.0")
+	}
+}
+
+// An unparseable revision must not silently become zero, which would be
+// indistinguishable from a real revision zero.
+func TestAnUnreadableCapabilityCatalogRevisionFallsBackToTheDefault(t *testing.T) {
+	cfg := config.FromEnv(func(key string) (string, bool) {
+		if key == "CAPABILITY_CATALOG_REVISION" {
+			return "not-a-number", true
+		}
+		return "", false
+	})
+
+	if cfg.CapabilityCatalogRevision != 1 {
+		t.Errorf("CapabilityCatalogRevision = %d, want the default 1", cfg.CapabilityCatalogRevision)
+	}
+}
+
 func TestFromEnvPrefersExplicitEnvironmentValues(t *testing.T) {
 	env := map[string]string{
 		"ADS_HTTP_ADDR":    ":9999",
