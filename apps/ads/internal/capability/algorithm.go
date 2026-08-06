@@ -31,7 +31,7 @@ func evaluate(ctx context.Context, cfg Config, maxResources int, identity tokena
 	}
 
 	// Step 2: resolve every targetRef into a concrete resource, server-side.
-	targets, targetOrder, err := resolveTargets(ctx, cfg, identity, req, defs)
+	targets, targetOrder, resourceAttrs, err := resolveTargets(ctx, cfg, identity, req, defs)
 	if err != nil {
 		return Snapshot{}, fmt.Errorf("resolving targets: %w", err)
 	}
@@ -48,7 +48,7 @@ func evaluate(ctx context.Context, cfg Config, maxResources int, identity tokena
 	resourceActions, resourceOrder := groupLeavesByResource(leaves)
 
 	// Step 5: resolve assignments once per resource for this subject.
-	revision, resourceChecks, err := buildResourceChecks(ctx, cfg, identity, resourceOrder, resourceActions)
+	revision, resourceChecks, err := buildResourceChecks(ctx, cfg, identity, resourceOrder, resourceActions, resourceAttrs)
 	if err != nil {
 		return Snapshot{}, fmt.Errorf("resolving assignments: %w", err)
 	}
@@ -128,7 +128,11 @@ func selectRequested(defs []capabilitycatalog.UiCapabilityDefinition, keys []str
 // resolveTargets resolves every distinct targetRef referenced by defs into
 // a concrete resource, server-side, exactly once per targetRef (§12.3 step
 // 2). targetOrder is returned purely for a deterministic fingerprint.
-func resolveTargets(ctx context.Context, cfg Config, identity tokenauth.Identity, req Request, defs []capabilitycatalog.UiCapabilityDefinition) (map[string]capabilityeval.ResourceRef, []string, error) {
+// resourceAttrs carries each resolved resource's trusted, server-loaded
+// attributes, keyed by the same ResourceRef the leaves and Cerbos batch
+// will use, so a resource resolved through two different targetRefs still
+// contributes its attributes once.
+func resolveTargets(ctx context.Context, cfg Config, identity tokenauth.Identity, req Request, defs []capabilitycatalog.UiCapabilityDefinition) (map[string]capabilityeval.ResourceRef, []string, map[capabilityeval.ResourceRef]map[string]any, error) {
 	kindByTargetRef := make(map[string]string)
 	collectTargetRefs(defs, kindByTargetRef)
 
@@ -139,6 +143,7 @@ func resolveTargets(ctx context.Context, cfg Config, identity tokenauth.Identity
 	sort.Strings(targetRefs)
 
 	targets := make(map[string]capabilityeval.ResourceRef, len(targetRefs))
+	resourceAttrs := make(map[capabilityeval.ResourceRef]map[string]any, len(targetRefs))
 	for _, targetRef := range targetRefs {
 		resolved, err := cfg.TargetResolver.Resolve(ctx, TargetQuery{
 			TenantID:     identity.TenantID,
@@ -148,11 +153,14 @@ func resolveTargets(ctx context.Context, cfg Config, identity tokenauth.Identity
 			RouteContext: req.Context,
 		})
 		if err != nil {
-			return nil, nil, fmt.Errorf("resolving targetRef %q: %w", targetRef, err)
+			return nil, nil, nil, fmt.Errorf("resolving targetRef %q: %w", targetRef, err)
 		}
 		targets[targetRef] = resolved.Resource
+		if resolved.Attributes != nil {
+			resourceAttrs[resolved.Resource] = resolved.Attributes
+		}
 	}
-	return targets, targetRefs, nil
+	return targets, targetRefs, resourceAttrs, nil
 }
 
 func collectTargetRefs(defs []capabilitycatalog.UiCapabilityDefinition, out map[string]string) {
@@ -203,7 +211,7 @@ func groupLeavesByResource(leaves []capabilityeval.Leaf) (map[capabilityeval.Res
 // buildResourceChecks resolves assignments once per resource for this
 // principal (§12.3 step 5) and assembles each resource's permissionContext,
 // returning the authorization revision they were resolved at.
-func buildResourceChecks(ctx context.Context, cfg Config, identity tokenauth.Identity, order []capabilityeval.ResourceRef, actionsByResource map[capabilityeval.ResourceRef][]string) (int64, []cerbosclient.ResourceCheck, error) {
+func buildResourceChecks(ctx context.Context, cfg Config, identity tokenauth.Identity, order []capabilityeval.ResourceRef, actionsByResource map[capabilityeval.ResourceRef][]string, resourceAttrs map[capabilityeval.ResourceRef]map[string]any) (int64, []cerbosclient.ResourceCheck, error) {
 	var revision int64
 	checks := make([]cerbosclient.ResourceCheck, 0, len(order))
 
@@ -225,14 +233,22 @@ func buildResourceChecks(ctx context.Context, cfg Config, identity tokenauth.Ide
 			revision = assembled.PermissionRevision
 		}
 
+		// The resolver's own trusted attributes come first so
+		// tenantId/hospitalId/permissionContext, which every resource must
+		// carry regardless of what the resolver returned, can never be
+		// shadowed by it.
+		attr := make(map[string]any, len(resourceAttrs[ref])+3)
+		for name, value := range resourceAttrs[ref] {
+			attr[name] = value
+		}
+		attr["tenantId"] = identity.TenantID
+		attr["hospitalId"] = identity.HospitalID
+		attr["permissionContext"] = assembled.AsMap()
+
 		checks = append(checks, cerbosclient.ResourceCheck{
 			Resource: cerbosclient.ResourceRef{Kind: ref.Kind, ID: ref.ID},
-			Attr: map[string]any{
-				"tenantId":          identity.TenantID,
-				"hospitalId":        identity.HospitalID,
-				"permissionContext": assembled.AsMap(),
-			},
-			Actions: actionsByResource[ref],
+			Attr:     attr,
+			Actions:  actionsByResource[ref],
 		})
 	}
 

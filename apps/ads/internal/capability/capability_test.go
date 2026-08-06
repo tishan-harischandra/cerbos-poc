@@ -68,7 +68,8 @@ func (r *fakeResolver) Resolve(_ context.Context, query capability.TargetQuery) 
 		id = v
 	}
 	return capability.ResolvedTarget{
-		Resource: capabilityeval.ResourceRef{Kind: query.ResourceKind, ID: id},
+		Resource:   capabilityeval.ResourceRef{Kind: query.ResourceKind, ID: id},
+		Attributes: map[string]any{"status": "ACTIVE"},
 	}, nil
 }
 
@@ -86,11 +87,13 @@ type recordingPDP struct {
 	resourcesSeen   int
 	denied          map[cerbosclient.Leaf]bool
 	maxResourcesArg int // largest single-call resource count observed
+	lastRequest     cerbosclient.Request
 }
 
 func (p *recordingPDP) Check(_ context.Context, req cerbosclient.Request) (cerbosclient.Result, error) {
 	p.calls++
 	p.resourcesSeen += len(req.Resources)
+	p.lastRequest = req
 	if len(req.Resources) > p.maxResourcesArg {
 		p.maxResourcesArg = len(req.Resources)
 	}
@@ -355,6 +358,29 @@ func TestEndUserResponsesCarryNoFailedRequirementsTree(t *testing.T) {
 	}
 	if _, present := result["failedRequirements"]; present {
 		t.Errorf("end-user response must not carry failedRequirements, got %+v", result["failedRequirements"])
+	}
+}
+
+// The TargetResolver's own trusted attributes must reach the PDP alongside
+// tenantId/hospitalId/permissionContext, not be dropped on the floor.
+func TestResolvedTargetAttributesReachThePDP(t *testing.T) {
+	catalog := fakeCatalog{
+		revision: "1",
+		defs: []capabilitycatalog.UiCapabilityDefinition{
+			{Key: "patient.route.details", Expression: permission("patient_record", "read", "patient")},
+		},
+	}
+	pdp := &recordingPDP{}
+	handler := capability.NewHandler(baseConfig(catalog, pdp, &fakeResolver{}))
+
+	body := `{"module":"clinical","capabilityKeys":["patient.route.details"],"context":{"patientId":"patient-456"}}`
+	handler.ServeHTTP(httptest.NewRecorder(), post(t, body))
+
+	if len(pdp.lastRequest.Resources) != 1 {
+		t.Fatalf("resources sent to the PDP = %d, want 1", len(pdp.lastRequest.Resources))
+	}
+	if got := pdp.lastRequest.Resources[0].Attr["status"]; got != "ACTIVE" {
+		t.Errorf("status attribute = %v, want %q", got, "ACTIVE")
 	}
 }
 
