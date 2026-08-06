@@ -1,0 +1,144 @@
+<h1>User overrides</h1>
+<p data-testid="scope-note">
+  Scope: tenant {{ tenant() }}, hospital {{ hospital() }} (your own authority - overrides
+  outside this hospital cannot be written here).
+</p>
+
+<section class="user-picker">
+  <label>
+    Search users
+    <input type="text" data-testid="user-search-input" [(ngModel)]="userQuery" (ngModelChange)="searchUsers()" />
+  </label>
+  @if (userSearchError()) {
+    <p data-testid="user-search-error" class="error">{{ userSearchError() }}</p>
+  }
+
+  <ul data-testid="user-search-results">
+    @for (user of users(); track user.externalId) {
+      <li>
+        <button type="button" data-testid="user-option" (click)="selectUser(user)">
+          {{ user.displayName || user.username }}
+        </button>
+      </li>
+    }
+  </ul>
+
+  <div class="pagination">
+    <button type="button" data-testid="prev-page" [disabled]="userOffset() === 0" (click)="previousPage()">
+      Previous
+    </button>
+    <button type="button" data-testid="next-page" [disabled]="!userHasMore()" (click)="nextPage()">
+      Next
+    </button>
+  </div>
+</section>
+
+@if (selectedUser(); as user) {
+  <section class="override-editor" data-testid="editor">
+    <h2>{{ user.displayName || user.username }}</h2>
+
+    <label>
+      Resource
+      <select data-testid="resource-select" [ngModel]="selectedResourceKey()" (ngModelChange)="selectResource($event)">
+        <option value="">Select a resource</option>
+        @for (resource of resources(); track resource.resourceKey) {
+          <option [value]="resource.resourceKey">{{ resource.displayName }}</option>
+        }
+      </select>
+    </label>
+
+    @if (selectedResource(); as resource) {
+      <label>
+        Action
+        <select data-testid="action-select" [(ngModel)]="selectedActionKey">
+          <option value="">Select an action</option>
+          @for (action of resource.actions; track action.key) {
+            <option [value]="action.key">{{ action.displayName }}</option>
+          }
+        </select>
+      </label>
+    }
+
+    @if (existingOverrides().length > 0) {
+      <ul data-testid="existing-overrides">
+        @for (row of existingOverrides(); track row.actionKey) {
+          <li [attr.data-testid]="'override-row-' + row.actionKey" [class.expired]="!isActive(row)">
+            {{ row.actionKey }}: {{ row.effect }}
+            @if (isActive(row)) {
+              <span data-testid="active-badge" class="active-badge">active</span>
+            } @else {
+              <span data-testid="expired-badge" class="expired-badge">expired</span>
+            }
+          </li>
+        }
+      </ul>
+    }
+
+    <fieldset class="tri-state" data-testid="tri-state">
+      <legend>Effect</legend>
+      <label data-testid="effect-inherit">
+        <input type="radio" name="effect" value="INHERIT" [(ngModel)]="effect" />
+        Inherit - no override; the role result applies
+      </label>
+      <label data-testid="effect-grant">
+        <input type="radio" name="effect" value="GRANT" [(ngModel)]="effect" />
+        Grant - allow even if no role grants
+      </label>
+      <label data-testid="effect-revoke">
+        <input type="radio" name="effect" value="REVOKE" [(ngModel)]="effect" />
+        Revoke - deny even if a role grants (not the same as removing a role)
+      </label>
+    </fieldset>
+
+    @if (effect() !== 'INHERIT') {
+      <label>
+        Reason (required)
+        <input type="text" data-testid="reason-input" [(ngModel)]="reason" />
+      </label>
+      <label>
+        Valid from (required)
+        <input type="datetime-local" data-testid="valid-from-input" [(ngModel)]="validFrom" />
+      </label>
+      <label>
+        Valid until (optional; high-risk actions default to a bounded expiry if left blank)
+        <input type="datetime-local" data-testid="valid-until-input" [(ngModel)]="validUntil" />
+      </label>
+    }
+
+    <button type="button" data-testid="preview-button" (click)="runPreview()">Preview</button>
+    @if (previewError()) {
+      <p data-testid="preview-error" class="error">{{ previewError() }}</p>
+    }
+    @if (preview(); as p) {
+      <div data-testid="preview-panel">
+        <p data-testid="role-result">Role result: {{ p.roleResult ? 'allow' : 'no grant' }}</p>
+        <p data-testid="effective-result">Effective result: {{ p.effectiveResult ? 'allow' : 'deny' }}</p>
+        @if (p.noPracticalEffect) {
+          <p data-testid="no-op-warning" class="warning">
+            This override has no practical effect - it duplicates the existing role result.
+          </p>
+        }
+      </div>
+    }
+
+    @if (appliedValidUntil()) {
+      <p data-testid="applied-expiry-note">
+        This high-risk action was defaulted to expire on {{ appliedValidUntil() }}.
+      </p>
+    }
+
+    @if (staleRevision()) {
+      <p data-testid="stale-revision-error" class="error">
+        Someone else saved a change since this was loaded.
+        <button type="button" data-testid="reload-button" (click)="reload()">Reload</button>
+      </p>
+    }
+    @if (saveError()) {
+      <p data-testid="save-error" class="error">{{ saveError() }}</p>
+    }
+
+    <button type="button" data-testid="save-button" [disabled]="!canSave() || saving()" (click)="save()">
+      Save
+    </button>
+  </section>
+}

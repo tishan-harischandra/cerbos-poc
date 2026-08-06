@@ -4,6 +4,7 @@ import { authGuard } from './auth/auth.guard';
 import { Callback } from './auth/callback';
 import { RoleMatrix } from './role-matrix/role-matrix';
 import { Shell } from './shell/shell';
+import { UserOverride } from './user-override/user-override';
 
 export const appRoutes: Route[] = [
   { path: 'callback', component: Callback },
@@ -14,6 +15,7 @@ export const appRoutes: Route[] = [
     children: [
       { path: '', redirectTo: 'role-matrix', pathMatch: 'full' },
       { path: 'role-matrix', component: RoleMatrix },
+      { path: 'user-overrides', component: UserOverride },
     ],
   },
 ];
