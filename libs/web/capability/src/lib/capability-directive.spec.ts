@@ -8,7 +8,7 @@ import { UiCapabilitySnapshot } from './capability-decision';
 @Component({
   standalone: true,
   imports: [CapabilityDirective],
-  template: `<span *capability="'patient.component.clinical-summary'">summary</span>`,
+  template: `<span *libCapability="'patient.component.clinical-summary'">summary</span>`,
 })
 class HostComponent {}
 
@@ -67,7 +67,7 @@ describe('CapabilityDirective', () => {
   standalone: true,
   imports: [CapabilityDirective],
   template: `<span
-    *capability="'patient.row.edit'; decisions: rowDecisions"
+    *libCapability="'patient.row.edit'; decisions: rowDecisions"
     >edit</span
   >`,
 })

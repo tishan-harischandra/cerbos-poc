@@ -12,18 +12,19 @@ import { CapabilityDecision } from './capability-decision';
 import { CapabilityStore } from './capability-store';
 
 /**
- * *capability shows or hides its host template by capability key (§12.5).
- * It reads the CapabilityStore's signal reactively, so a snapshot refresh
- * (a tenant switch, a revision change, a 403 retry) re-evaluates every
- * rendered `*capability` without the page needing to reload.
+ * *libCapability shows or hides its host template by capability key
+ * (§12.5). It reads the CapabilityStore's signal reactively, so a
+ * snapshot refresh (a tenant switch, a revision change, a 403 retry)
+ * re-evaluates every rendered `*libCapability` without the page needing
+ * to reload.
  *
  * It never fetches protected data on the caller's behalf: the data behind
- * a `*capability`-gated component must already have been requested through
- * an authorized code path, or not requested at all (§12.6 - never fetch
- * protected data and then hide it with CSS).
+ * a `*libCapability`-gated component must already have been requested
+ * through an authorized code path, or not requested at all (§12.6 -
+ * never fetch protected data and then hide it with CSS).
  */
 @Directive({
-  selector: '[capability]',
+  selector: '[libCapability]',
   standalone: true,
 })
 export class CapabilityDirective {
@@ -59,12 +60,12 @@ export class CapabilityDirective {
   }
 
   @Input()
-  set capability(key: string) {
+  set libCapability(key: string) {
     this.key.set(key);
   }
 
   @Input()
-  set capabilityDecisions(decisions: Record<string, CapabilityDecision> | undefined) {
+  set libCapabilityDecisions(decisions: Record<string, CapabilityDecision> | undefined) {
     this.localDecisions.set(decisions);
   }
 }
