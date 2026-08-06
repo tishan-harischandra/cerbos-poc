@@ -4,7 +4,6 @@ import (
 	"testing"
 
 	"github.com/tishan-harischandra/cerbos-poc/libs/capabilitycatalog"
-	"github.com/tishan-harischandra/cerbos-poc/libs/cataloggen"
 )
 
 // repoCatalogResourcesDir and repoCapabilitiesDir are relative to this
@@ -14,26 +13,19 @@ const (
 	repoCapabilitiesDir     = "../../deploy/cerbos/catalog/ui-capabilities"
 )
 
-// loadFullCapabilitySet reproduces exactly what the CI gate
-// (cmd/capabilitycatalog-gen -check) computes: the 79-resource archetype set
-// plus the five hand-authored §12.1 worked examples already committed under
-// deploy/cerbos/catalog/ui-capabilities.
+// loadFullCapabilitySet loads the full committed capability set: the
+// generated archetype definitions and the five hand-authored §12.1 worked
+// examples both live as files directly under
+// deploy/cerbos/catalog/ui-capabilities, so LoadDefinitionsDir alone
+// already returns the merged, 400-capability set.
 func loadFullCapabilitySet(t *testing.T) []capabilitycatalog.UiCapabilityDefinition {
 	t.Helper()
 
-	manifest, err := cataloggen.LoadEmbeddedManifest()
-	if err != nil {
-		t.Fatalf("loading the committed FHIR manifest: %v", err)
-	}
-	resources := capabilitycatalog.SelectArchetypeResources(manifest, capabilitycatalog.ArchetypeResourceCount)
-	generated := capabilitycatalog.GenerateArchetypeCapabilities(resources, manifest.CatalogRevision)
-
-	handAuthored, err := capabilitycatalog.LoadDefinitionsDir(repoCapabilitiesDir)
+	defs, err := capabilitycatalog.LoadDefinitionsDir(repoCapabilitiesDir)
 	if err != nil {
 		t.Fatalf("loading committed capability definitions: %v", err)
 	}
-
-	return append(generated, handAuthored...)
+	return defs
 }
 
 // TestExactlyFourHundredCapabilities is the issue #10 acceptance criterion

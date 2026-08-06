@@ -1,0 +1,42 @@
+# GENERATED FILE - DO NOT EDIT BY HAND.
+#
+# Produced by libs/capabilitycatalog's archetype generator (catalog
+# revision 1, issue #10, PRD "UI capability catalog"). Edit
+# libs/cataloggen/manifest.yaml or the archetype definitions in
+# libs/capabilitycatalog/generator.go and re-run `make capability-gen`,
+# or regenerate directly with
+# `go run ./libs/capabilitycatalog/cmd/capabilitycatalog-gen -root .`.
+#
+# The five hand-authored §12.1 worked examples live alongside this file
+# in clinical-worked-examples.yaml and are never touched by the generator.
+databaseChangeLog:
+  - changeSet:
+      id: 008-ui-capability-definition-seed
+      author: capabilitycatalog
+      comment: >-
+        The generated and hand-authored UI capability catalog (issue #10),
+        loaded from CSV so the same portable changeset works on both engines.
+      changes:
+        - loadData:
+            tableName: ui_capability_definition
+            file: ../data/ui_capability_definition.csv
+            relativeToChangelogFile: true
+            columns:
+              - column:
+                  name: capability_key
+                  type: STRING
+              - column:
+                  name: module_key
+                  type: STRING
+              - column:
+                  name: context_type
+                  type: STRING
+              - column:
+                  name: expression_json
+                  type: STRING
+              - column:
+                  name: catalog_revision
+                  type: NUMERIC
+              - column:
+                  name: enabled
+                  type: BOOLEAN
