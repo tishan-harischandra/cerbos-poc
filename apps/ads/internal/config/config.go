@@ -1,7 +1,10 @@
 // Package config resolves the ADS runtime configuration from the environment.
 package config
 
-import "time"
+import (
+	"strconv"
+	"time"
+)
 
 // DefaultRoleMatrixCacheTTL bounds how long the in-process role matrix cache may
 // outlive a change to the underlying row (§11.2). It is short because expiry is
@@ -23,6 +26,17 @@ type Config struct {
 	// IdPAddr is the host:port the readiness probe dials. Like PostgresAddr it
 	// carries no credential, because a readiness probe must not need one.
 	IdPAddr string
+	// CapabilityCatalogDir is the local path the capability snapshot
+	// endpoint reads UiCapabilityDefinitions from - the same
+	// per-pod-mounted release tree Cerbos itself reads policies from
+	// (§13.1, issue #11).
+	CapabilityCatalogDir string
+	// CapabilityCatalogRevision is the release's numeric catalog revision,
+	// formatted into the §12.4 snapshot shape.
+	CapabilityCatalogRevision int64
+	// RootPolicyRevision is the immutable root-policy tag currently served
+	// (§12.4, §13.1), e.g. "root-v1.4.0".
+	RootPolicyRevision string
 }
 
 // LookupFunc mirrors os.LookupEnv so configuration stays testable.
@@ -38,7 +52,26 @@ func FromEnv(lookup LookupFunc) Config {
 		PostgresDSN:        valueOr(lookup, "ASSIGNMENTSTORE_POSTGRES_DSN", ""),
 		RoleMatrixCacheTTL: durationOr(lookup, "ADS_ROLE_MATRIX_CACHE_TTL", DefaultRoleMatrixCacheTTL),
 		IdPAddr:            valueOr(lookup, "IDP_ADDR", "keycloak:8080"),
+
+		CapabilityCatalogDir:      valueOr(lookup, "CAPABILITY_CATALOG_DIR", "/etc/cerbos-catalog/ui-capabilities"),
+		CapabilityCatalogRevision: int64Or(lookup, "CAPABILITY_CATALOG_REVISION", 1),
+		RootPolicyRevision:        valueOr(lookup, "ROOT_POLICY_REVISION", "root-v1.4.0"),
 	}
+}
+
+// int64Or falls back on an unreadable value, for the same reason
+// durationOr does: a silent zero would be indistinguishable from a real
+// revision zero rather than a misconfiguration.
+func int64Or(lookup LookupFunc, key string, fallback int64) int64 {
+	value, ok := lookup(key)
+	if !ok || value == "" {
+		return fallback
+	}
+	parsed, err := strconv.ParseInt(value, 10, 64)
+	if err != nil {
+		return fallback
+	}
+	return parsed
 }
 
 // durationOr falls back on an unreadable value rather than on zero. A zero

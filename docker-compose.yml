@@ -122,8 +122,14 @@ services:
       # By reference, never by value: a secret in an environment variable is
       # visible in `docker inspect` and inherited by every child process.
       IDP_CREDENTIALS_SECRET_REF: "/run/secrets/idp-admin-credentials"
+      # The capability snapshot endpoint (§12.3, issue #11) reads the same
+      # committed capability catalog Cerbos itself reads its policies from.
+      CAPABILITY_CATALOG_DIR: "/capability-catalog"
+      CAPABILITY_CATALOG_REVISION: "${CAPABILITY_CATALOG_REVISION:-1}"
+      ROOT_POLICY_REVISION: "${ROOT_POLICY_REVISION:-root-v1.4.0}"
     volumes:
       - ./deploy/secrets/idp-admin-credentials:/run/secrets/idp-admin-credentials:ro
+      - ./deploy/cerbos/catalog/ui-capabilities:/capability-catalog:ro
     depends_on:
       cerbos:
         condition: service_healthy

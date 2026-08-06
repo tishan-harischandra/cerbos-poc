@@ -91,6 +91,34 @@ func TestTheDecisionEndpointIsAbsentWhenNoHandlerIsConfigured(t *testing.T) {
 	}
 }
 
+func TestTheCapabilityEndpointIsMountedWhenAHandlerIsConfigured(t *testing.T) {
+	handler := server.New(server.Config{
+		CapabilityHandler: http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+			w.WriteHeader(http.StatusTeapot)
+		}),
+	})
+
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, httptest.NewRequest(http.MethodPost, "/internal/capabilities/evaluate", nil))
+
+	if rec.Code != http.StatusTeapot {
+		t.Errorf("POST /internal/capabilities/evaluate status = %d, want the configured handler to answer", rec.Code)
+	}
+}
+
+// Without a capability handler the route must not exist at all, for the
+// same reason the decision endpoint's absence is 404 rather than a stub.
+func TestTheCapabilityEndpointIsAbsentWhenNoHandlerIsConfigured(t *testing.T) {
+	handler := server.New(server.Config{})
+
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, httptest.NewRequest(http.MethodPost, "/internal/capabilities/evaluate", nil))
+
+	if rec.Code != http.StatusNotFound {
+		t.Errorf("POST /internal/capabilities/evaluate status = %d, want %d", rec.Code, http.StatusNotFound)
+	}
+}
+
 func TestReadyzGivesUpOnADependencyThatNeverAnswers(t *testing.T) {
 	handler := server.New(server.Config{
 		ReadinessTimeout: 50 * time.Millisecond,
