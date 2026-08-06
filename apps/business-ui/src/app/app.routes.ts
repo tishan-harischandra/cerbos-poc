@@ -14,6 +14,7 @@ export const appRoutes: Route[] = [
     children: [
       {
         path: '',
+        pathMatch: 'full',
         component: PatientsList,
         canMatch: [capabilityGuard],
         data: { capability: 'patients.route.list' },
