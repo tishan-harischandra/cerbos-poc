@@ -6,6 +6,7 @@ use (
 ./libs/assignmentstore
 ./libs/canonicalid
 ./libs/capabilitycatalog
+./libs/capabilityeval
 ./libs/cataloggen
 ./libs/cerbosclient
 ./libs/idpdirectory
