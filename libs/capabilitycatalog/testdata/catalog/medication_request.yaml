@@ -1,0 +1,8 @@
+resource: medication_request
+version: v1
+displayName: Medication request
+domain: medications
+actions:
+  - key: list
+    displayName: List medication requests
+    context: COLLECTION

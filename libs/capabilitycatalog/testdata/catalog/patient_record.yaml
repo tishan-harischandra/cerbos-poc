@@ -1,0 +1,11 @@
+resource: patient_record
+version: v1
+displayName: Patient record
+domain: clinical
+actions:
+  - key: read
+    displayName: View patient
+    context: INSTANCE
+  - key: update
+    displayName: Update patient
+    context: INSTANCE

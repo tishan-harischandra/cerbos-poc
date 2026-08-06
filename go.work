@@ -5,6 +5,7 @@ use (
 ./apps/resource-service
 ./libs/assignmentstore
 ./libs/canonicalid
+./libs/capabilitycatalog
 ./libs/cataloggen
 ./libs/cerbosclient
 ./libs/idpdirectory
