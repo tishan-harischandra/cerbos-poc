@@ -12,18 +12,24 @@ actions:
   - key: create
     displayName: Create example scenario
     context: COLLECTION
+    risk: STANDARD
   - key: list
     displayName: List example scenario
     context: COLLECTION
+    risk: STANDARD
   - key: read
     displayName: Read example scenario
     context: INSTANCE
+    risk: STANDARD
   - key: update
     displayName: Update example scenario
     context: INSTANCE
+    risk: ELEVATED
   - key: delete
     displayName: Delete example scenario
     context: INSTANCE
+    risk: ELEVATED
   - key: assign
     displayName: Assign example scenario
     context: INSTANCE
+    risk: ELEVATED

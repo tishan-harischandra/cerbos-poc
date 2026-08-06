@@ -12,18 +12,24 @@ actions:
   - key: create
     displayName: Create activity definition
     context: COLLECTION
+    risk: STANDARD
   - key: list
     displayName: List activity definition
     context: COLLECTION
+    risk: STANDARD
   - key: read
     displayName: Read activity definition
     context: INSTANCE
+    risk: STANDARD
   - key: update
     displayName: Update activity definition
     context: INSTANCE
+    risk: ELEVATED
   - key: delete
     displayName: Delete activity definition
     context: INSTANCE
+    risk: ELEVATED
   - key: assign
     displayName: Assign activity definition
     context: INSTANCE
+    risk: ELEVATED

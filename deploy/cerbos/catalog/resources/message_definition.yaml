@@ -12,18 +12,24 @@ actions:
   - key: create
     displayName: Create message definition
     context: COLLECTION
+    risk: STANDARD
   - key: list
     displayName: List message definition
     context: COLLECTION
+    risk: STANDARD
   - key: read
     displayName: Read message definition
     context: INSTANCE
+    risk: STANDARD
   - key: update
     displayName: Update message definition
     context: INSTANCE
+    risk: ELEVATED
   - key: delete
     displayName: Delete message definition
     context: INSTANCE
+    risk: ELEVATED
   - key: assign
     displayName: Assign message definition
     context: INSTANCE
+    risk: ELEVATED

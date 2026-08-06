@@ -12,18 +12,24 @@ actions:
   - key: create
     displayName: Create organization
     context: COLLECTION
+    risk: STANDARD
   - key: list
     displayName: List organization
     context: COLLECTION
+    risk: STANDARD
   - key: read
     displayName: Read organization
     context: INSTANCE
+    risk: STANDARD
   - key: update
     displayName: Update organization
     context: INSTANCE
+    risk: ELEVATED
   - key: delete
     displayName: Delete organization
     context: INSTANCE
+    risk: ELEVATED
   - key: assign
     displayName: Assign organization
     context: INSTANCE
+    risk: ELEVATED

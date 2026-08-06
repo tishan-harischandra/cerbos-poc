@@ -12,18 +12,24 @@ actions:
   - key: create
     displayName: Create observation definition
     context: COLLECTION
+    risk: STANDARD
   - key: list
     displayName: List observation definition
     context: COLLECTION
+    risk: STANDARD
   - key: read
     displayName: Read observation definition
     context: INSTANCE
+    risk: STANDARD
   - key: update
     displayName: Update observation definition
     context: INSTANCE
+    risk: ELEVATED
   - key: delete
     displayName: Delete observation definition
     context: INSTANCE
+    risk: ELEVATED
   - key: assign
     displayName: Assign observation definition
     context: INSTANCE
+    risk: ELEVATED

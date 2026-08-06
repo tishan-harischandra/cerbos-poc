@@ -12,18 +12,24 @@ actions:
   - key: create
     displayName: Create adverse event
     context: COLLECTION
+    risk: STANDARD
   - key: list
     displayName: List adverse event
     context: COLLECTION
+    risk: STANDARD
   - key: read
     displayName: Read adverse event
     context: INSTANCE
+    risk: STANDARD
   - key: update
     displayName: Update adverse event
     context: INSTANCE
+    risk: ELEVATED
   - key: delete
     displayName: Delete adverse event
     context: INSTANCE
+    risk: ELEVATED
   - key: assign
     displayName: Assign adverse event
     context: INSTANCE
+    risk: ELEVATED

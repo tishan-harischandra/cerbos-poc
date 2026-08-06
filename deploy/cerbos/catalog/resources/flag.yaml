@@ -12,18 +12,24 @@ actions:
   - key: create
     displayName: Create flag
     context: COLLECTION
+    risk: STANDARD
   - key: list
     displayName: List flag
     context: COLLECTION
+    risk: STANDARD
   - key: read
     displayName: Read flag
     context: INSTANCE
+    risk: STANDARD
   - key: update
     displayName: Update flag
     context: INSTANCE
+    risk: ELEVATED
   - key: delete
     displayName: Delete flag
     context: INSTANCE
+    risk: ELEVATED
   - key: assign
     displayName: Assign flag
     context: INSTANCE
+    risk: ELEVATED

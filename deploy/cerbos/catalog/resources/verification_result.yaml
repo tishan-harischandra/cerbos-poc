@@ -12,18 +12,24 @@ actions:
   - key: create
     displayName: Create verification result
     context: COLLECTION
+    risk: STANDARD
   - key: list
     displayName: List verification result
     context: COLLECTION
+    risk: STANDARD
   - key: read
     displayName: Read verification result
     context: INSTANCE
+    risk: STANDARD
   - key: update
     displayName: Update verification result
     context: INSTANCE
+    risk: ELEVATED
   - key: delete
     displayName: Delete verification result
     context: INSTANCE
+    risk: ELEVATED
   - key: assign
     displayName: Assign verification result
     context: INSTANCE
+    risk: ELEVATED

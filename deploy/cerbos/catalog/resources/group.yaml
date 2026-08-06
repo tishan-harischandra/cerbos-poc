@@ -12,18 +12,24 @@ actions:
   - key: create
     displayName: Create group
     context: COLLECTION
+    risk: STANDARD
   - key: list
     displayName: List group
     context: COLLECTION
+    risk: STANDARD
   - key: read
     displayName: Read group
     context: INSTANCE
+    risk: STANDARD
   - key: update
     displayName: Update group
     context: INSTANCE
+    risk: ELEVATED
   - key: delete
     displayName: Delete group
     context: INSTANCE
+    risk: ELEVATED
   - key: assign
     displayName: Assign group
     context: INSTANCE
+    risk: ELEVATED

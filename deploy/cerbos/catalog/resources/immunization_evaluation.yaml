@@ -12,18 +12,24 @@ actions:
   - key: create
     displayName: Create immunization evaluation
     context: COLLECTION
+    risk: STANDARD
   - key: list
     displayName: List immunization evaluation
     context: COLLECTION
+    risk: STANDARD
   - key: read
     displayName: Read immunization evaluation
     context: INSTANCE
+    risk: STANDARD
   - key: update
     displayName: Update immunization evaluation
     context: INSTANCE
+    risk: ELEVATED
   - key: delete
     displayName: Delete immunization evaluation
     context: INSTANCE
+    risk: ELEVATED
   - key: assign
     displayName: Assign immunization evaluation
     context: INSTANCE
+    risk: ELEVATED

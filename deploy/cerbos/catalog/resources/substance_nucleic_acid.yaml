@@ -12,18 +12,24 @@ actions:
   - key: create
     displayName: Create substance nucleic acid
     context: COLLECTION
+    risk: STANDARD
   - key: list
     displayName: List substance nucleic acid
     context: COLLECTION
+    risk: STANDARD
   - key: read
     displayName: Read substance nucleic acid
     context: INSTANCE
+    risk: STANDARD
   - key: update
     displayName: Update substance nucleic acid
     context: INSTANCE
+    risk: ELEVATED
   - key: delete
     displayName: Delete substance nucleic acid
     context: INSTANCE
+    risk: ELEVATED
   - key: assign
     displayName: Assign substance nucleic acid
     context: INSTANCE
+    risk: ELEVATED

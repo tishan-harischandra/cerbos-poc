@@ -12,18 +12,24 @@ actions:
   - key: create
     displayName: Create appointment response
     context: COLLECTION
+    risk: STANDARD
   - key: list
     displayName: List appointment response
     context: COLLECTION
+    risk: STANDARD
   - key: read
     displayName: Read appointment response
     context: INSTANCE
+    risk: STANDARD
   - key: update
     displayName: Update appointment response
     context: INSTANCE
+    risk: ELEVATED
   - key: delete
     displayName: Delete appointment response
     context: INSTANCE
+    risk: ELEVATED
   - key: assign
     displayName: Assign appointment response
     context: INSTANCE
+    risk: ELEVATED

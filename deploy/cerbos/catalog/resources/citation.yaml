@@ -12,18 +12,24 @@ actions:
   - key: create
     displayName: Create citation
     context: COLLECTION
+    risk: STANDARD
   - key: list
     displayName: List citation
     context: COLLECTION
+    risk: STANDARD
   - key: read
     displayName: Read citation
     context: INSTANCE
+    risk: STANDARD
   - key: update
     displayName: Update citation
     context: INSTANCE
+    risk: ELEVATED
   - key: delete
     displayName: Delete citation
     context: INSTANCE
+    risk: ELEVATED
   - key: assign
     displayName: Assign citation
     context: INSTANCE
+    risk: ELEVATED

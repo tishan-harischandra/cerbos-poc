@@ -6,6 +6,8 @@ actions:
   - key: read
     displayName: View patient
     context: INSTANCE
+    risk: STANDARD
   - key: update
     displayName: Update patient
     context: INSTANCE
+    risk: ELEVATED

@@ -12,18 +12,24 @@ actions:
   - key: create
     displayName: Create claim
     context: COLLECTION
+    risk: STANDARD
   - key: list
     displayName: List claim
     context: COLLECTION
+    risk: STANDARD
   - key: read
     displayName: Read claim
     context: INSTANCE
+    risk: STANDARD
   - key: update
     displayName: Update claim
     context: INSTANCE
+    risk: ELEVATED
   - key: delete
     displayName: Delete claim
     context: INSTANCE
+    risk: ELEVATED
   - key: assign
     displayName: Assign claim
     context: INSTANCE
+    risk: ELEVATED

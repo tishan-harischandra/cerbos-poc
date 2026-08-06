@@ -12,18 +12,24 @@ actions:
   - key: create
     displayName: Create operation outcome
     context: COLLECTION
+    risk: STANDARD
   - key: list
     displayName: List operation outcome
     context: COLLECTION
+    risk: STANDARD
   - key: read
     displayName: Read operation outcome
     context: INSTANCE
+    risk: STANDARD
   - key: update
     displayName: Update operation outcome
     context: INSTANCE
+    risk: ELEVATED
   - key: delete
     displayName: Delete operation outcome
     context: INSTANCE
+    risk: ELEVATED
   - key: assign
     displayName: Assign operation outcome
     context: INSTANCE
+    risk: ELEVATED

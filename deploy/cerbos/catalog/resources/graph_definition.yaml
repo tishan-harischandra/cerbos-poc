@@ -12,18 +12,24 @@ actions:
   - key: create
     displayName: Create graph definition
     context: COLLECTION
+    risk: STANDARD
   - key: list
     displayName: List graph definition
     context: COLLECTION
+    risk: STANDARD
   - key: read
     displayName: Read graph definition
     context: INSTANCE
+    risk: STANDARD
   - key: update
     displayName: Update graph definition
     context: INSTANCE
+    risk: ELEVATED
   - key: delete
     displayName: Delete graph definition
     context: INSTANCE
+    risk: ELEVATED
   - key: assign
     displayName: Assign graph definition
     context: INSTANCE
+    risk: ELEVATED

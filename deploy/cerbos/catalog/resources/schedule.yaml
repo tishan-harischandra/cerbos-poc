@@ -12,18 +12,24 @@ actions:
   - key: create
     displayName: Create schedule
     context: COLLECTION
+    risk: STANDARD
   - key: list
     displayName: List schedule
     context: COLLECTION
+    risk: STANDARD
   - key: read
     displayName: Read schedule
     context: INSTANCE
+    risk: STANDARD
   - key: update
     displayName: Update schedule
     context: INSTANCE
+    risk: ELEVATED
   - key: delete
     displayName: Delete schedule
     context: INSTANCE
+    risk: ELEVATED
   - key: assign
     displayName: Assign schedule
     context: INSTANCE
+    risk: ELEVATED

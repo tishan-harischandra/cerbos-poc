@@ -12,18 +12,24 @@ actions:
   - key: create
     displayName: Create transport
     context: COLLECTION
+    risk: STANDARD
   - key: list
     displayName: List transport
     context: COLLECTION
+    risk: STANDARD
   - key: read
     displayName: Read transport
     context: INSTANCE
+    risk: STANDARD
   - key: update
     displayName: Update transport
     context: INSTANCE
+    risk: ELEVATED
   - key: delete
     displayName: Delete transport
     context: INSTANCE
+    risk: ELEVATED
   - key: assign
     displayName: Assign transport
     context: INSTANCE
+    risk: ELEVATED

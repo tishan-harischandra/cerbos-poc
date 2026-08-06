@@ -29,6 +29,15 @@ func RenderCatalogEntry(m *Manifest, entry ResourceEntry) string {
 		fmt.Fprintf(&b, "  - key: %s\n", action.Key)
 		fmt.Fprintf(&b, "    displayName: %s %s\n", action.DisplayName, strings.ToLower(entry.Display))
 		fmt.Fprintf(&b, "    context: %s\n", action.Context)
+		// Same classification the DB seed's risk_level column uses (see
+		// RenderActionSeedCSV): one lockableActions list drives both, so
+		// the catalog the browser reads and the row the database stores
+		// can never name a different risk for the same action.
+		risk := "STANDARD"
+		if isLockable(m, action.Key) {
+			risk = "ELEVATED"
+		}
+		fmt.Fprintf(&b, "    risk: %s\n", risk)
 	}
 	return b.String()
 }

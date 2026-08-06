@@ -12,18 +12,24 @@ actions:
   - key: create
     displayName: Create subscription topic
     context: COLLECTION
+    risk: STANDARD
   - key: list
     displayName: List subscription topic
     context: COLLECTION
+    risk: STANDARD
   - key: read
     displayName: Read subscription topic
     context: INSTANCE
+    risk: STANDARD
   - key: update
     displayName: Update subscription topic
     context: INSTANCE
+    risk: ELEVATED
   - key: delete
     displayName: Delete subscription topic
     context: INSTANCE
+    risk: ELEVATED
   - key: assign
     displayName: Assign subscription topic
     context: INSTANCE
+    risk: ELEVATED

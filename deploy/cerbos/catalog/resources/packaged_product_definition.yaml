@@ -12,18 +12,24 @@ actions:
   - key: create
     displayName: Create packaged product definition
     context: COLLECTION
+    risk: STANDARD
   - key: list
     displayName: List packaged product definition
     context: COLLECTION
+    risk: STANDARD
   - key: read
     displayName: Read packaged product definition
     context: INSTANCE
+    risk: STANDARD
   - key: update
     displayName: Update packaged product definition
     context: INSTANCE
+    risk: ELEVATED
   - key: delete
     displayName: Delete packaged product definition
     context: INSTANCE
+    risk: ELEVATED
   - key: assign
     displayName: Assign packaged product definition
     context: INSTANCE
+    risk: ELEVATED

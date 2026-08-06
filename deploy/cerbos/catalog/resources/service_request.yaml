@@ -12,18 +12,24 @@ actions:
   - key: create
     displayName: Create service request
     context: COLLECTION
+    risk: STANDARD
   - key: list
     displayName: List service request
     context: COLLECTION
+    risk: STANDARD
   - key: read
     displayName: Read service request
     context: INSTANCE
+    risk: STANDARD
   - key: update
     displayName: Update service request
     context: INSTANCE
+    risk: ELEVATED
   - key: delete
     displayName: Delete service request
     context: INSTANCE
+    risk: ELEVATED
   - key: assign
     displayName: Assign service request
     context: INSTANCE
+    risk: ELEVATED

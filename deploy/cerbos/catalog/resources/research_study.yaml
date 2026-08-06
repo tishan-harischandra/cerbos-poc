@@ -12,18 +12,24 @@ actions:
   - key: create
     displayName: Create research study
     context: COLLECTION
+    risk: STANDARD
   - key: list
     displayName: List research study
     context: COLLECTION
+    risk: STANDARD
   - key: read
     displayName: Read research study
     context: INSTANCE
+    risk: STANDARD
   - key: update
     displayName: Update research study
     context: INSTANCE
+    risk: ELEVATED
   - key: delete
     displayName: Delete research study
     context: INSTANCE
+    risk: ELEVATED
   - key: assign
     displayName: Assign research study
     context: INSTANCE
+    risk: ELEVATED

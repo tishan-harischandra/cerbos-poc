@@ -12,18 +12,24 @@ actions:
   - key: create
     displayName: Create endpoint
     context: COLLECTION
+    risk: STANDARD
   - key: list
     displayName: List endpoint
     context: COLLECTION
+    risk: STANDARD
   - key: read
     displayName: Read endpoint
     context: INSTANCE
+    risk: STANDARD
   - key: update
     displayName: Update endpoint
     context: INSTANCE
+    risk: ELEVATED
   - key: delete
     displayName: Delete endpoint
     context: INSTANCE
+    risk: ELEVATED
   - key: assign
     displayName: Assign endpoint
     context: INSTANCE
+    risk: ELEVATED

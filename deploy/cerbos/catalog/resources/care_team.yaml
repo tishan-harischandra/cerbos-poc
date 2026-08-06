@@ -12,18 +12,24 @@ actions:
   - key: create
     displayName: Create care team
     context: COLLECTION
+    risk: STANDARD
   - key: list
     displayName: List care team
     context: COLLECTION
+    risk: STANDARD
   - key: read
     displayName: Read care team
     context: INSTANCE
+    risk: STANDARD
   - key: update
     displayName: Update care team
     context: INSTANCE
+    risk: ELEVATED
   - key: delete
     displayName: Delete care team
     context: INSTANCE
+    risk: ELEVATED
   - key: assign
     displayName: Assign care team
     context: INSTANCE
+    risk: ELEVATED

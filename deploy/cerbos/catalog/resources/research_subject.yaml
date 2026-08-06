@@ -12,18 +12,24 @@ actions:
   - key: create
     displayName: Create research subject
     context: COLLECTION
+    risk: STANDARD
   - key: list
     displayName: List research subject
     context: COLLECTION
+    risk: STANDARD
   - key: read
     displayName: Read research subject
     context: INSTANCE
+    risk: STANDARD
   - key: update
     displayName: Update research subject
     context: INSTANCE
+    risk: ELEVATED
   - key: delete
     displayName: Delete research subject
     context: INSTANCE
+    risk: ELEVATED
   - key: assign
     displayName: Assign research subject
     context: INSTANCE
+    risk: ELEVATED

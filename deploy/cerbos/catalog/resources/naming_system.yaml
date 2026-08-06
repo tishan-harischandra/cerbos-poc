@@ -12,18 +12,24 @@ actions:
   - key: create
     displayName: Create naming system
     context: COLLECTION
+    risk: STANDARD
   - key: list
     displayName: List naming system
     context: COLLECTION
+    risk: STANDARD
   - key: read
     displayName: Read naming system
     context: INSTANCE
+    risk: STANDARD
   - key: update
     displayName: Update naming system
     context: INSTANCE
+    risk: ELEVATED
   - key: delete
     displayName: Delete naming system
     context: INSTANCE
+    risk: ELEVATED
   - key: assign
     displayName: Assign naming system
     context: INSTANCE
+    risk: ELEVATED

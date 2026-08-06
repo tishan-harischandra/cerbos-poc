@@ -12,18 +12,24 @@ actions:
   - key: create
     displayName: Create task
     context: COLLECTION
+    risk: STANDARD
   - key: list
     displayName: List task
     context: COLLECTION
+    risk: STANDARD
   - key: read
     displayName: Read task
     context: INSTANCE
+    risk: STANDARD
   - key: update
     displayName: Update task
     context: INSTANCE
+    risk: ELEVATED
   - key: delete
     displayName: Delete task
     context: INSTANCE
+    risk: ELEVATED
   - key: assign
     displayName: Assign task
     context: INSTANCE
+    risk: ELEVATED

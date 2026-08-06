@@ -1,0 +1,12 @@
+.error {
+  color: #b00020;
+}
+
+.risk-badge {
+  margin-left: 0.5rem;
+  font-size: 0.75rem;
+  font-weight: bold;
+  padding: 0.1rem 0.4rem;
+  border-radius: 0.25rem;
+  background: #eee;
+}

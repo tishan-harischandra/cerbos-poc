@@ -12,18 +12,24 @@ actions:
   - key: create
     displayName: Create questionnaire
     context: COLLECTION
+    risk: STANDARD
   - key: list
     displayName: List questionnaire
     context: COLLECTION
+    risk: STANDARD
   - key: read
     displayName: Read questionnaire
     context: INSTANCE
+    risk: STANDARD
   - key: update
     displayName: Update questionnaire
     context: INSTANCE
+    risk: ELEVATED
   - key: delete
     displayName: Delete questionnaire
     context: INSTANCE
+    risk: ELEVATED
   - key: assign
     displayName: Assign questionnaire
     context: INSTANCE
+    risk: ELEVATED

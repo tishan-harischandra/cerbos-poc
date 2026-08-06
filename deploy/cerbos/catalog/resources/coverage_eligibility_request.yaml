@@ -12,18 +12,24 @@ actions:
   - key: create
     displayName: Create coverage eligibility request
     context: COLLECTION
+    risk: STANDARD
   - key: list
     displayName: List coverage eligibility request
     context: COLLECTION
+    risk: STANDARD
   - key: read
     displayName: Read coverage eligibility request
     context: INSTANCE
+    risk: STANDARD
   - key: update
     displayName: Update coverage eligibility request
     context: INSTANCE
+    risk: ELEVATED
   - key: delete
     displayName: Delete coverage eligibility request
     context: INSTANCE
+    risk: ELEVATED
   - key: assign
     displayName: Assign coverage eligibility request
     context: INSTANCE
+    risk: ELEVATED

@@ -12,18 +12,24 @@ actions:
   - key: create
     displayName: Create audit event
     context: COLLECTION
+    risk: STANDARD
   - key: list
     displayName: List audit event
     context: COLLECTION
+    risk: STANDARD
   - key: read
     displayName: Read audit event
     context: INSTANCE
+    risk: STANDARD
   - key: update
     displayName: Update audit event
     context: INSTANCE
+    risk: ELEVATED
   - key: delete
     displayName: Delete audit event
     context: INSTANCE
+    risk: ELEVATED
   - key: assign
     displayName: Assign audit event
     context: INSTANCE
+    risk: ELEVATED

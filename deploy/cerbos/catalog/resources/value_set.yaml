@@ -12,18 +12,24 @@ actions:
   - key: create
     displayName: Create value set
     context: COLLECTION
+    risk: STANDARD
   - key: list
     displayName: List value set
     context: COLLECTION
+    risk: STANDARD
   - key: read
     displayName: Read value set
     context: INSTANCE
+    risk: STANDARD
   - key: update
     displayName: Update value set
     context: INSTANCE
+    risk: ELEVATED
   - key: delete
     displayName: Delete value set
     context: INSTANCE
+    risk: ELEVATED
   - key: assign
     displayName: Assign value set
     context: INSTANCE
+    risk: ELEVATED

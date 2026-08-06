@@ -12,18 +12,24 @@ actions:
   - key: create
     displayName: Create enrollment response
     context: COLLECTION
+    risk: STANDARD
   - key: list
     displayName: List enrollment response
     context: COLLECTION
+    risk: STANDARD
   - key: read
     displayName: Read enrollment response
     context: INSTANCE
+    risk: STANDARD
   - key: update
     displayName: Update enrollment response
     context: INSTANCE
+    risk: ELEVATED
   - key: delete
     displayName: Delete enrollment response
     context: INSTANCE
+    risk: ELEVATED
   - key: assign
     displayName: Assign enrollment response
     context: INSTANCE
+    risk: ELEVATED

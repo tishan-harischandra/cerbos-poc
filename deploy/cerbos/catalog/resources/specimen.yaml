@@ -12,18 +12,24 @@ actions:
   - key: create
     displayName: Create specimen
     context: COLLECTION
+    risk: STANDARD
   - key: list
     displayName: List specimen
     context: COLLECTION
+    risk: STANDARD
   - key: read
     displayName: Read specimen
     context: INSTANCE
+    risk: STANDARD
   - key: update
     displayName: Update specimen
     context: INSTANCE
+    risk: ELEVATED
   - key: delete
     displayName: Delete specimen
     context: INSTANCE
+    risk: ELEVATED
   - key: assign
     displayName: Assign specimen
     context: INSTANCE
+    risk: ELEVATED

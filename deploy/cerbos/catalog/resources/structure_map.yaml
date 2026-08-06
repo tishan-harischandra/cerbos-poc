@@ -12,18 +12,24 @@ actions:
   - key: create
     displayName: Create structure map
     context: COLLECTION
+    risk: STANDARD
   - key: list
     displayName: List structure map
     context: COLLECTION
+    risk: STANDARD
   - key: read
     displayName: Read structure map
     context: INSTANCE
+    risk: STANDARD
   - key: update
     displayName: Update structure map
     context: INSTANCE
+    risk: ELEVATED
   - key: delete
     displayName: Delete structure map
     context: INSTANCE
+    risk: ELEVATED
   - key: assign
     displayName: Assign structure map
     context: INSTANCE
+    risk: ELEVATED

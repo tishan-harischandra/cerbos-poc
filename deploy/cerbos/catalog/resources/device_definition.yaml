@@ -12,18 +12,24 @@ actions:
   - key: create
     displayName: Create device definition
     context: COLLECTION
+    risk: STANDARD
   - key: list
     displayName: List device definition
     context: COLLECTION
+    risk: STANDARD
   - key: read
     displayName: Read device definition
     context: INSTANCE
+    risk: STANDARD
   - key: update
     displayName: Update device definition
     context: INSTANCE
+    risk: ELEVATED
   - key: delete
     displayName: Delete device definition
     context: INSTANCE
+    risk: ELEVATED
   - key: assign
     displayName: Assign device definition
     context: INSTANCE
+    risk: ELEVATED

@@ -12,18 +12,24 @@ actions:
   - key: create
     displayName: Create supply delivery
     context: COLLECTION
+    risk: STANDARD
   - key: list
     displayName: List supply delivery
     context: COLLECTION
+    risk: STANDARD
   - key: read
     displayName: Read supply delivery
     context: INSTANCE
+    risk: STANDARD
   - key: update
     displayName: Update supply delivery
     context: INSTANCE
+    risk: ELEVATED
   - key: delete
     displayName: Delete supply delivery
     context: INSTANCE
+    risk: ELEVATED
   - key: assign
     displayName: Assign supply delivery
     context: INSTANCE
+    risk: ELEVATED

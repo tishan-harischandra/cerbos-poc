@@ -12,18 +12,24 @@ actions:
   - key: create
     displayName: Create nutrition product
     context: COLLECTION
+    risk: STANDARD
   - key: list
     displayName: List nutrition product
     context: COLLECTION
+    risk: STANDARD
   - key: read
     displayName: Read nutrition product
     context: INSTANCE
+    risk: STANDARD
   - key: update
     displayName: Update nutrition product
     context: INSTANCE
+    risk: ELEVATED
   - key: delete
     displayName: Delete nutrition product
     context: INSTANCE
+    risk: ELEVATED
   - key: assign
     displayName: Assign nutrition product
     context: INSTANCE
+    risk: ELEVATED

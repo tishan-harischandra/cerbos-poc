@@ -86,8 +86,44 @@
       </details>
     }
 
-    <button type="button" data-testid="save-button" [disabled]="saving()" (click)="save()">
-      Save
-    </button>
+    @if (impactPreview(); as preview) {
+      <section class="impact-preview" data-testid="impact-preview">
+        <h3>Impact preview</h3>
+        @for (row of preview; track row.resourceKey + ':' + row.actionKey) {
+          <div [attr.data-testid]="'impact-' + row.resourceKey + '-' + row.actionKey">
+            <strong>{{ row.resourceKey }}:{{ row.actionKey }}</strong>
+            @if (row.direction === 'enable') {
+              <span data-testid="impact-direction-enable">may become enabled:</span>
+            } @else {
+              <span data-testid="impact-direction-disable">may become disabled:</span>
+            }
+            @if (row.capabilities.length > 0) {
+              <ul>
+                @for (capability of row.capabilities; track capability.key) {
+                  <li>{{ capability.key }}</li>
+                }
+              </ul>
+            } @else {
+              <span data-testid="impact-none">no composite capability depends on this permission</span>
+            }
+          </div>
+        }
+        <button type="button" data-testid="confirm-save-button" [disabled]="saving()" (click)="confirmSave()">
+          Confirm save
+        </button>
+        <button type="button" data-testid="cancel-preview-button" (click)="cancelPreview()">
+          Cancel
+        </button>
+      </section>
+    } @else {
+      <button
+        type="button"
+        data-testid="save-button"
+        [disabled]="saving() || impactPreviewLoading()"
+        (click)="previewSave()"
+      >
+        Save
+      </button>
+    }
   </section>
 }

@@ -12,18 +12,24 @@ actions:
   - key: create
     displayName: Create coverage
     context: COLLECTION
+    risk: STANDARD
   - key: list
     displayName: List coverage
     context: COLLECTION
+    risk: STANDARD
   - key: read
     displayName: Read coverage
     context: INSTANCE
+    risk: STANDARD
   - key: update
     displayName: Update coverage
     context: INSTANCE
+    risk: ELEVATED
   - key: delete
     displayName: Delete coverage
     context: INSTANCE
+    risk: ELEVATED
   - key: assign
     displayName: Assign coverage
     context: INSTANCE
+    risk: ELEVATED

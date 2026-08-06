@@ -12,18 +12,24 @@ actions:
   - key: create
     displayName: Create medication knowledge
     context: COLLECTION
+    risk: STANDARD
   - key: list
     displayName: List medication knowledge
     context: COLLECTION
+    risk: STANDARD
   - key: read
     displayName: Read medication knowledge
     context: INSTANCE
+    risk: STANDARD
   - key: update
     displayName: Update medication knowledge
     context: INSTANCE
+    risk: ELEVATED
   - key: delete
     displayName: Delete medication knowledge
     context: INSTANCE
+    risk: ELEVATED
   - key: assign
     displayName: Assign medication knowledge
     context: INSTANCE
+    risk: ELEVATED

@@ -12,18 +12,24 @@ actions:
   - key: create
     displayName: Create detected issue
     context: COLLECTION
+    risk: STANDARD
   - key: list
     displayName: List detected issue
     context: COLLECTION
+    risk: STANDARD
   - key: read
     displayName: Read detected issue
     context: INSTANCE
+    risk: STANDARD
   - key: update
     displayName: Update detected issue
     context: INSTANCE
+    risk: ELEVATED
   - key: delete
     displayName: Delete detected issue
     context: INSTANCE
+    risk: ELEVATED
   - key: assign
     displayName: Assign detected issue
     context: INSTANCE
+    risk: ELEVATED

@@ -12,18 +12,24 @@ actions:
   - key: create
     displayName: Create practitioner role
     context: COLLECTION
+    risk: STANDARD
   - key: list
     displayName: List practitioner role
     context: COLLECTION
+    risk: STANDARD
   - key: read
     displayName: Read practitioner role
     context: INSTANCE
+    risk: STANDARD
   - key: update
     displayName: Update practitioner role
     context: INSTANCE
+    risk: ELEVATED
   - key: delete
     displayName: Delete practitioner role
     context: INSTANCE
+    risk: ELEVATED
   - key: assign
     displayName: Assign practitioner role
     context: INSTANCE
+    risk: ELEVATED

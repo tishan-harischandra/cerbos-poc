@@ -9,6 +9,9 @@ export interface ActionEntry {
   key: string;
   displayName: string;
   context: string;
+  /** STANDARD or ELEVATED (§6.1, issue #18's resource catalog risk
+   * metadata). */
+  risk: string;
 }
 
 /** One resource's full administration-facing catalog entry (§9.1, §9.2). */

@@ -4,6 +4,7 @@ import { FormsModule } from '@angular/forms';
 import { firstValueFrom } from 'rxjs';
 
 import { AuthService } from '../auth/auth.service';
+import { CapabilityImpactApi, CapabilityRef } from '../capability-impact-api';
 import {
   PermissionRow,
   ResourceEntry,
@@ -14,6 +15,21 @@ import {
 interface DomainGroup {
   domain: string;
   resources: ResourceEntry[];
+}
+
+/**
+ * One changed resource-action row's capability impact, computed before a
+ * save is committed (§9.2's "Show an impact preview listing composite UI
+ * capabilities that may become enabled or disabled").
+ */
+export interface ImpactPreviewRow {
+  resourceKey: string;
+  actionKey: string;
+  /** 'enable' if this row is being turned on, 'disable' if turned off -
+   * the direction determines which side of the preview it belongs on,
+   * not whether the capability's other requirements are also met. */
+  direction: 'enable' | 'disable';
+  capabilities: CapabilityRef[];
 }
 
 /**
@@ -31,6 +47,7 @@ interface DomainGroup {
 export class RoleMatrix {
   private readonly api = inject(RoleMatrixApi);
   private readonly auth = inject(AuthService);
+  private readonly capabilityImpactApi = inject(CapabilityImpactApi);
 
   /**
    * The role matrix is tenant-scoped by the administrator's own token
@@ -49,12 +66,20 @@ export class RoleMatrix {
 
   /** Keyed by `${resourceKey}:${actionKey}`, the checkbox grid's own state. */
   private readonly permissionsByKey = signal<Map<string, PermissionRow>>(new Map());
+  /** The same shape as loaded from the server, kept untouched so a save
+   * can diff "what changed" against it for the impact preview. */
+  private readonly loadedPermissionsByKey = signal<Map<string, PermissionRow>>(new Map());
   readonly expectedRevision = signal(0);
 
   readonly loadError = signal<string | null>(null);
   readonly saving = signal(false);
   readonly staleRevision = signal(false);
   readonly saveError = signal<string | null>(null);
+
+  /** Non-null once "Save" has computed what changed - the confirmation
+   * step §9.2 requires before a role matrix write actually commits. */
+  readonly impactPreview = signal<ImpactPreviewRow[] | null>(null);
+  readonly impactPreviewLoading = signal(false);
 
   readonly domains = computed<DomainGroup[]>(() => {
     const filter = this.resourceFilter().trim().toLowerCase();
@@ -142,8 +167,10 @@ export class RoleMatrix {
         byKey.set(`${row.resourceKey}:${row.actionKey}`, row);
       }
       this.permissionsByKey.set(byKey);
+      this.loadedPermissionsByKey.set(new Map(byKey));
       this.expectedRevision.set(matrix.revision);
       this.staleRevision.set(false);
+      this.impactPreview.set(null);
     } catch {
       this.loadError.set("This role's permissions could not be loaded.");
     }
@@ -170,9 +197,70 @@ export class RoleMatrix {
       validUntil: existing?.validUntil,
     });
     this.permissionsByKey.set(byKey);
+    // A further edit makes any already-computed preview stale - it would
+    // otherwise describe a save that no longer matches the checkbox grid.
+    this.impactPreview.set(null);
   }
 
-  async save(): Promise<void> {
+  /** Every resource-action row whose enabled state differs from what was
+   * loaded - the change set the impact preview and the save itself both
+   * act on. */
+  private changedRows(): PermissionRow[] {
+    const loaded = this.loadedPermissionsByKey();
+    const changed: PermissionRow[] = [];
+    for (const [key, row] of this.permissionsByKey()) {
+      if ((loaded.get(key)?.enabled ?? false) !== row.enabled) {
+        changed.push(row);
+      }
+    }
+    return changed;
+  }
+
+  /**
+   * Computes the capability impact of every changed row and holds it for
+   * confirmation - §9.2's "Show an impact preview ... before saving".
+   * Nothing is written to the server here.
+   */
+  async previewSave(): Promise<void> {
+    const role = this.selectedRole();
+    if (!role) {
+      return;
+    }
+    const changed = this.changedRows();
+    if (changed.length === 0) {
+      await this.confirmSave();
+      return;
+    }
+
+    this.impactPreviewLoading.set(true);
+    try {
+      const rows = await Promise.all(
+        changed.map(async (row): Promise<ImpactPreviewRow> => {
+          let capabilities: CapabilityRef[] = [];
+          try {
+            const result = await firstValueFrom(
+              this.capabilityImpactApi.getCapabilityImpact(row.resourceKey, row.actionKey),
+            );
+            capabilities = result.capabilities;
+          } catch {
+            // The preview degrades to "no known impact" for this row
+            // rather than blocking the whole preview on one failed read.
+          }
+          return {
+            resourceKey: row.resourceKey,
+            actionKey: row.actionKey,
+            direction: row.enabled ? 'enable' : 'disable',
+            capabilities,
+          };
+        }),
+      );
+      this.impactPreview.set(rows);
+    } finally {
+      this.impactPreviewLoading.set(false);
+    }
+  }
+
+  async confirmSave(): Promise<void> {
     const role = this.selectedRole();
     if (!role) {
       return;
@@ -189,7 +277,9 @@ export class RoleMatrix {
         ),
       );
       this.expectedRevision.set(result.revision);
+      this.loadedPermissionsByKey.set(new Map(this.permissionsByKey()));
       this.staleRevision.set(false);
+      this.impactPreview.set(null);
     } catch (err) {
       if (err instanceof HttpErrorResponse && err.status === 409) {
         // §9.2's "actionable error offering reload": the pending edits in
@@ -204,6 +294,10 @@ export class RoleMatrix {
     } finally {
       this.saving.set(false);
     }
+  }
+
+  cancelPreview(): void {
+    this.impactPreview.set(null);
   }
 
   async reload(): Promise<void> {

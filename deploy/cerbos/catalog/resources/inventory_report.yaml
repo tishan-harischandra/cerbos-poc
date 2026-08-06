@@ -12,18 +12,24 @@ actions:
   - key: create
     displayName: Create inventory report
     context: COLLECTION
+    risk: STANDARD
   - key: list
     displayName: List inventory report
     context: COLLECTION
+    risk: STANDARD
   - key: read
     displayName: Read inventory report
     context: INSTANCE
+    risk: STANDARD
   - key: update
     displayName: Update inventory report
     context: INSTANCE
+    risk: ELEVATED
   - key: delete
     displayName: Delete inventory report
     context: INSTANCE
+    risk: ELEVATED
   - key: assign
     displayName: Assign inventory report
     context: INSTANCE
+    risk: ELEVATED

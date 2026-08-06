@@ -79,6 +79,8 @@ func New(cfg Config) http.Handler {
 		}
 		if cfg.Catalog != nil {
 			mux.Handle("GET /admin/authz/resources", authenticated(cfg.Catalog.Read))
+			mux.Handle("GET /admin/authz/resources/{resource}/actions/{action}/capabilities",
+				authenticated(cfg.Catalog.CapabilityImpact))
 		}
 	}
 

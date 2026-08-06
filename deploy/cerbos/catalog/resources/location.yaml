@@ -12,18 +12,24 @@ actions:
   - key: create
     displayName: Create location
     context: COLLECTION
+    risk: STANDARD
   - key: list
     displayName: List location
     context: COLLECTION
+    risk: STANDARD
   - key: read
     displayName: Read location
     context: INSTANCE
+    risk: STANDARD
   - key: update
     displayName: Update location
     context: INSTANCE
+    risk: ELEVATED
   - key: delete
     displayName: Delete location
     context: INSTANCE
+    risk: ELEVATED
   - key: assign
     displayName: Assign location
     context: INSTANCE
+    risk: ELEVATED

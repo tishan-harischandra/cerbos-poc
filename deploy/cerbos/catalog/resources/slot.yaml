@@ -12,18 +12,24 @@ actions:
   - key: create
     displayName: Create slot
     context: COLLECTION
+    risk: STANDARD
   - key: list
     displayName: List slot
     context: COLLECTION
+    risk: STANDARD
   - key: read
     displayName: Read slot
     context: INSTANCE
+    risk: STANDARD
   - key: update
     displayName: Update slot
     context: INSTANCE
+    risk: ELEVATED
   - key: delete
     displayName: Delete slot
     context: INSTANCE
+    risk: ELEVATED
   - key: assign
     displayName: Assign slot
     context: INSTANCE
+    risk: ELEVATED

@@ -12,18 +12,24 @@ actions:
   - key: create
     displayName: Create message header
     context: COLLECTION
+    risk: STANDARD
   - key: list
     displayName: List message header
     context: COLLECTION
+    risk: STANDARD
   - key: read
     displayName: Read message header
     context: INSTANCE
+    risk: STANDARD
   - key: update
     displayName: Update message header
     context: INSTANCE
+    risk: ELEVATED
   - key: delete
     displayName: Delete message header
     context: INSTANCE
+    risk: ELEVATED
   - key: assign
     displayName: Assign message header
     context: INSTANCE
+    risk: ELEVATED

@@ -12,18 +12,24 @@ actions:
   - key: create
     displayName: Create imaging study
     context: COLLECTION
+    risk: STANDARD
   - key: list
     displayName: List imaging study
     context: COLLECTION
+    risk: STANDARD
   - key: read
     displayName: Read imaging study
     context: INSTANCE
+    risk: STANDARD
   - key: update
     displayName: Update imaging study
     context: INSTANCE
+    risk: ELEVATED
   - key: delete
     displayName: Delete imaging study
     context: INSTANCE
+    risk: ELEVATED
   - key: assign
     displayName: Assign imaging study
     context: INSTANCE
+    risk: ELEVATED

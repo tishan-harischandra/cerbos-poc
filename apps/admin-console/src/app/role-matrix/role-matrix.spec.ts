@@ -30,15 +30,15 @@ const patientRecordCatalog = {
       displayName: 'Patient record',
       domain: 'clinical',
       actions: [
-        { key: 'read', displayName: 'View patient', context: 'INSTANCE' },
-        { key: 'delete', displayName: 'Delete patient', context: 'INSTANCE' },
+        { key: 'read', displayName: 'View patient', context: 'INSTANCE', risk: 'STANDARD' },
+        { key: 'delete', displayName: 'Delete patient', context: 'INSTANCE', risk: 'ELEVATED' },
       ],
     },
     {
       resourceKey: 'installation_config',
       displayName: 'Installation config',
       domain: 'platform',
-      actions: [{ key: 'read', displayName: 'View config', context: 'INSTANCE' }],
+      actions: [{ key: 'read', displayName: 'View config', context: 'INSTANCE', risk: 'STANDARD' }],
     },
   ],
   rootPolicyRevision: 'root-v1.4.0',
@@ -176,7 +176,7 @@ describe('RoleMatrix', () => {
     await selectPromise;
 
     fixture.componentInstance.toggle('patient_record', 'read');
-    const savePromise = fixture.componentInstance.save();
+    const savePromise = fixture.componentInstance.confirmSave();
     httpMock
       .expectOne('/api/admin/authz/tenants/tenant-a/roles/role-doctor/permissions')
       .flush({ error: 'stale' }, { status: 409, statusText: 'Conflict' });
@@ -188,6 +188,110 @@ describe('RoleMatrix', () => {
     ).toBeTruthy();
     // The pending edit survives the conflict - nothing silently reset it.
     expect(fixture.componentInstance.isEnabled('patient_record', 'read')).toBe(true);
+  });
+
+  it('shows an impact preview naming affected capabilities before saving, distinguishing enable from disable', async () => {
+    const httpMock = setUp();
+    const fixture = TestBed.createComponent(RoleMatrix);
+    httpMock.expectOne('/api/admin/authz/resources').flush(patientRecordCatalog);
+
+    const selectPromise = fixture.componentInstance.selectRole({
+      canonicalId: 'role-doctor', externalId: 'doctor', name: 'Doctor', description: '',
+    });
+    httpMock
+      .expectOne('/api/admin/authz/tenants/tenant-a/roles/role-doctor/permissions')
+      .flush({
+        permissions: [{ resourceKey: 'patient_record', actionKey: 'read', enabled: true, validFrom: '2026-01-01T00:00:00Z' }],
+        revision: 1,
+      });
+    await selectPromise;
+
+    // read: enabled -> disabled. delete: disabled -> enabled.
+    fixture.componentInstance.toggle('patient_record', 'read');
+    fixture.componentInstance.toggle('patient_record', 'delete');
+
+    const previewPromise = fixture.componentInstance.previewSave();
+    httpMock
+      .expectOne('/api/admin/authz/resources/patient_record/actions/read/capabilities')
+      .flush({ capabilities: [{ key: 'patient.route.view', module: 'clinical', context: 'INSTANCE' }] });
+    httpMock
+      .expectOne('/api/admin/authz/resources/patient_record/actions/delete/capabilities')
+      .flush({ capabilities: [] });
+    await previewPromise;
+    fixture.detectChanges();
+
+    const preview = fixture.componentInstance.impactPreview();
+    expect(preview).toHaveLength(2);
+    const readRow = preview?.find((r) => r.actionKey === 'read');
+    const deleteRow = preview?.find((r) => r.actionKey === 'delete');
+    expect(readRow?.direction).toEqual('disable');
+    expect(readRow?.capabilities.map((c) => c.key)).toEqual(['patient.route.view']);
+    expect(deleteRow?.direction).toEqual('enable');
+    expect(deleteRow?.capabilities).toEqual([]);
+
+    expect(
+      fixture.nativeElement.querySelector('[data-testid="impact-none"]')?.textContent,
+    ).toContain('no composite capability depends on this permission');
+
+    // Nothing was written to the server yet.
+    httpMock.expectNone('/api/admin/authz/tenants/tenant-a/roles/role-doctor/permissions');
+  });
+
+  it('confirming the preview performs the actual save', async () => {
+    const httpMock = setUp();
+    const fixture = TestBed.createComponent(RoleMatrix);
+    httpMock.expectOne('/api/admin/authz/resources').flush(patientRecordCatalog);
+
+    const selectPromise = fixture.componentInstance.selectRole({
+      canonicalId: 'role-doctor', externalId: 'doctor', name: 'Doctor', description: '',
+    });
+    httpMock
+      .expectOne('/api/admin/authz/tenants/tenant-a/roles/role-doctor/permissions')
+      .flush({ permissions: [], revision: 0 });
+    await selectPromise;
+
+    fixture.componentInstance.toggle('patient_record', 'read');
+    const previewPromise = fixture.componentInstance.previewSave();
+    httpMock
+      .expectOne('/api/admin/authz/resources/patient_record/actions/read/capabilities')
+      .flush({ capabilities: [] });
+    await previewPromise;
+
+    const savePromise = fixture.componentInstance.confirmSave();
+    httpMock
+      .expectOne('/api/admin/authz/tenants/tenant-a/roles/role-doctor/permissions')
+      .flush({ revision: 1 });
+    await savePromise;
+
+    expect(fixture.componentInstance.expectedRevision()).toEqual(1);
+    expect(fixture.componentInstance.impactPreview()).toBeNull();
+  });
+
+  it('cancelling the preview writes nothing and keeps the pending edit', async () => {
+    const httpMock = setUp();
+    const fixture = TestBed.createComponent(RoleMatrix);
+    httpMock.expectOne('/api/admin/authz/resources').flush(patientRecordCatalog);
+
+    const selectPromise = fixture.componentInstance.selectRole({
+      canonicalId: 'role-doctor', externalId: 'doctor', name: 'Doctor', description: '',
+    });
+    httpMock
+      .expectOne('/api/admin/authz/tenants/tenant-a/roles/role-doctor/permissions')
+      .flush({ permissions: [], revision: 0 });
+    await selectPromise;
+
+    fixture.componentInstance.toggle('patient_record', 'read');
+    const previewPromise = fixture.componentInstance.previewSave();
+    httpMock
+      .expectOne('/api/admin/authz/resources/patient_record/actions/read/capabilities')
+      .flush({ capabilities: [] });
+    await previewPromise;
+
+    fixture.componentInstance.cancelPreview();
+
+    expect(fixture.componentInstance.impactPreview()).toBeNull();
+    expect(fixture.componentInstance.isEnabled('patient_record', 'read')).toBe(true);
+    httpMock.expectNone('/api/admin/authz/tenants/tenant-a/roles/role-doctor/permissions');
   });
 
   it('sends every administrative call through the server-side proxy, never to the identity provider directly from here', async () => {

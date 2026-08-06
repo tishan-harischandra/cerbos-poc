@@ -12,18 +12,24 @@ actions:
   - key: create
     displayName: Create consent
     context: COLLECTION
+    risk: STANDARD
   - key: list
     displayName: List consent
     context: COLLECTION
+    risk: STANDARD
   - key: read
     displayName: Read consent
     context: INSTANCE
+    risk: STANDARD
   - key: update
     displayName: Update consent
     context: INSTANCE
+    risk: ELEVATED
   - key: delete
     displayName: Delete consent
     context: INSTANCE
+    risk: ELEVATED
   - key: assign
     displayName: Assign consent
     context: INSTANCE
+    risk: ELEVATED

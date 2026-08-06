@@ -82,6 +82,31 @@ func TestLoadResourceCatalogDirReadsDisplayMetadata(t *testing.T) {
 	}
 }
 
+// The resource catalog module needs risk metadata to browse by (issue
+// #18, §6.1), so the loader must carry it through rather than dropping
+// it on the floor between the YAML file and ResourceEntry.
+func TestLoadResourceCatalogDirReadsRiskMetadata(t *testing.T) {
+	entries, err := capabilitycatalog.LoadResourceCatalogDir(filepath.Join("testdata", "catalog"))
+	if err != nil {
+		t.Fatalf("LoadResourceCatalogDir: %v", err)
+	}
+
+	byKey := make(map[string]capabilitycatalog.ResourceEntry, len(entries))
+	for _, entry := range entries {
+		byKey[entry.ResourceKey] = entry
+	}
+	patient, ok := byKey["patient_record"]
+	if !ok {
+		t.Fatal("patient_record entry is missing")
+	}
+	if patient.Actions[0].Risk != "STANDARD" {
+		t.Errorf("patient_record read risk = %q, want STANDARD", patient.Actions[0].Risk)
+	}
+	if patient.Actions[1].Risk != "ELEVATED" {
+		t.Errorf("patient_record update risk = %q, want ELEVATED", patient.Actions[1].Risk)
+	}
+}
+
 func TestLoadResourceCatalogDirIsSortedByResourceKey(t *testing.T) {
 	entries, err := capabilitycatalog.LoadResourceCatalogDir(filepath.Join("testdata", "catalog"))
 	if err != nil {

@@ -14,12 +14,16 @@ actions:
   - key: list
     displayName: List patients
     context: COLLECTION
+    risk: STANDARD
   - key: read
     displayName: View patient
     context: INSTANCE
+    risk: STANDARD
   - key: update
     displayName: Update patient
     context: INSTANCE
+    risk: ELEVATED
   - key: delete
     displayName: Delete patient
     context: INSTANCE
+    risk: ELEVATED

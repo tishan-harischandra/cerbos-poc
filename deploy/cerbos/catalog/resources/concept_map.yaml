@@ -12,18 +12,24 @@ actions:
   - key: create
     displayName: Create concept map
     context: COLLECTION
+    risk: STANDARD
   - key: list
     displayName: List concept map
     context: COLLECTION
+    risk: STANDARD
   - key: read
     displayName: Read concept map
     context: INSTANCE
+    risk: STANDARD
   - key: update
     displayName: Update concept map
     context: INSTANCE
+    risk: ELEVATED
   - key: delete
     displayName: Delete concept map
     context: INSTANCE
+    risk: ELEVATED
   - key: assign
     displayName: Assign concept map
     context: INSTANCE
+    risk: ELEVATED

@@ -12,18 +12,24 @@ actions:
   - key: create
     displayName: Create procedure
     context: COLLECTION
+    risk: STANDARD
   - key: list
     displayName: List procedure
     context: COLLECTION
+    risk: STANDARD
   - key: read
     displayName: Read procedure
     context: INSTANCE
+    risk: STANDARD
   - key: update
     displayName: Update procedure
     context: INSTANCE
+    risk: ELEVATED
   - key: delete
     displayName: Delete procedure
     context: INSTANCE
+    risk: ELEVATED
   - key: assign
     displayName: Assign procedure
     context: INSTANCE
+    risk: ELEVATED

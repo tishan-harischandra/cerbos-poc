@@ -12,18 +12,24 @@ actions:
   - key: create
     displayName: Create charge item
     context: COLLECTION
+    risk: STANDARD
   - key: list
     displayName: List charge item
     context: COLLECTION
+    risk: STANDARD
   - key: read
     displayName: Read charge item
     context: INSTANCE
+    risk: STANDARD
   - key: update
     displayName: Update charge item
     context: INSTANCE
+    risk: ELEVATED
   - key: delete
     displayName: Delete charge item
     context: INSTANCE
+    risk: ELEVATED
   - key: assign
     displayName: Assign charge item
     context: INSTANCE
+    risk: ELEVATED

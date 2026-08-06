@@ -12,18 +12,24 @@ actions:
   - key: create
     displayName: Create explanation of benefit
     context: COLLECTION
+    risk: STANDARD
   - key: list
     displayName: List explanation of benefit
     context: COLLECTION
+    risk: STANDARD
   - key: read
     displayName: Read explanation of benefit
     context: INSTANCE
+    risk: STANDARD
   - key: update
     displayName: Update explanation of benefit
     context: INSTANCE
+    risk: ELEVATED
   - key: delete
     displayName: Delete explanation of benefit
     context: INSTANCE
+    risk: ELEVATED
   - key: assign
     displayName: Assign explanation of benefit
     context: INSTANCE
+    risk: ELEVATED
