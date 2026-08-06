@@ -281,6 +281,17 @@ tests:
         actions:
           read: EFFECT_ALLOW
 
+  - name: locking a record does not withdraw the right to list it
+    input:
+      principals: [doctor]
+      resources: [locked_with_every_grant]
+      actions: ["list"]
+    expected:
+      - principal: doctor
+        resource: locked_with_every_grant
+        actions:
+          list: EFFECT_ALLOW
+
   - name: a record in another tenant is denied every action
     input:
       principals: [doctor]

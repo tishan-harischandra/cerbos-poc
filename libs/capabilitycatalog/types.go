@@ -123,23 +123,6 @@ func (e *Expression) UnmarshalYAML(node *yaml.Node) error {
 	return nil
 }
 
-// MarshalYAML renders the expression back to the single-key shape
-// UnmarshalYAML accepts, used by the generator to emit definitions.
-func (e Expression) MarshalYAML() (interface{}, error) {
-	switch {
-	case e.Permission != nil:
-		return map[string]interface{}{"permission": e.Permission}, nil
-	case e.AllOf != nil:
-		return map[string]interface{}{"allOf": e.AllOf}, nil
-	case e.AnyOf != nil:
-		return map[string]interface{}{"anyOf": e.AnyOf}, nil
-	case e.CapabilityRef != "":
-		return map[string]interface{}{"capabilityRef": e.CapabilityRef}, nil
-	default:
-		return nil, fmt.Errorf("expression has no populated field")
-	}
-}
-
 // UiCapabilityDefinition is the UiCapabilityDefinition contract from §12.2.
 type UiCapabilityDefinition struct {
 	Key             string     `yaml:"key" json:"key"`
