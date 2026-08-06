@@ -16,6 +16,7 @@ import (
 	"github.com/tishan-harischandra/cerbos-poc/apps/admin-service/internal/authority"
 	"github.com/tishan-harischandra/cerbos-poc/apps/admin-service/internal/tokenauth"
 	"github.com/tishan-harischandra/cerbos-poc/libs/assignmentstore"
+	"github.com/tishan-harischandra/cerbos-poc/libs/permissionevents"
 )
 
 // Store is the narrow slice of assignmentstore.Store this handler needs.
@@ -156,6 +157,36 @@ func (h *Handler) Save(w http.ResponseWriter, r *http.Request) {
 		correlationID = h.newEventID()
 	}
 
+	// §10.1: the write has not committed yet, so this is the revision the
+	// write WILL land on if it commits, not a revision already observed.
+	// SaveRoleMatrix independently re-checks req.ExpectedRevision against
+	// the tenant's actual current revision under its own lock, so this
+	// number is only ever used once the write it describes has succeeded;
+	// a stale ExpectedRevision means SaveRoleMatrix returns
+	// ErrRevisionConflict before this row - or anything else in the same
+	// transaction - is ever committed.
+	newRevision := req.ExpectedRevision + 1
+
+	// §10.2: one PermissionChanged per touched (resource, action) pair, so
+	// a consumer invalidates exactly the cache keys that changed rather
+	// than an entire role's or tenant's cache on any change.
+	events := make([]permissionevents.PermissionChanged, 0, len(req.Permissions))
+	for _, permission := range req.Permissions {
+		events = append(events, permissionevents.PermissionChanged{
+			EventID:     h.newEventID(),
+			EventType:   permissionevents.EventTypePermissionChanged,
+			TenantID:    tenant,
+			SubjectType: permissionevents.SubjectRole,
+			SubjectID:   role,
+			Resource:    permission.ResourceKey,
+			Action:      permission.ActionKey,
+			Enabled:     permission.Enabled,
+			Revision:    newRevision,
+			OccurredAt:  now,
+		})
+	}
+	payload, _ := json.Marshal(events)
+
 	write := assignmentstore.RoleMatrixWrite{
 		TenantID:         tenant,
 		RoleExternalID:   role,
@@ -174,8 +205,8 @@ func (h *Handler) Save(w http.ResponseWriter, r *http.Request) {
 		Outbox: assignmentstore.OutboxEvent{
 			EventID:      h.newEventID(),
 			AggregateKey: tenant + ":" + role,
-			EventType:    "permission.changed",
-			Payload:      string(afterJSON),
+			EventType:    permissionevents.EventTypePermissionChanged,
+			Payload:      string(payload),
 			CreatedAt:    now,
 		},
 	}

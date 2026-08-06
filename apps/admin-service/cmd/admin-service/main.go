@@ -19,6 +19,8 @@ import (
 	"github.com/tishan-harischandra/cerbos-poc/libs/assignmentstore/postgresstore"
 	"github.com/tishan-harischandra/cerbos-poc/libs/capabilitycatalog"
 	"github.com/tishan-harischandra/cerbos-poc/libs/idpdirectory/provider"
+	"github.com/tishan-harischandra/cerbos-poc/libs/outbox"
+	"github.com/tishan-harischandra/cerbos-poc/libs/outbox/kafkapublisher"
 )
 
 func main() {
@@ -71,6 +73,20 @@ func main() {
 
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer stop()
+
+	// §10.1's step 5: the outbox publisher sends every PermissionChanged
+	// batch to Kafka. A publish failure leaves the row unpublished for the
+	// next poll to retry - nothing about SaveRoleMatrix's own commit
+	// depends on Kafka being reachable at all.
+	outboxLoop := outbox.NewLoop(outbox.LoopConfig{
+		Store:     store,
+		Publisher: kafkapublisher.New(cfg.KafkaBrokers, cfg.KafkaTopic),
+		Interval:  cfg.OutboxPublishInterval,
+		OnError: func(err error) {
+			logger.Error("outbox publisher error", slog.Any("error", err))
+		},
+	})
+	go outboxLoop.Run(ctx)
 
 	go func() {
 		<-ctx.Done()

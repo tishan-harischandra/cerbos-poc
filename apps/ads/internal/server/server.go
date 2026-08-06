@@ -46,6 +46,11 @@ type Config struct {
 	// §12.3 capability snapshot endpoint (issue #11). Nil means the route
 	// does not exist.
 	CapabilityHandler http.Handler
+
+	// MetricsHandler serves GET /metrics, the §10 convergence metrics
+	// (issue #14). Nil means the route does not exist. Unauthenticated,
+	// like every other Prometheus scrape target on this network.
+	MetricsHandler http.Handler
 }
 
 // New builds the ADS HTTP handler.
@@ -65,6 +70,9 @@ func New(cfg Config) http.Handler {
 	}
 	if cfg.CapabilityHandler != nil {
 		mux.Handle("POST /internal/capabilities/evaluate", cfg.CapabilityHandler)
+	}
+	if cfg.MetricsHandler != nil {
+		mux.Handle("GET /metrics", cfg.MetricsHandler)
 	}
 
 	timeout := cfg.ReadinessTimeout

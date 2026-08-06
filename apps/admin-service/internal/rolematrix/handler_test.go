@@ -12,6 +12,7 @@ import (
 	"github.com/tishan-harischandra/cerbos-poc/apps/admin-service/internal/rolematrix"
 	"github.com/tishan-harischandra/cerbos-poc/apps/admin-service/internal/tokenauth"
 	"github.com/tishan-harischandra/cerbos-poc/libs/assignmentstore"
+	"github.com/tishan-harischandra/cerbos-poc/libs/permissionevents"
 )
 
 type fakeStore struct {
@@ -282,6 +283,67 @@ func TestSaveRecordsBeforeAndAfterStateAndTheCorrelationIdOnTheAuditEvent(t *tes
 	}
 	if audit.AfterJSON != `{"patient_record:read":true}` {
 		t.Errorf("afterJSON = %s, want the post-write state", audit.AfterJSON)
+	}
+}
+
+// The outbox payload a successful save appends must carry one
+// PermissionChanged event per touched permission, in the §10.2 shape a
+// consumer can invalidate from directly.
+func TestSaveAppendsOnePermissionChangedEventPerTouchedPermission(t *testing.T) {
+	store := newFakeStore()
+	catalog := newFakeCatalog("patient_record:read", "patient_record:update")
+	handler := newHandler(store, catalog)
+
+	req := request(t, adminOf("tenant-a"), "tenant-a", "role-doctor", map[string]any{
+		"expectedRevision": 0,
+		"permissions": []map[string]any{
+			{"resourceKey": "patient_record", "actionKey": "read", "enabled": true, "validFrom": "2026-01-01T00:00:00Z"},
+			{"resourceKey": "patient_record", "actionKey": "update", "enabled": false, "validFrom": "2026-01-01T00:00:00Z"},
+		},
+	})
+	rec := httptest.NewRecorder()
+	handler.Save(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, want 200: %s", rec.Code, rec.Body.String())
+	}
+
+	var events []permissionevents.PermissionChanged
+	if err := json.Unmarshal([]byte(store.lastWrite.Outbox.Payload), &events); err != nil {
+		t.Fatalf("decoding the outbox payload %q: %v", store.lastWrite.Outbox.Payload, err)
+	}
+	if len(events) != 2 {
+		t.Fatalf("got %d events, want one per touched permission", len(events))
+	}
+
+	byAction := make(map[string]permissionevents.PermissionChanged, len(events))
+	for _, event := range events {
+		byAction[event.Action] = event
+	}
+
+	read, ok := byAction["read"]
+	if !ok {
+		t.Fatal("no PermissionChanged event for the read permission")
+	}
+	if read.EventType != permissionevents.EventTypePermissionChanged {
+		t.Errorf("eventType = %q, want %q", read.EventType, permissionevents.EventTypePermissionChanged)
+	}
+	if read.TenantID != "tenant-a" || read.SubjectType != permissionevents.SubjectRole || read.SubjectID != "role-doctor" {
+		t.Errorf("read event = %+v, want tenant-a/ROLE/role-doctor", read)
+	}
+	if read.Resource != "patient_record" || !read.Enabled {
+		t.Errorf("read event = %+v, want patient_record enabled=true", read)
+	}
+	if read.Revision != 1 {
+		t.Errorf("read event revision = %d, want 1", read.Revision)
+	}
+
+	update, ok := byAction["update"]
+	if !ok {
+		t.Fatal("no PermissionChanged event for the update permission")
+	}
+	if update.Enabled {
+		t.Error("the update event reads enabled=true, want false (it was revoked)")
 	}
 }
 
