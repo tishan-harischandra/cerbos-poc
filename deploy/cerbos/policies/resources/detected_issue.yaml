@@ -26,6 +26,9 @@ resourcePolicy:
       condition:
         match:
           expr: "!variables.isolated"
+      output:
+        when:
+          ruleActivated: '"fired"'
 
     - name: locked_record_restriction
       actions: ["update", "delete", "assign"]
@@ -34,6 +37,9 @@ resourcePolicy:
       condition:
         match:
           expr: variables.is_locked
+      output:
+        when:
+          ruleActivated: '"fired"'
 
     - name: revoke_create
       actions: ["create"]
@@ -42,6 +48,9 @@ resourcePolicy:
       condition:
         match:
           expr: '"create" in variables.user_revokes'
+      output:
+        when:
+          ruleActivated: '"fired"'
 
     - name: revoke_list
       actions: ["list"]
@@ -50,6 +59,9 @@ resourcePolicy:
       condition:
         match:
           expr: '"list" in variables.user_revokes'
+      output:
+        when:
+          ruleActivated: '"fired"'
 
     - name: revoke_read
       actions: ["read"]
@@ -58,6 +70,9 @@ resourcePolicy:
       condition:
         match:
           expr: '"read" in variables.user_revokes'
+      output:
+        when:
+          ruleActivated: '"fired"'
 
     - name: revoke_update
       actions: ["update"]
@@ -66,6 +81,9 @@ resourcePolicy:
       condition:
         match:
           expr: '"update" in variables.user_revokes'
+      output:
+        when:
+          ruleActivated: '"fired"'
 
     - name: revoke_delete
       actions: ["delete"]
@@ -74,6 +92,9 @@ resourcePolicy:
       condition:
         match:
           expr: '"delete" in variables.user_revokes'
+      output:
+        when:
+          ruleActivated: '"fired"'
 
     - name: revoke_assign
       actions: ["assign"]
@@ -82,6 +103,9 @@ resourcePolicy:
       condition:
         match:
           expr: '"assign" in variables.user_revokes'
+      output:
+        when:
+          ruleActivated: '"fired"'
 
     - name: grant_create_to_user
       actions: ["create"]
@@ -90,6 +114,9 @@ resourcePolicy:
       condition:
         match:
           expr: '"create" in variables.user_grants'
+      output:
+        when:
+          ruleActivated: '"fired"'
 
     - name: grant_list_to_user
       actions: ["list"]
@@ -98,6 +125,9 @@ resourcePolicy:
       condition:
         match:
           expr: '"list" in variables.user_grants'
+      output:
+        when:
+          ruleActivated: '"fired"'
 
     - name: grant_read_to_user
       actions: ["read"]
@@ -106,6 +136,9 @@ resourcePolicy:
       condition:
         match:
           expr: '"read" in variables.user_grants'
+      output:
+        when:
+          ruleActivated: '"fired"'
 
     - name: grant_update_to_user
       actions: ["update"]
@@ -114,6 +147,9 @@ resourcePolicy:
       condition:
         match:
           expr: '"update" in variables.user_grants'
+      output:
+        when:
+          ruleActivated: '"fired"'
 
     - name: grant_delete_to_user
       actions: ["delete"]
@@ -122,6 +158,9 @@ resourcePolicy:
       condition:
         match:
           expr: '"delete" in variables.user_grants'
+      output:
+        when:
+          ruleActivated: '"fired"'
 
     - name: grant_assign_to_user
       actions: ["assign"]
@@ -130,6 +169,9 @@ resourcePolicy:
       condition:
         match:
           expr: '"assign" in variables.user_grants'
+      output:
+        when:
+          ruleActivated: '"fired"'
 
     - name: grant_create_to_role
       actions: ["create"]
@@ -138,6 +180,9 @@ resourcePolicy:
       condition:
         match:
           expr: '"create" in variables.role_actions'
+      output:
+        when:
+          ruleActivated: '"fired"'
 
     - name: grant_list_to_role
       actions: ["list"]
@@ -146,6 +191,9 @@ resourcePolicy:
       condition:
         match:
           expr: '"list" in variables.role_actions'
+      output:
+        when:
+          ruleActivated: '"fired"'
 
     - name: grant_read_to_role
       actions: ["read"]
@@ -154,6 +202,9 @@ resourcePolicy:
       condition:
         match:
           expr: '"read" in variables.role_actions'
+      output:
+        when:
+          ruleActivated: '"fired"'
 
     - name: grant_update_to_role
       actions: ["update"]
@@ -162,6 +213,9 @@ resourcePolicy:
       condition:
         match:
           expr: '"update" in variables.role_actions'
+      output:
+        when:
+          ruleActivated: '"fired"'
 
     - name: grant_delete_to_role
       actions: ["delete"]
@@ -170,6 +224,9 @@ resourcePolicy:
       condition:
         match:
           expr: '"delete" in variables.role_actions'
+      output:
+        when:
+          ruleActivated: '"fired"'
 
     - name: grant_assign_to_role
       actions: ["assign"]
@@ -178,6 +235,9 @@ resourcePolicy:
       condition:
         match:
           expr: '"assign" in variables.role_actions'
+      output:
+        when:
+          ruleActivated: '"fired"'
 
   schemas:
     principalSchema:

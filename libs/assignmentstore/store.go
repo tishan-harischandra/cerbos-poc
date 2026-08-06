@@ -186,6 +186,25 @@ type Resource struct {
 	UpdatedAt    time.Time
 }
 
+// ListResourcesQuery pages through instances of one resource type. It always
+// scopes to a tenant and a hospital: the resource service (issue #9) is a
+// PEP, not a public index, and a list that could cross a tenant boundary
+// would be the one read path §21's isolation invariant does not cover.
+type ListResourcesQuery struct {
+	ResourceType string
+	TenantID     string
+	HospitalID   string
+	// Limit bounds the page size. Zero means DefaultListLimit.
+	Limit int
+	// Offset is the number of matching rows to skip, for the next page.
+	Offset int
+}
+
+// DefaultListLimit is the page size ListResources uses when a query's Limit
+// is zero, so a caller that forgets to set one gets a bounded page rather
+// than every instance of a resource type in the tenant.
+const DefaultListLimit = 50
+
 // Store is the port every engine adapter implements.
 //
 // Every method is expressed in domain terms. Nothing here exposes a dialect, a
@@ -237,6 +256,15 @@ type Store interface {
 
 	SaveResource(ctx context.Context, resource Resource) error
 	Resource(ctx context.Context, resourceType, resourceID string) (Resource, bool, error)
+	// DeleteResource removes one instance. Deleting an instance that does not
+	// exist is not an error: it leaves the store in the state the caller
+	// asked for.
+	DeleteResource(ctx context.Context, resourceType, resourceID string) error
+	// ListResources pages through instances of one resource type within one
+	// tenant and hospital, ordered by resource_id so that pagination is
+	// stable across calls. TotalCount is the count of every matching row,
+	// not just this page, so a caller can tell whether more pages remain.
+	ListResources(ctx context.Context, query ListResourcesQuery) (page []Resource, totalCount int, err error)
 
 	// Truncate empties the named tables so each contract test starts clean.
 	Truncate(ctx context.Context, tables ...string) error

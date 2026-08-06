@@ -137,6 +137,43 @@ services:
       timeout: 5s
       retries: 20
 
+  # The generic FHIR resource service: the policy enforcement point in front
+  # of fhir_resource (issue #9). It holds resource instances and asks the
+  # ADS's decision endpoint before acting; it never calls the Cerbos PDP
+  # directly, and it never trusts an attribute from a request body.
+  resource-service:
+    build:
+      context: .
+      dockerfile: apps/resource-service/Dockerfile
+    environment:
+      RESOURCE_SERVICE_HTTP_ADDR: ":8080"
+      ADS_ADDR: "http://ads:8080"
+      POSTGRES_ADDR: "postgres:5432"
+      ASSIGNMENTSTORE_POSTGRES_DSN: "postgres://${POSTGRES_USER:-cerbos_poc}:${POSTGRES_PASSWORD:-change-me}@postgres:5432/${POSTGRES_DB:-cerbos_poc}?sslmode=disable"
+      IDP_TYPE: "${IDP_TYPE:-KEYCLOAK}"
+      IDP_BASE_URL: "http://keycloak:8080"
+      IDP_ADDR: "keycloak:8080"
+      IDP_REALM: "${IDP_REALM:-cerbos-poc}"
+      IDP_TENANT_ID: "${IDP_TENANT_ID:-tenant-a}"
+      IDP_TENANT_MAPPING_MODE: "${IDP_TENANT_MAPPING_MODE:-CLAIM}"
+      IDP_ROLE_SOURCE: "${IDP_ROLE_SOURCE:-CLIENT}"
+      IDP_CLIENT_ID: "${IDP_CLIENT_ID:-patient-app}"
+      IDP_SERVICE_CLIENT_ID: "${IDP_SERVICE_CLIENT_ID:-authorization-admin-service}"
+      IDP_ISSUER: "${KEYCLOAK_HOSTNAME:-http://localhost:8081}/realms/${IDP_REALM:-cerbos-poc}"
+      IDP_CREDENTIALS_SECRET_REF: "/run/secrets/idp-admin-credentials"
+    volumes:
+      - ./deploy/secrets/idp-admin-credentials:/run/secrets/idp-admin-credentials:ro
+    depends_on:
+      ads:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://127.0.0.1:8080/readyz"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
   admin-console:
     build:
       context: .

@@ -26,6 +26,9 @@ resourcePolicy:
       condition:
         match:
           expr: "!variables.isolated"
+      output:
+        when:
+          ruleActivated: '"fired"'
 
     - name: locked_record_restriction
       actions: ["update"]
@@ -34,6 +37,9 @@ resourcePolicy:
       condition:
         match:
           expr: variables.is_locked
+      output:
+        when:
+          ruleActivated: '"fired"'
 
     - name: revoke_read
       actions: ["read"]
@@ -42,6 +48,9 @@ resourcePolicy:
       condition:
         match:
           expr: '"read" in variables.user_revokes'
+      output:
+        when:
+          ruleActivated: '"fired"'
 
     - name: revoke_update
       actions: ["update"]
@@ -50,6 +59,9 @@ resourcePolicy:
       condition:
         match:
           expr: '"update" in variables.user_revokes'
+      output:
+        when:
+          ruleActivated: '"fired"'
 
     - name: grant_read_to_user
       actions: ["read"]
@@ -58,6 +70,9 @@ resourcePolicy:
       condition:
         match:
           expr: '"read" in variables.user_grants'
+      output:
+        when:
+          ruleActivated: '"fired"'
 
     - name: grant_update_to_user
       actions: ["update"]
@@ -66,6 +81,9 @@ resourcePolicy:
       condition:
         match:
           expr: '"update" in variables.user_grants'
+      output:
+        when:
+          ruleActivated: '"fired"'
 
     - name: grant_read_to_role
       actions: ["read"]
@@ -74,6 +92,9 @@ resourcePolicy:
       condition:
         match:
           expr: '"read" in variables.role_actions'
+      output:
+        when:
+          ruleActivated: '"fired"'
 
     - name: grant_update_to_role
       actions: ["update"]
@@ -82,6 +103,9 @@ resourcePolicy:
       condition:
         match:
           expr: '"update" in variables.role_actions'
+      output:
+        when:
+          ruleActivated: '"fired"'
 
   schemas:
     principalSchema:

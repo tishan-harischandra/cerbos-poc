@@ -93,6 +93,12 @@ func Run(t *testing.T, newStore Factory) {
 	t.Run("the active user overrides for one principal and resource are read in one call", func(t *testing.T) {
 		assertActiveUserOverrides(t, newStore(t))
 	})
+	t.Run("deleting a resource removes it and is idempotent", func(t *testing.T) {
+		assertDeleteResource(t, newStore(t))
+	})
+	t.Run("listing resources pages within one tenant and hospital", func(t *testing.T) {
+		assertListResources(t, newStore(t))
+	})
 }
 
 // The hot path resolves every role a principal holds at once (§11.2). What that
@@ -458,6 +464,121 @@ func assertAbsentOptionalText(t *testing.T, store assignmentstore.Store) {
 	// The mandatory rules read status, so it must survive intact regardless.
 	if stored.Status != "ACTIVE" {
 		t.Errorf("status = %q, want ACTIVE", stored.Status)
+	}
+}
+
+// Deleting a resource that was never written must not error: a caller asking
+// for an absent instance to be gone has already gotten what it asked for.
+func assertDeleteResource(t *testing.T, store assignmentstore.Store) {
+	t.Helper()
+	defer closeStore(t, store)
+	ctx := context.Background()
+	truncate(t, store, "fhir_resource")
+
+	resource := assignmentstore.Resource{
+		ResourceType: "condition",
+		ResourceID:   "condition-delete-1",
+		TenantID:     "tenant-a",
+		HospitalID:   "hospital-1",
+		Status:       "ACTIVE",
+		PayloadJSON:  `{"resourceType":"Condition"}`,
+		UpdatedAt:    time.Date(2026, 5, 4, 12, 0, 0, 0, time.UTC),
+	}
+	if err := store.SaveResource(ctx, resource); err != nil {
+		t.Fatalf("saving the resource to delete: %v", err)
+	}
+
+	if err := store.DeleteResource(ctx, resource.ResourceType, resource.ResourceID); err != nil {
+		t.Fatalf("deleting the resource: %v", err)
+	}
+	if _, found, err := store.Resource(ctx, resource.ResourceType, resource.ResourceID); err != nil {
+		t.Fatalf("reading after delete: %v", err)
+	} else if found {
+		t.Error("the resource was still readable after being deleted")
+	}
+
+	if err := store.DeleteResource(ctx, resource.ResourceType, resource.ResourceID); err != nil {
+		t.Errorf("deleting an already-absent resource errored: %v", err)
+	}
+}
+
+// A list must stay within its tenant and hospital, within its resource type,
+// page in a stable order, and report the total row count separately from the
+// page size - a caller cannot otherwise tell whether more pages remain.
+func assertListResources(t *testing.T, store assignmentstore.Store) {
+	t.Helper()
+	defer closeStore(t, store)
+	ctx := context.Background()
+	truncate(t, store, "fhir_resource")
+
+	save := func(resourceType, id, tenant, hospital string) {
+		t.Helper()
+		if err := store.SaveResource(ctx, assignmentstore.Resource{
+			ResourceType: resourceType,
+			ResourceID:   id,
+			TenantID:     tenant,
+			HospitalID:   hospital,
+			Status:       "ACTIVE",
+			PayloadJSON:  `{}`,
+			UpdatedAt:    time.Date(2026, 5, 4, 12, 0, 0, 0, time.UTC),
+		}); err != nil {
+			t.Fatalf("saving %s/%s: %v", resourceType, id, err)
+		}
+	}
+
+	save("condition", "condition-a1", "tenant-a", "hospital-1")
+	save("condition", "condition-a2", "tenant-a", "hospital-1")
+	save("condition", "condition-a3", "tenant-a", "hospital-1")
+	// Another resource type, which the query below must not return.
+	save("procedure", "procedure-a1", "tenant-a", "hospital-1")
+	// Another hospital in the same tenant, which must not leak into a
+	// hospital-1 list.
+	save("condition", "condition-a-h2", "tenant-a", "hospital-2")
+	// Another tenant entirely.
+	save("condition", "condition-b1", "tenant-b", "hospital-1")
+
+	first, total, err := store.ListResources(ctx, assignmentstore.ListResourcesQuery{
+		ResourceType: "condition", TenantID: "tenant-a", HospitalID: "hospital-1",
+		Limit: 2, Offset: 0,
+	})
+	if err != nil {
+		t.Fatalf("listing the first page: %v", err)
+	}
+	if total != 3 {
+		t.Fatalf("total = %d, want 3", total)
+	}
+	if len(first) != 2 {
+		t.Fatalf("first page = %d rows, want 2", len(first))
+	}
+	for _, resource := range first {
+		if resource.TenantID != "tenant-a" || resource.HospitalID != "hospital-1" {
+			t.Errorf("a %s/%s row reached a tenant-a/hospital-1 list", resource.TenantID, resource.HospitalID)
+		}
+		if resource.ResourceType != "condition" {
+			t.Errorf("a %s row reached a condition list", resource.ResourceType)
+		}
+	}
+
+	second, _, err := store.ListResources(ctx, assignmentstore.ListResourcesQuery{
+		ResourceType: "condition", TenantID: "tenant-a", HospitalID: "hospital-1",
+		Limit: 2, Offset: 2,
+	})
+	if err != nil {
+		t.Fatalf("listing the second page: %v", err)
+	}
+	if len(second) != 1 {
+		t.Fatalf("second page = %d rows, want 1", len(second))
+	}
+
+	seen := map[string]bool{}
+	for _, resource := range append(first, second...) {
+		if seen[resource.ResourceID] {
+			t.Errorf("resource %s appeared on more than one page", resource.ResourceID)
+		}
+		seen[resource.ResourceID] = true
+	}
+	if len(seen) != 3 {
+		t.Errorf("saw %d distinct resources across both pages, want 3", len(seen))
 	}
 }
 

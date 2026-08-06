@@ -516,6 +516,72 @@ func (s *Store) Resource(ctx context.Context, resourceType, resourceID string) (
 	return resource, true, nil
 }
 
+// DeleteResource removes one instance. Deleting a row that is not there is
+// not an error.
+func (s *Store) DeleteResource(ctx context.Context, resourceType, resourceID string) error {
+	const statement = `DELETE FROM fhir_resource WHERE resource_type = $1 AND resource_id = $2`
+	if _, err := s.pool.Exec(ctx, statement, resourceType, resourceID); err != nil {
+		return fmt.Errorf("postgresstore: deleting a resource: %w", err)
+	}
+	return nil
+}
+
+// ListResources pages through instances of one resource type within one
+// tenant and hospital, ordered by resource_id for stable pagination.
+func (s *Store) ListResources(ctx context.Context, query assignmentstore.ListResourcesQuery) ([]assignmentstore.Resource, int, error) {
+	limit := query.Limit
+	if limit <= 0 {
+		limit = assignmentstore.DefaultListLimit
+	}
+
+	const countQuery = `
+		SELECT count(*) FROM fhir_resource
+		WHERE resource_type = $1 AND tenant_id = $2 AND hospital_id = $3`
+	var total int
+	if err := s.pool.QueryRow(ctx, countQuery, query.ResourceType, query.TenantID, query.HospitalID).
+		Scan(&total); err != nil {
+		return nil, 0, fmt.Errorf("postgresstore: counting resources: %w", err)
+	}
+
+	const pageQuery = `
+		SELECT resource_id, status, department, sensitivity, payload, updated_at
+		FROM fhir_resource
+		WHERE resource_type = $1 AND tenant_id = $2 AND hospital_id = $3
+		ORDER BY resource_id
+		LIMIT $4 OFFSET $5`
+	rows, err := s.pool.Query(ctx, pageQuery,
+		query.ResourceType, query.TenantID, query.HospitalID, limit, query.Offset)
+	if err != nil {
+		return nil, 0, fmt.Errorf("postgresstore: listing resources: %w", err)
+	}
+	defer rows.Close()
+
+	var page []assignmentstore.Resource
+	for rows.Next() {
+		resource := assignmentstore.Resource{
+			ResourceType: query.ResourceType,
+			TenantID:     query.TenantID,
+			HospitalID:   query.HospitalID,
+		}
+		var department, sensitivity *string
+		if err := rows.Scan(&resource.ResourceID, &resource.Status,
+			&department, &sensitivity, &resource.PayloadJSON, &resource.UpdatedAt); err != nil {
+			return nil, 0, fmt.Errorf("postgresstore: scanning a resource: %w", err)
+		}
+		if department != nil {
+			resource.Department = *department
+		}
+		if sensitivity != nil {
+			resource.Sensitivity = *sensitivity
+		}
+		page = append(page, resource)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, 0, fmt.Errorf("postgresstore: listing resources: %w", err)
+	}
+	return page, total, nil
+}
+
 // Truncate empties the named tables.
 func (s *Store) Truncate(ctx context.Context, tables ...string) error {
 	for _, table := range tables {

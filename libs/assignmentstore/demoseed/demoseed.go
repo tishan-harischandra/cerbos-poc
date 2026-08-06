@@ -63,6 +63,21 @@ const (
 	// narrows to below, proving §6.2's optional resource_instance_id
 	// selector: the override must apply there and nowhere else.
 	InstanceScopedResourceID = "patient-777"
+
+	// The fhir_resource instances issue #9's resource service is a PEP in
+	// front of. LockedResourceID is ACTIVE's opposite: the one row that
+	// exercises the mandatory locked_record_restriction deny path against
+	// real stored state rather than a fixture.
+	ActiveResourceID = "patient-456"
+	LockedResourceID = "patient-locked-1"
+
+	// GenericResourceType and its instances prove the seed - and so the
+	// resource service built against it - is not special-cased to
+	// patient_record: any catalog resource type works the same way.
+	GenericResourceType       = "condition"
+	GenericResourceID         = "condition-1"
+	GenericLockedResourceID   = "condition-locked-1"
+	GenericOtherTenantResource = "condition-tenant-b-1"
 )
 
 // Writer is the part of the store the seed needs. Narrow on purpose: a seeder
@@ -72,6 +87,7 @@ type Writer interface {
 	SaveRolePermission(ctx context.Context, permission assignmentstore.RolePermission) error
 	SaveUserOverride(ctx context.Context, override assignmentstore.UserOverride) error
 	SavePermissionRevision(ctx context.Context, revision assignmentstore.PermissionRevision) error
+	SaveResource(ctx context.Context, resource assignmentstore.Resource) error
 }
 
 // Apply writes the demo matrix. It is idempotent: every row is saved on its
@@ -143,7 +159,39 @@ func Apply(ctx context.Context, writer Writer, at time.Time) error {
 		return fmt.Errorf("seeding the permission revision: %w", err)
 	}
 
+	resources := []assignmentstore.Resource{
+		resource(ResourceKey, ActiveResourceID, TenantID, HospitalID, "ACTIVE", at),
+		resource(ResourceKey, InstanceScopedResourceID, TenantID, HospitalID, "ACTIVE", at),
+		// The mandatory locked_record_restriction deny path, against a real
+		// stored row rather than an attribute the caller supplied itself.
+		resource(ResourceKey, LockedResourceID, TenantID, HospitalID, "LOCKED", at),
+		// A non-patient_record resource type, proving the resource service
+		// built against this seed is generic across the catalog.
+		resource(GenericResourceType, GenericResourceID, TenantID, HospitalID, "ACTIVE", at),
+		resource(GenericResourceType, GenericLockedResourceID, TenantID, HospitalID, "LOCKED", at),
+		// Another tenant's instance, which a tenant-a list or read must
+		// never return.
+		resource(GenericResourceType, GenericOtherTenantResource, OtherTenantID, HospitalID, "ACTIVE", at),
+	}
+	for _, r := range resources {
+		if err := writer.SaveResource(ctx, r); err != nil {
+			return fmt.Errorf("seeding resource %s/%s: %w", r.ResourceType, r.ResourceID, err)
+		}
+	}
+
 	return nil
+}
+
+func resource(resourceType, id, tenant, hospital, status string, at time.Time) assignmentstore.Resource {
+	return assignmentstore.Resource{
+		ResourceType: resourceType,
+		ResourceID:   id,
+		TenantID:     tenant,
+		HospitalID:   hospital,
+		Status:       status,
+		PayloadJSON:  fmt.Sprintf(`{"resourceType":%q,"id":%q}`, resourceType, id),
+		UpdatedAt:    at,
+	}
 }
 
 func rolePermission(tenant, role, action string, enabled bool, from, until time.Time) assignmentstore.RolePermission {

@@ -47,7 +47,8 @@ func RenderPolicy(m *Manifest, entry ResourceEntry) string {
 	b.WriteString("      roles: [\"sys:permission-evaluator\"]\n")
 	b.WriteString("      condition:\n")
 	b.WriteString("        match:\n")
-	b.WriteString("          expr: \"!variables.isolated\"\n\n")
+	b.WriteString("          expr: \"!variables.isolated\"\n")
+	b.WriteString(ruleOutput())
 
 	if len(m.LockableActions) > 0 {
 		b.WriteString("    - name: locked_record_restriction\n")
@@ -56,7 +57,8 @@ func RenderPolicy(m *Manifest, entry ResourceEntry) string {
 		b.WriteString("      roles: [\"sys:permission-evaluator\"]\n")
 		b.WriteString("      condition:\n")
 		b.WriteString("        match:\n")
-		b.WriteString("          expr: variables.is_locked\n\n")
+		b.WriteString("          expr: variables.is_locked\n")
+		b.WriteString(ruleOutput())
 	}
 
 	for _, action := range m.Actions {
@@ -66,7 +68,8 @@ func RenderPolicy(m *Manifest, entry ResourceEntry) string {
 		b.WriteString("      roles: [\"sys:permission-evaluator\"]\n")
 		b.WriteString("      condition:\n")
 		b.WriteString("        match:\n")
-		fmt.Fprintf(&b, "          expr: '%q in variables.user_revokes'\n\n", action.Key)
+		fmt.Fprintf(&b, "          expr: '%q in variables.user_revokes'\n", action.Key)
+		b.WriteString(ruleOutput())
 	}
 
 	for _, action := range m.Actions {
@@ -76,10 +79,11 @@ func RenderPolicy(m *Manifest, entry ResourceEntry) string {
 		b.WriteString("      roles: [\"sys:permission-evaluator\"]\n")
 		b.WriteString("      condition:\n")
 		b.WriteString("        match:\n")
-		fmt.Fprintf(&b, "          expr: '%q in variables.user_grants'\n\n", action.Key)
+		fmt.Fprintf(&b, "          expr: '%q in variables.user_grants'\n", action.Key)
+		b.WriteString(ruleOutput())
 	}
 
-	for i, action := range m.Actions {
+	for _, action := range m.Actions {
 		fmt.Fprintf(&b, "    - name: grant_%s_to_role\n", action.Key)
 		fmt.Fprintf(&b, "      actions: [%q]\n", action.Key)
 		b.WriteString("      effect: EFFECT_ALLOW\n")
@@ -87,18 +91,30 @@ func RenderPolicy(m *Manifest, entry ResourceEntry) string {
 		b.WriteString("      condition:\n")
 		b.WriteString("        match:\n")
 		fmt.Fprintf(&b, "          expr: '%q in variables.role_actions'\n", action.Key)
-		if i < len(m.Actions)-1 {
-			b.WriteString("\n")
-		}
+		b.WriteString(ruleOutput())
 	}
 
-	b.WriteString("\n  schemas:\n")
+	b.WriteString("  schemas:\n")
 	b.WriteString("    principalSchema:\n")
 	b.WriteString("      ref: cerbos:///principal.json\n")
 	b.WriteString("    resourceSchema:\n")
 	fmt.Fprintf(&b, "      ref: cerbos:///%s.json\n", entry.ResourceKey)
 
 	return b.String()
+}
+
+// ruleOutput renders the output block every rule carries so that a caller can
+// report *why* the PDP reached a decision without any service re-deciding
+// precedence: Cerbos reports which named rule fired (in the response's
+// outputs, keyed by the rule's name), and the rule name alone - revoke_*,
+// grant_*_to_user, grant_*_to_role, locked_record_restriction,
+// tenant_and_hospital_isolation - already identifies the decision source
+// (USER_REVOKE, USER_GRANT, ROLE or MANDATORY_RULE). The output's own value
+// carries no information; only the fact that the rule activated does.
+func ruleOutput() string {
+	return "      output:\n" +
+		"        when:\n" +
+		"          ruleActivated: '\"fired\"'\n\n"
 }
 
 // quotedList renders a Go string slice as a YAML flow-style list of quoted
