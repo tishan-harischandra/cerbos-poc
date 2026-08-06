@@ -71,6 +71,15 @@ export class CapabilitySnapshotService {
     this.instanceSnapshots.delete(instanceKey);
   }
 
+  /**
+   * invalidateAllInstances drops every cached instance snapshot - used
+   * when a business endpoint reports staleness without naming which
+   * resource it was scoped to, and on a tenant or hospital switch.
+   */
+  invalidateAllInstances(): void {
+    this.instanceSnapshots.clear();
+  }
+
   private fetch(
     module: string,
     capabilityKeys: string[],
