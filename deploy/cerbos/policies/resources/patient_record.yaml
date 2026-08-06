@@ -61,6 +61,17 @@ resourcePolicy:
     # the action has to be a literal. That is the repetition the policy generator
     # exists to remove (§8); when a new action is added, every block below needs a
     # sibling, and the §19.1 matrix is what catches a missing one.
+    - name: revoke_list
+      actions: ["list"]
+      effect: EFFECT_DENY
+      roles: ["sys:permission-evaluator"]
+      condition:
+        match:
+          expr: '"list" in variables.user_revokes'
+      output:
+        when:
+          ruleActivated: '"fired"'
+
     - name: revoke_read
       actions: ["read"]
       effect: EFFECT_DENY
@@ -97,6 +108,17 @@ resourcePolicy:
     # User grants. Kept separate from role grants so the audit trail records
     # which source of authority allowed the action. Isolation is not repeated
     # here: the mandatory deny above already covers every action.
+    - name: grant_list_to_user
+      actions: ["list"]
+      effect: EFFECT_ALLOW
+      roles: ["sys:permission-evaluator"]
+      condition:
+        match:
+          expr: '"list" in variables.user_grants'
+      output:
+        when:
+          ruleActivated: '"fired"'
+
     - name: grant_read_to_user
       actions: ["read"]
       effect: EFFECT_ALLOW
@@ -131,6 +153,17 @@ resourcePolicy:
           ruleActivated: '"fired"'
 
     # Role grants, the default source of business capability.
+    - name: grant_list_to_role
+      actions: ["list"]
+      effect: EFFECT_ALLOW
+      roles: ["sys:permission-evaluator"]
+      condition:
+        match:
+          expr: '"list" in variables.role_actions'
+      output:
+        when:
+          ruleActivated: '"fired"'
+
     - name: grant_read_to_role
       actions: ["read"]
       effect: EFFECT_ALLOW

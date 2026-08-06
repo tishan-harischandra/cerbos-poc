@@ -11,6 +11,9 @@ displayName: Patient record
 domain: clinical
 fhirType: Patient
 actions:
+  - key: list
+    displayName: List patients
+    context: COLLECTION
   - key: read
     displayName: View patient
     context: INSTANCE
