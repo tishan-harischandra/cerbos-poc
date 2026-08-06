@@ -14,6 +14,10 @@ COPY libs/permissioncontext/go.mod ./libs/permissioncontext/
 COPY libs/canonicalid/go.mod ./libs/canonicalid/
 COPY libs/tokenverifier/go.mod ./libs/tokenverifier/
 COPY libs/idpdirectory/go.mod ./libs/idpdirectory/
+COPY libs/authzcache/go.mod ./libs/authzcache/
+COPY libs/capabilitycatalog/go.mod libs/capabilitycatalog/go.sum ./libs/capabilitycatalog/
+COPY libs/capabilityeval/go.mod libs/capabilityeval/go.sum ./libs/capabilityeval/
+COPY libs/cataloggen/go.mod libs/cataloggen/go.sum ./libs/cataloggen/
 WORKDIR /src/apps/ads
 RUN go mod download
 

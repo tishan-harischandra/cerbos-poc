@@ -4,8 +4,10 @@ use (
 ./apps/ads
 ./apps/resource-service
 ./libs/assignmentstore
+./libs/authzcache
 ./libs/canonicalid
 ./libs/capabilitycatalog
+./libs/capabilityeval
 ./libs/cataloggen
 ./libs/cerbosclient
 ./libs/idpdirectory

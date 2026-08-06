@@ -41,6 +41,11 @@ type Config struct {
 	// configured, in which case the routes do not exist.
 	DirectoryUsersHandler http.Handler
 	DirectoryRolesHandler http.Handler
+
+	// CapabilityHandler serves POST /internal/capabilities/evaluate, the
+	// §12.3 capability snapshot endpoint (issue #11). Nil means the route
+	// does not exist.
+	CapabilityHandler http.Handler
 }
 
 // New builds the ADS HTTP handler.
@@ -57,6 +62,9 @@ func New(cfg Config) http.Handler {
 	}
 	if cfg.DirectoryRolesHandler != nil {
 		mux.Handle("GET /internal/directory/roles", cfg.DirectoryRolesHandler)
+	}
+	if cfg.CapabilityHandler != nil {
+		mux.Handle("POST /internal/capabilities/evaluate", cfg.CapabilityHandler)
 	}
 
 	timeout := cfg.ReadinessTimeout

@@ -13,6 +13,7 @@ import (
 
 	"github.com/tishan-harischandra/cerbos-poc/apps/ads/internal/assignments"
 	"github.com/tishan-harischandra/cerbos-poc/apps/ads/internal/authz"
+	"github.com/tishan-harischandra/cerbos-poc/apps/ads/internal/capability"
 	"github.com/tishan-harischandra/cerbos-poc/apps/ads/internal/cerbos"
 	"github.com/tishan-harischandra/cerbos-poc/apps/ads/internal/config"
 	"github.com/tishan-harischandra/cerbos-poc/apps/ads/internal/directoryapi"
@@ -100,6 +101,20 @@ func main() {
 		DirectoryRolesHandler: authenticated(directoryapi.NewRolesHandler(directoryapi.Config{
 			Directory: directory,
 			Logger:    logger,
+		})),
+		CapabilityHandler: authenticated(capability.NewHandler(capability.Config{
+			PDP:               pdp,
+			CapabilityCatalog: capability.NewFSCatalog(cfg.CapabilityCatalogDir, cfg.CapabilityCatalogRevision, nil),
+			TargetResolver:    capability.DefaultTargetResolver{},
+			Assignments: assignments.NewResolver(assignments.ResolverConfig{
+				Matrix: assignments.NewCachingRoleMatrix(assignments.CacheConfig{
+					Matrix: store,
+					TTL:    cfg.RoleMatrixCacheTTL,
+				}),
+				Overrides: assignments.NewDBOverrides(store, nil),
+			}),
+			RootPolicyRevision: cfg.RootPolicyRevision,
+			Logger:             logger,
 		})),
 	})
 
