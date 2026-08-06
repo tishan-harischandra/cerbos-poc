@@ -22,6 +22,7 @@ import (
 // Store is the narrow slice of assignmentstore.Store this handler needs.
 type Store interface {
 	RolePermission(ctx context.Context, key assignmentstore.RolePermissionKey) (assignmentstore.RolePermission, bool, error)
+	RolePermissionsForRole(ctx context.Context, tenantID, roleExternalID string) ([]assignmentstore.RolePermission, error)
 	SaveRoleMatrix(ctx context.Context, write assignmentstore.RoleMatrixWrite) (int64, error)
 	PermissionRevision(ctx context.Context, tenantID string) (assignmentstore.PermissionRevision, bool, error)
 }
@@ -252,6 +253,69 @@ func (h *Handler) CurrentRevision(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, http.StatusOK, map[string]any{"revision": revision.Revision})
+}
+
+// permissionView is one row of a GET .../permissions response.
+type permissionView struct {
+	ResourceKey string     `json:"resourceKey"`
+	ActionKey   string     `json:"actionKey"`
+	Enabled     bool       `json:"enabled"`
+	ValidFrom   time.Time  `json:"validFrom"`
+	ValidUntil  *time.Time `json:"validUntil,omitempty"`
+}
+
+// Read handles GET /admin/authz/tenants/{tenant}/roles/{role}/permissions
+// (§9.4): the role matrix screen's read, returning every permission row
+// the role carries exactly as stored, alongside the tenant's current
+// revision so the caller has the expectedRevision its next Save needs.
+func (h *Handler) Read(w http.ResponseWriter, r *http.Request) {
+	identity, ok := tokenauth.From(r.Context())
+	if !ok {
+		writeError(w, http.StatusUnauthorized, "no verified identity on this request")
+		return
+	}
+
+	tenant := r.PathValue("tenant")
+	role := r.PathValue("role")
+	if err := authority.Validate(
+		authority.Principal{TenantID: identity.TenantID, HospitalID: identity.HospitalID},
+		tenant, ""); err != nil {
+		writeError(w, http.StatusForbidden, "you do not have authority over this tenant")
+		return
+	}
+
+	permissions, err := h.Store.RolePermissionsForRole(r.Context(), tenant, role)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "reading the role's permissions failed")
+		return
+	}
+
+	revision, found, err := h.Store.PermissionRevision(r.Context(), tenant)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "reading the permission revision failed")
+		return
+	}
+	currentRevision := int64(0)
+	if found {
+		currentRevision = revision.Revision
+	}
+
+	views := make([]permissionView, 0, len(permissions))
+	for _, permission := range permissions {
+		view := permissionView{
+			ResourceKey: permission.Key.ResourceKey, ActionKey: permission.Key.ActionKey,
+			Enabled: permission.Enabled, ValidFrom: permission.ValidFrom,
+		}
+		if !permission.ValidUntil.IsZero() {
+			validUntil := permission.ValidUntil
+			view.ValidUntil = &validUntil
+		}
+		views = append(views, view)
+	}
+	writeJSON(w, http.StatusOK, map[string]any{
+		"permissions": views,
+		"revision":    currentRevision,
+	})
 }
 
 func writeJSON(w http.ResponseWriter, status int, body any) {

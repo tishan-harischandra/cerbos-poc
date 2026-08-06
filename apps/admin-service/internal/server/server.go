@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/tishan-harischandra/cerbos-poc/apps/admin-service/internal/catalogapi"
 	"github.com/tishan-harischandra/cerbos-poc/apps/admin-service/internal/rolematrix"
 	"github.com/tishan-harischandra/cerbos-poc/apps/admin-service/internal/tokenauth"
 	"github.com/tishan-harischandra/cerbos-poc/apps/admin-service/internal/useroverride"
@@ -43,6 +44,10 @@ type Config struct {
 	// UserOverride serves the user-override endpoints. Nil means the
 	// routes are not registered.
 	UserOverride *useroverride.Handler
+
+	// Catalog serves the resource catalog endpoint. Nil means the route
+	// is not registered.
+	Catalog *catalogapi.Handler
 }
 
 // New builds the Administration Service HTTP handler.
@@ -59,6 +64,8 @@ func New(cfg Config) http.Handler {
 		if cfg.RoleMatrix != nil {
 			mux.Handle("PUT /admin/authz/tenants/{tenant}/roles/{role}/permissions",
 				authenticated(cfg.RoleMatrix.Save))
+			mux.Handle("GET /admin/authz/tenants/{tenant}/roles/{role}/permissions",
+				authenticated(cfg.RoleMatrix.Read))
 			mux.Handle("GET /admin/authz/tenants/{tenant}/permission-revision",
 				authenticated(cfg.RoleMatrix.CurrentRevision))
 		}
@@ -67,6 +74,9 @@ func New(cfg Config) http.Handler {
 				authenticated(cfg.UserOverride.Save))
 			mux.Handle("GET /admin/authz/tenants/{tenant}/hospitals/{hospital}/users/{user}/overrides",
 				authenticated(cfg.UserOverride.Read))
+		}
+		if cfg.Catalog != nil {
+			mux.Handle("GET /admin/authz/resources", authenticated(cfg.Catalog.Read))
 		}
 	}
 

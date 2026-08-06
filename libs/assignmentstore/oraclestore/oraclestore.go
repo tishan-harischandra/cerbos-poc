@@ -196,6 +196,44 @@ func (s *Store) ActiveRolePermissions(ctx context.Context, query assignmentstore
 	return permissions, nil
 }
 
+// RolePermissionsForRole reads every permission row a role carries across
+// every resource, unfiltered by validity or enabled state (§9.2's role
+// matrix screen).
+func (s *Store) RolePermissionsForRole(ctx context.Context, tenantID, roleExternalID string) ([]assignmentstore.RolePermission, error) {
+	const query = `
+		SELECT resource_key, action_key, enabled, valid_from, valid_until, revision
+		FROM role_permission
+		WHERE tenant_id = :1 AND role_external_id = :2`
+
+	rows, err := s.db.QueryContext(ctx, query, tenantID, roleExternalID)
+	if err != nil {
+		return nil, fmt.Errorf("oraclestore: reading a role's permissions: %w", err)
+	}
+	defer func() { _ = rows.Close() }()
+
+	var permissions []assignmentstore.RolePermission
+	for rows.Next() {
+		permission := assignmentstore.RolePermission{
+			Key: assignmentstore.RolePermissionKey{TenantID: tenantID, RoleExternalID: roleExternalID},
+		}
+		var enabled int64
+		var validUntil *time.Time
+		if err := rows.Scan(&permission.Key.ResourceKey, &permission.Key.ActionKey,
+			&enabled, &permission.ValidFrom, &validUntil, &permission.Revision); err != nil {
+			return nil, fmt.Errorf("oraclestore: scanning a role permission: %w", err)
+		}
+		permission.Enabled = enabled != 0
+		if validUntil != nil {
+			permission.ValidUntil = *validUntil
+		}
+		permissions = append(permissions, permission)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("oraclestore: reading a role's permissions: %w", err)
+	}
+	return permissions, nil
+}
+
 // SaveUserOverride inserts or updates one override on its §8.2 key.
 func (s *Store) SaveUserOverride(ctx context.Context, override assignmentstore.UserOverride) error {
 	const statement = `

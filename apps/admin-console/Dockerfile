@@ -30,4 +30,10 @@ COPY apps/admin-console/nginx.conf.template /etc/nginx/templates/default.conf.te
 ENV NGINX_ENTRYPOINT_LOCAL_RESOLVERS=1
 COPY --from=build /workspace/dist/apps/admin-console/browser /usr/share/nginx/html
 
+# Renders assets/env.template.js into assets/env.js at container start (see
+# the script's own comment for why the built-in envsubst-on-templates step
+# does not already cover this).
+COPY apps/admin-console/docker-entrypoint.d/30-render-env-js.sh /docker-entrypoint.d/30-render-env-js.sh
+RUN chmod +x /docker-entrypoint.d/30-render-env-js.sh
+
 EXPOSE 80

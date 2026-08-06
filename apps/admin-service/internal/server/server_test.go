@@ -6,6 +6,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
+	"github.com/tishan-harischandra/cerbos-poc/apps/admin-service/internal/catalogapi"
 	"github.com/tishan-harischandra/cerbos-poc/apps/admin-service/internal/rolematrix"
 	"github.com/tishan-harischandra/cerbos-poc/apps/admin-service/internal/server"
 	"github.com/tishan-harischandra/cerbos-poc/apps/admin-service/internal/useroverride"
@@ -68,6 +69,27 @@ func TestUserOverrideRoutesRequireABearerToken(t *testing.T) {
 	rec := httptest.NewRecorder()
 	handler.ServeHTTP(rec, httptest.NewRequest(http.MethodGet,
 		"/admin/authz/tenants/tenant-a/hospitals/hospital-1/users/user-1/overrides?resource=patient_record", nil))
+	if rec.Code != http.StatusUnauthorized {
+		t.Fatalf("status = %d, want 401 with no bearer token", rec.Code)
+	}
+}
+
+func TestCatalogRouteIsAbsentWithoutACatalogHandler(t *testing.T) {
+	handler := server.New(server.Config{})
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/admin/authz/resources", nil))
+	if rec.Code != http.StatusNotFound {
+		t.Fatalf("status = %d, want 404 when no catalog handler is configured", rec.Code)
+	}
+}
+
+func TestCatalogRouteRequiresABearerToken(t *testing.T) {
+	handler := server.New(server.Config{
+		Verifier: fakeVerifier{},
+		Catalog:  &catalogapi.Handler{},
+	})
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/admin/authz/resources", nil))
 	if rec.Code != http.StatusUnauthorized {
 		t.Fatalf("status = %d, want 401 with no bearer token", rec.Code)
 	}

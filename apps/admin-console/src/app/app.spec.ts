@@ -1,33 +1,65 @@
-import { TestBed } from '@angular/core/testing';
 import { provideHttpClient } from '@angular/common/http';
 import {
   HttpTestingController,
   provideHttpClientTesting,
 } from '@angular/common/http/testing';
+import { TestBed } from '@angular/core/testing';
+import { Router, provideRouter } from '@angular/router';
+import { RouterTestingHarness } from '@angular/router/testing';
 
 import { App } from './app';
+import { appRoutes } from './app.routes';
+import { AuthService } from './auth/auth.service';
 
 describe('App', () => {
-  beforeEach(async () => {
-    await TestBed.configureTestingModule({
+  it('redirects an authenticated administrator from / to the role matrix, inside the shell', async () => {
+    TestBed.configureTestingModule({
       imports: [App],
-      providers: [provideHttpClient(), provideHttpClientTesting()],
-    }).compileComponents();
+      providers: [
+        provideHttpClient(),
+        provideHttpClientTesting(),
+        provideRouter(appRoutes),
+        {
+          provide: AuthService,
+          useValue: {
+            isAuthenticated: () => true,
+            claims: () => ({ tenantId: 'tenant-a', hospitalId: 'hospital-1', username: 'admin' }),
+            login: vi.fn(),
+            logout: vi.fn(),
+          },
+        },
+      ],
+    });
+
+    const harness = await RouterTestingHarness.create();
+    await harness.navigateByUrl('/');
+    const httpMock = TestBed.inject(HttpTestingController);
+    httpMock.expectOne('/api/admin/authz/resources').flush({ resources: [], rootPolicyRevision: 'root-v1.4.0' });
+
+    expect(TestBed.inject(Router).url).toEqual('/role-matrix');
+    expect(
+      harness.routeNativeElement?.querySelector('[data-testid="nav-role-matrix"]'),
+    ).toBeTruthy();
   });
 
-  it('renders the platform status as its landing view', async () => {
-    const fixture = TestBed.createComponent(App);
-    fixture.detectChanges();
+  it('starts login rather than reaching any guarded route when there is no session', async () => {
+    const login = vi.fn();
+    TestBed.configureTestingModule({
+      imports: [App],
+      providers: [
+        provideHttpClient(),
+        provideHttpClientTesting(),
+        provideRouter(appRoutes),
+        {
+          provide: AuthService,
+          useValue: { isAuthenticated: () => false, claims: () => null, login, logout: vi.fn() },
+        },
+      ],
+    });
 
-    TestBed.inject(HttpTestingController)
-      .expectOne('/api/ads/healthz')
-      .flush({ status: 'ok' });
-    await fixture.whenStable();
-    fixture.detectChanges();
+    const harness = await RouterTestingHarness.create();
+    await harness.navigateByUrl('/');
 
-    const compiled = fixture.nativeElement as HTMLElement;
-    expect(
-      compiled.querySelector('[data-testid="ads-status"]')?.textContent,
-    ).toContain('healthy');
+    expect(login).toHaveBeenCalledTimes(1);
   });
 });

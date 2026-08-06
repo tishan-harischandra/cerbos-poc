@@ -24,6 +24,10 @@ type Config struct {
 	// loaded from - the same per-pod-mounted release tree Cerbos and the
 	// ADS read policies and UI capabilities from (§13.1).
 	CatalogDir string
+	// RootPolicyRevision is the immutable root-policy tag currently served
+	// (§9.4's "current root revision"), e.g. "root-v1.4.0". Mirrors the
+	// ADS's own config field of the same name and default.
+	RootPolicyRevision string
 
 	// KafkaBrokers are the Kafka (or Redpanda) bootstrap addresses the
 	// outbox publisher loop writes PermissionChanged to (§10).
@@ -52,11 +56,12 @@ type LookupFunc func(key string) (string, bool)
 // service names used by the walking skeleton.
 func FromEnv(lookup LookupFunc) Config {
 	return Config{
-		HTTPAddr:     valueOr(lookup, "ADMIN_SERVICE_HTTP_ADDR", ":8081"),
-		PostgresAddr: valueOr(lookup, "POSTGRES_ADDR", "postgres:5432"),
-		PostgresDSN:  valueOr(lookup, "ASSIGNMENTSTORE_POSTGRES_DSN", ""),
-		IdPAddr:      valueOr(lookup, "IDP_ADDR", "keycloak:8080"),
-		CatalogDir:   valueOr(lookup, "AUTHORIZATION_CATALOG_DIR", "/etc/cerbos-catalog/resources"),
+		HTTPAddr:           valueOr(lookup, "ADMIN_SERVICE_HTTP_ADDR", ":8081"),
+		PostgresAddr:       valueOr(lookup, "POSTGRES_ADDR", "postgres:5432"),
+		PostgresDSN:        valueOr(lookup, "ASSIGNMENTSTORE_POSTGRES_DSN", ""),
+		IdPAddr:            valueOr(lookup, "IDP_ADDR", "keycloak:8080"),
+		CatalogDir:         valueOr(lookup, "AUTHORIZATION_CATALOG_DIR", "/etc/cerbos-catalog/resources"),
+		RootPolicyRevision: valueOr(lookup, "ROOT_POLICY_REVISION", "root-v1.4.0"),
 
 		KafkaBrokers:          splitOr(lookup, "KAFKA_BROKERS", []string{"redpanda:9092"}),
 		KafkaTopic:            valueOr(lookup, "KAFKA_PERMISSION_CHANGED_TOPIC", "permission-changed"),

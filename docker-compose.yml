@@ -259,10 +259,15 @@ services:
     build:
       context: .
       dockerfile: apps/admin-console/Dockerfile
+    environment:
+      OIDC_ISSUER: "${KEYCLOAK_HOSTNAME:-http://localhost:8081}/realms/${IDP_REALM:-cerbos-poc}"
+      OIDC_CLIENT_ID: "${IDP_CLIENT_ID:-patient-app}"
     ports:
       - "${ADMIN_CONSOLE_PORT:-4200}:80"
     depends_on:
       ads:
+        condition: service_healthy
+      admin-service:
         condition: service_healthy
     healthcheck:
       test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://127.0.0.1/index.html"]

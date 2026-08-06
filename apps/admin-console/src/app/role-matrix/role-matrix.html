@@ -1,0 +1,93 @@
+<section class="role-picker">
+  <h1>Role matrix</h1>
+  <p data-testid="tenant-scope">Tenant: {{ tenant() }}</p>
+
+  <label>
+    Search roles
+    <input
+      type="text"
+      data-testid="role-search-input"
+      [(ngModel)]="roleQuery"
+      (ngModelChange)="searchRoles()"
+    />
+  </label>
+  @if (roleSearchError()) {
+    <p data-testid="role-search-error" class="error">{{ roleSearchError() }}</p>
+  }
+
+  <ul data-testid="role-search-results">
+    @for (role of roles(); track role.externalId) {
+      <li>
+        @if (canSelect(role)) {
+          <button type="button" data-testid="role-option" (click)="selectRole(role)">
+            {{ role.name }}
+            @if (role.name !== role.canonicalId) {
+              <span class="informational">(persists as {{ role.canonicalId }})</span>
+            }
+          </button>
+        } @else {
+          <span data-testid="role-unresolved" class="unresolved">
+            {{ role.name || role.externalId }} - unresolved canonical role, needs remediation
+          </span>
+        }
+      </li>
+    }
+  </ul>
+</section>
+
+@if (loadError()) {
+  <p data-testid="load-error" class="error">{{ loadError() }}</p>
+}
+
+@if (selectedRole(); as role) {
+  <section class="matrix" data-testid="matrix">
+    <h2>{{ role.name }}</h2>
+    <p class="checkbox-note">
+      A cleared checkbox means no grant - it is never an explicit deny.
+    </p>
+
+    <label>
+      Filter resources and actions
+      <input
+        type="text"
+        data-testid="resource-filter-input"
+        [(ngModel)]="resourceFilter"
+      />
+    </label>
+
+    @if (staleRevision()) {
+      <p data-testid="stale-revision-error" class="error">
+        Someone else saved this role matrix since it was loaded.
+        <button type="button" data-testid="reload-button" (click)="reload()">Reload</button>
+      </p>
+    }
+    @if (saveError()) {
+      <p data-testid="save-error" class="error">{{ saveError() }}</p>
+    }
+
+    @for (group of domains(); track group.domain) {
+      <details class="domain-group" [attr.data-testid]="'domain-' + group.domain" [open]="resourceFilter() !== ''">
+        <summary>{{ group.domain }}</summary>
+        @for (resource of group.resources; track resource.resourceKey) {
+          <fieldset [attr.data-testid]="'resource-' + resource.resourceKey">
+            <legend>{{ resource.displayName }}</legend>
+            @for (action of resource.actions; track action.key) {
+              <label [attr.data-testid]="'action-' + resource.resourceKey + '-' + action.key">
+                <input
+                  type="checkbox"
+                  [checked]="isEnabled(resource.resourceKey, action.key)"
+                  (change)="toggle(resource.resourceKey, action.key)"
+                />
+                {{ action.displayName }}
+              </label>
+            }
+          </fieldset>
+        }
+      </details>
+    }
+
+    <button type="button" data-testid="save-button" [disabled]="saving()" (click)="save()">
+      Save
+    </button>
+  </section>
+}

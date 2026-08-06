@@ -1,0 +1,26 @@
+.error {
+  color: #b00020;
+}
+
+.unresolved {
+  color: #b00020;
+  font-style: italic;
+}
+
+.informational {
+  color: #666;
+  font-size: 0.85em;
+}
+
+.checkbox-note {
+  font-style: italic;
+  color: #444;
+}
+
+.domain-group {
+  margin-bottom: 0.5rem;
+}
+
+fieldset {
+  margin: 0.25rem 0;
+}

@@ -1,0 +1,16 @@
+<header class="shell-header">
+  <nav>
+    <a routerLink="/role-matrix" data-testid="nav-role-matrix">Role matrix</a>
+  </nav>
+  @if (auth.claims(); as claims) {
+    <div class="shell-identity" data-testid="shell-identity">
+      <span>{{ claims.username }}</span>
+      <span>{{ claims.tenantId }} / {{ claims.hospitalId }}</span>
+      <button type="button" (click)="logout()" data-testid="logout">Log out</button>
+    </div>
+  }
+</header>
+<app-platform-status></app-platform-status>
+<main>
+  <router-outlet></router-outlet>
+</main>
