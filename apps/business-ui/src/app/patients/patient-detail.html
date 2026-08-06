@@ -1,0 +1,5 @@
+<nav>
+  <a [routerLink]="['/patients', patientId]" data-testid="tab-overview">Overview</a>
+  <a [routerLink]="['/patients', patientId, 'edit']" data-testid="tab-edit">Edit</a>
+</nav>
+<router-outlet></router-outlet>
