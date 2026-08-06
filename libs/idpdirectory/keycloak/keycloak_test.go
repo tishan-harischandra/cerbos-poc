@@ -178,6 +178,46 @@ func TestGettingAUserReturnsItsStableIdentifierAndDisplayMetadata(t *testing.T) 
 	}
 }
 
+// A user's role mappings must come back as the same canonical identifiers
+// SearchRoles produces for the same roles, so the user-override screen's
+// role-result preview (issue #17) reads roles from the authoritative
+// source, not a second copy of it.
+func TestUserRolesReturnsTheCanonicalRolesDirectlyAssignedToThatUser(t *testing.T) {
+	fake := newFakeKeycloak(t)
+	fake.userRoleMappings = map[string][]role{
+		"user-doctor": {{ID: "58d1e7c8-role", Name: "doctor", Description: "Treating clinician"}},
+	}
+	defer fake.Close()
+
+	roles, err := fake.directory(t).GetUserRoles(context.Background(), tenant, "user-doctor")
+	if err != nil {
+		t.Fatalf("GetUserRoles: %v", err)
+	}
+	if len(roles) != 1 {
+		t.Fatalf("got %d roles, want 1", len(roles))
+	}
+	fromToken := canonicalRolesFromToken(t, "doctor")
+	if len(fromToken) != 1 || roles[0].CanonicalID != fromToken[0] {
+		t.Errorf("CanonicalID = %q, want %v", roles[0].CanonicalID, fromToken)
+	}
+}
+
+// A user with no assignments in the authoritative role source gets an
+// empty slice, not an error - that is an ordinary fact about the user, not
+// a directory failure.
+func TestUserRolesForAUserWithNoAssignmentsIsEmpty(t *testing.T) {
+	fake := newFakeKeycloak(t)
+	defer fake.Close()
+
+	roles, err := fake.directory(t).GetUserRoles(context.Background(), tenant, "user-nobody")
+	if err != nil {
+		t.Fatalf("GetUserRoles: %v", err)
+	}
+	if len(roles) != 0 {
+		t.Errorf("roles = %v, want none", roles)
+	}
+}
+
 // The adapter serves exactly the tenant it was configured for. Answering for
 // another tenant would mean one realm's roles could be written into another
 // tenant's matrix.
@@ -275,6 +315,10 @@ type fakeKeycloak struct {
 
 	users       []user
 	clientRoles []role
+	// userRoleMappings keys a user's external id to the roles the fake
+	// reports as directly assigned, from the same authoritative source
+	// clientRoles models.
+	userRoleMappings map[string][]role
 	// clientUUID is the internal id the fake currently reports for the client.
 	// Changing it stands in for a realm that was rebuilt.
 	clientUUID string
@@ -319,6 +363,10 @@ func (f *fakeKeycloak) serve(w http.ResponseWriter, r *http.Request) {
 	switch {
 	case path == "/admin/realms/"+realm+"/users":
 		writeJSON(f.t, w, window(f.users, r))
+	case strings.HasPrefix(path, "/admin/realms/"+realm+"/users/") && strings.Contains(path, "/role-mappings/clients/"+f.clientUUID):
+		id := strings.TrimSuffix(strings.TrimPrefix(path, "/admin/realms/"+realm+"/users/"),
+			"/role-mappings/clients/"+f.clientUUID)
+		writeJSON(f.t, w, f.userRoleMappings[id])
 	case strings.HasPrefix(path, "/admin/realms/"+realm+"/users/"):
 		id := strings.TrimPrefix(path, "/admin/realms/"+realm+"/users/")
 		for _, candidate := range f.users {

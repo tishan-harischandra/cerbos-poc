@@ -71,6 +71,11 @@ func (d *Directory) GetRole(context.Context, idpdirectory.TenantID, string) (idp
 	return idpdirectory.RoleRef{}, unimplemented("role lookup", "SCIM2 /Roles/{id}")
 }
 
+// GetUserRoles is not implemented. It would use SCIM2 /Users/{id}?attributes=roles.
+func (d *Directory) GetUserRoles(context.Context, idpdirectory.TenantID, string) ([]idpdirectory.RoleRef, error) {
+	return nil, unimplemented("user role lookup", "SCIM2 /Users/{id}?attributes=roles")
+}
+
 // ResolveRuntimeRoles is not implemented. It would normalise WSO2 groups and
 // roles into the same canonical identifiers §7.5 defines.
 func (d *Directory) ResolveRuntimeRoles(context.Context, tokenverifier.VerifiedToken, idpdirectory.TenantID) ([]string, error) {

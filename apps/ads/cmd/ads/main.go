@@ -166,6 +166,10 @@ func main() {
 			Directory: directory,
 			Logger:    logger,
 		})),
+		DirectoryUserRolesHandler: authenticated(directoryapi.NewUserRolesHandler(directoryapi.Config{
+			Directory: directory,
+			Logger:    logger,
+		})),
 		CapabilityHandler: authenticated(capability.NewHandler(capability.Config{
 			PDP:               pdp,
 			CapabilityCatalog: capability.NewFSCatalog(cfg.CapabilityCatalogDir, cfg.CapabilityCatalogRevision, nil),
