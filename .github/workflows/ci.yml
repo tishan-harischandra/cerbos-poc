@@ -13,6 +13,11 @@ env:
   # The Nx Go plugin needs a `go` on PATH; the shim forwards to a container so
   # the runner never installs a Go toolchain.
   NX_GO_SHIM: ${{ github.workspace }}/scripts/bin
+  # Belt-and-suspenders alongside nx.json's own "analytics": false and
+  # "neverConnectToCloud": true - no vendor here should receive a usage
+  # ping from a CI run of this prototype.
+  NX_NO_CLOUD: "true"
+  NG_CLI_ANALYTICS: "false"
 
 jobs:
   affected:

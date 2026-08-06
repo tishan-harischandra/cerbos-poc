@@ -4,6 +4,9 @@ import { Observable } from 'rxjs';
 
 import { ADMIN_BASE_URL } from '../admin-base-url';
 import { ADS_BASE_URL } from '../platform-status/ads-base-url';
+import { ResourceCatalog, ResourceCatalogApi } from '../resource-catalog';
+
+export type { ActionEntry, ResourceCatalog, ResourceEntry } from '../resource-catalog';
 
 /** A role as the identity directory reports it (§7.5, §9.2). */
 export interface RoleRef {
@@ -25,24 +28,6 @@ export interface RoleRef {
 
 export interface RoleSearchResult {
   items: RoleRef[];
-}
-
-export interface ActionEntry {
-  key: string;
-  displayName: string;
-  context: string;
-}
-
-export interface ResourceEntry {
-  resourceKey: string;
-  displayName: string;
-  domain: string;
-  actions: ActionEntry[];
-}
-
-export interface ResourceCatalog {
-  resources: ResourceEntry[];
-  rootPolicyRevision: string;
 }
 
 export interface PermissionRow {
@@ -71,6 +56,7 @@ export class RoleMatrixApi {
   private readonly http = inject(HttpClient);
   private readonly adsBaseUrl = inject(ADS_BASE_URL);
   private readonly adminBaseUrl = inject(ADMIN_BASE_URL);
+  private readonly resourceCatalog = inject(ResourceCatalogApi);
 
   searchRoles(query: string): Observable<RoleSearchResult> {
     return this.http.get<RoleSearchResult>(`${this.adsBaseUrl}/internal/directory/roles`, {
@@ -79,7 +65,7 @@ export class RoleMatrixApi {
   }
 
   getResourceCatalog(): Observable<ResourceCatalog> {
-    return this.http.get<ResourceCatalog>(`${this.adminBaseUrl}/authz/resources`);
+    return this.resourceCatalog.getResourceCatalog();
   }
 
   getRoleMatrix(tenant: string, role: string): Observable<RoleMatrix> {

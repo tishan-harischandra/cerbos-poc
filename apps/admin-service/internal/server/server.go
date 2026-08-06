@@ -74,6 +74,8 @@ func New(cfg Config) http.Handler {
 				authenticated(cfg.UserOverride.Save))
 			mux.Handle("GET /admin/authz/tenants/{tenant}/hospitals/{hospital}/users/{user}/overrides",
 				authenticated(cfg.UserOverride.Read))
+			mux.Handle("POST /admin/authz/tenants/{tenant}/hospitals/{hospital}/users/{user}/overrides/preview",
+				authenticated(cfg.UserOverride.Preview))
 		}
 		if cfg.Catalog != nil {
 			mux.Handle("GET /admin/authz/resources", authenticated(cfg.Catalog.Read))

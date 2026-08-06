@@ -77,6 +77,22 @@ credential, and `.env` is git-ignored.
 Keycloak, Gitea and the Cerbos Admin API credentials arrive with the slices that
 introduce those services.
 
+## Vendor telemetry
+
+Every vendor product in the stack that ships an opt-out is opted out, so
+nothing here phones home on a contributor's or CI's behalf:
+
+| Product | Setting | Where |
+| --- | --- | --- |
+| Nx | `analytics: false`, `neverConnectToCloud: true` | `nx.json` |
+| Nx (defense-in-depth) | `NX_NO_CLOUD=true` | CI env |
+| Angular CLI | `NG_CLI_ANALYTICS=false` | CI env |
+| Cerbos | `telemetry.disabled: true` | `deploy/cerbos/config.yaml` |
+| Redpanda | `--set=redpanda.enable_usage_stats=false` | `docker-compose.yml` |
+
+Go's own telemetry (`go telemetry`) is opt-in and off by default, so it needs
+no override here.
+
 ## Workspace layout
 
 ```

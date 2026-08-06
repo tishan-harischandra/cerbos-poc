@@ -186,6 +186,46 @@ func (d *Directory) GetRole(ctx context.Context, tenant idpdirectory.TenantID, e
 	return d.toRoleRef(representation), nil
 }
 
+// GetUserRoles reports the canonical roles directly assigned to a user
+// from the authoritative role source (§7.3): a client's roles or the
+// realm's, matching whichever getRoles already reads.
+func (d *Directory) GetUserRoles(ctx context.Context, tenant idpdirectory.TenantID, userExternalID string) ([]idpdirectory.RoleRef, error) {
+	if err := d.checkTenant(tenant); err != nil {
+		return nil, err
+	}
+
+	path, err := d.userRoleMappingsPath(ctx, userExternalID)
+	if err != nil {
+		return nil, err
+	}
+	var found []roleRepresentation
+	if err := d.getJSON(ctx, path, nil, &found); err != nil {
+		return nil, err
+	}
+
+	refs := make([]idpdirectory.RoleRef, 0, len(found))
+	for _, representation := range found {
+		refs = append(refs, d.toRoleRef(representation))
+	}
+	return refs, nil
+}
+
+// userRoleMappingsPath resolves where one user's role mappings live,
+// reusing rolesPath's client-id-to-UUID resolution and cache rather than
+// re-deriving it.
+func (d *Directory) userRoleMappingsPath(ctx context.Context, userExternalID string) (string, error) {
+	if d.cfg.RoleSource == tokenverifier.RoleSourceRealm {
+		return d.adminPath("users", userExternalID, "role-mappings", "realm"), nil
+	}
+	if _, err := d.rolesPath(ctx); err != nil {
+		return "", err
+	}
+	d.mu.Lock()
+	clientUUID := d.clientUUID
+	d.mu.Unlock()
+	return d.adminPath("users", userExternalID, "role-mappings", "clients", clientUUID), nil
+}
+
 // ResolveRuntimeRoles reports the canonical roles the verified token carries.
 //
 // It deliberately makes no directory call: the token has already been verified

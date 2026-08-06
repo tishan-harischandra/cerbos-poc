@@ -1,0 +1,26 @@
+.error {
+  color: #b00020;
+}
+
+.warning {
+  color: #8a6d00;
+  font-weight: bold;
+}
+
+.expired {
+  opacity: 0.6;
+}
+
+.active-badge {
+  color: #0a6b0a;
+  font-weight: bold;
+}
+
+.expired-badge {
+  color: #888;
+  font-style: italic;
+}
+
+.tri-state label {
+  display: block;
+}

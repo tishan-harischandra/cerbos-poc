@@ -119,6 +119,32 @@ func TestTheCapabilityEndpointIsAbsentWhenNoHandlerIsConfigured(t *testing.T) {
 	}
 }
 
+func TestTheUserRolesEndpointIsMountedWhenAHandlerIsConfigured(t *testing.T) {
+	handler := server.New(server.Config{
+		DirectoryUserRolesHandler: http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+			w.WriteHeader(http.StatusTeapot)
+		}),
+	})
+
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/internal/directory/users/user-doctor/roles", nil))
+
+	if rec.Code != http.StatusTeapot {
+		t.Errorf("status = %d, want the configured handler to answer", rec.Code)
+	}
+}
+
+func TestTheUserRolesEndpointIsAbsentWhenNoHandlerIsConfigured(t *testing.T) {
+	handler := server.New(server.Config{})
+
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/internal/directory/users/user-doctor/roles", nil))
+
+	if rec.Code != http.StatusNotFound {
+		t.Errorf("status = %d, want %d", rec.Code, http.StatusNotFound)
+	}
+}
+
 func TestTheMetricsEndpointIsMountedWhenAHandlerIsConfigured(t *testing.T) {
 	handler := server.New(server.Config{
 		MetricsHandler: http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {

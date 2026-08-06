@@ -299,6 +299,14 @@ func TestSaveDefaultsAHighRiskActionWithNoExpiryToABoundedExpiry(t *testing.T) {
 	if !store.lastWrite.ValidUntil.Equal(want) {
 		t.Errorf("write.ValidUntil = %s, want %s (validFrom + the bounded default)", store.lastWrite.ValidUntil, want)
 	}
+
+	// The applied default must also be visible in the response - a UI
+	// cannot show "the safe choice is the default choice" for a value it
+	// never received.
+	body := decodeResponse(t, rec)
+	if body["appliedValidUntil"] != want.Format(time.RFC3339) {
+		t.Errorf("appliedValidUntil = %v, want %s", body["appliedValidUntil"], want.Format(time.RFC3339))
+	}
 }
 
 // A non-high-risk action with no ValidUntil must stay unbounded: the
@@ -527,6 +535,81 @@ func TestSaveAppendsAPermissionChangedEventScopedToTheUser(t *testing.T) {
 	}
 	if event.Enabled {
 		t.Error("event.Enabled = true, want false for a REVOKE with no surviving role grant")
+	}
+}
+
+// Preview must report the role and effective result without writing
+// anything, the same computation Save performs as part of a real write
+// (§9.3: "Show the underlying role result and final effective result
+// before saving").
+func TestPreviewReportsBothResultsAndWritesNothing(t *testing.T) {
+	store := newFakeStore()
+	store.rolePermissions = []assignmentstore.RolePermission{
+		{Key: assignmentstore.RolePermissionKey{TenantID: "tenant-a", RoleExternalID: "role-doctor", ResourceKey: "patient_record", ActionKey: "delete"}, Enabled: true},
+	}
+	catalog := newFakeCatalog("patient_record:delete")
+	handler := newHandler(store, catalog)
+
+	raw, err := json.Marshal(map[string]any{
+		"resourceKey":     "patient_record",
+		"actionKey":       "delete",
+		"effect":          "REVOKE",
+		"roleExternalIds": []string{"role-doctor"},
+	})
+	if err != nil {
+		t.Fatalf("marshaling the request: %v", err)
+	}
+	req := httptest.NewRequest(http.MethodPost,
+		"/admin/authz/tenants/tenant-a/hospitals/hospital-1/users/user-1/overrides/preview",
+		bytes.NewReader(raw))
+	req.SetPathValue("tenant", "tenant-a")
+	req.SetPathValue("hospital", "hospital-1")
+	req.SetPathValue("user", "user-1")
+	req = req.WithContext(tokenauth.WithIdentity(req.Context(), adminOf("tenant-a", "hospital-1")))
+
+	rec := httptest.NewRecorder()
+	handler.Preview(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, want 200: %s", rec.Code, rec.Body.String())
+	}
+	body := decodeResponse(t, rec)
+	if body["roleResult"] != true {
+		t.Errorf("roleResult = %v, want true", body["roleResult"])
+	}
+	if body["effectiveResult"] != false {
+		t.Errorf("effectiveResult = %v, want false (REVOKE defeats the role grant)", body["effectiveResult"])
+	}
+	if store.revisions["tenant-a"] != 0 || len(store.overrides) != 0 {
+		t.Error("Preview wrote something; it must be read-only")
+	}
+}
+
+// Preview must be refused across tenant or hospital authority, the same
+// as Save.
+func TestPreviewRejectsAcrossHospitalAuthority(t *testing.T) {
+	store := newFakeStore()
+	catalog := newFakeCatalog("patient_record:read")
+	handler := newHandler(store, catalog)
+
+	raw, _ := json.Marshal(map[string]any{
+		"resourceKey": "patient_record",
+		"actionKey":   "read",
+		"effect":      "INHERIT",
+	})
+	req := httptest.NewRequest(http.MethodPost,
+		"/admin/authz/tenants/tenant-a/hospitals/hospital-1/users/user-1/overrides/preview",
+		bytes.NewReader(raw))
+	req.SetPathValue("tenant", "tenant-a")
+	req.SetPathValue("hospital", "hospital-1")
+	req.SetPathValue("user", "user-1")
+	req = req.WithContext(tokenauth.WithIdentity(req.Context(), adminOf("tenant-a", "hospital-2")))
+
+	rec := httptest.NewRecorder()
+	handler.Preview(rec, req)
+
+	if rec.Code != http.StatusForbidden {
+		t.Fatalf("status = %d, want 403: %s", rec.Code, rec.Body.String())
 	}
 }
 

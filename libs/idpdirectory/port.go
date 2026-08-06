@@ -109,6 +109,14 @@ type IdentityDirectory interface {
 	SearchRoles(ctx context.Context, tenant TenantID, query RoleSearch) (Page[RoleRef], error)
 	GetUser(ctx context.Context, tenant TenantID, externalID string) (UserRef, error)
 	GetRole(ctx context.Context, tenant TenantID, externalID string) (RoleRef, error)
+	// GetUserRoles reports the canonical roles directly assigned to one
+	// user, from the same authoritative role source SearchRoles reads
+	// (§7.3). It exists for the Admin Console's user-override screen
+	// (issue #17): the "underlying role result" preview it shows before
+	// saving is computed from these roles, the same way SaveRoleMatrix's
+	// caller supplies a role's own roleExternalIds - a directory read, not
+	// a second implementation of anything the ADS decides.
+	GetUserRoles(ctx context.Context, tenant TenantID, userExternalID string) ([]RoleRef, error)
 	// ResolveRuntimeRoles reports the canonical roles a verified token grants
 	// within a tenant. It reads the token rather than the directory: a
 	// directory round trip on the decision path would put the identity

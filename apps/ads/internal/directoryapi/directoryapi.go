@@ -113,6 +113,39 @@ func NewRolesHandler(cfg Config) http.Handler {
 	})
 }
 
+// NewUserRolesHandler serves GET /internal/directory/users/{externalId}/roles
+// (issue #17): the roles directly assigned to one user, from the same
+// authoritative source SearchRoles reads - the user-override screen's
+// "underlying role result" preview is computed from this list, not a
+// second copy of it.
+func NewUserRolesHandler(cfg Config) http.Handler {
+	logger := loggerOf(cfg)
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		identity, ok := tokenauth.From(r.Context())
+		if !ok {
+			writeError(w, http.StatusUnauthorized, "a bearer token is required")
+			return
+		}
+
+		externalID := r.PathValue("externalId")
+		roles, err := cfg.Directory.GetUserRoles(r.Context(),
+			idpdirectory.TenantID(identity.TenantID), externalID)
+		if err != nil {
+			fail(w, logger, r, "reading a user's roles", err)
+			return
+		}
+
+		items := make([]rolePayload, 0, len(roles))
+		for _, role := range roles {
+			items = append(items, rolePayload{
+				CanonicalID: role.CanonicalID, ExternalID: role.ExternalID,
+				Name: role.Name, Description: role.Description,
+			})
+		}
+		writeJSON(w, http.StatusOK, map[string]any{"items": items})
+	})
+}
+
 // requestContext resolves who is asking and which window they want, answering
 // the caller itself when either is unusable.
 func requestContext(w http.ResponseWriter, r *http.Request) (tokenauth.Identity, idpdirectory.PageRequest, bool) {

@@ -17,3 +17,9 @@ schema:
 
 audit:
   enabled: false
+
+# Cerbos phones home an anonymous usage beacon by default; this prototype
+# runs entirely inside the user's own compose network and has no vendor
+# relationship with Cerbos that needs that telemetry.
+telemetry:
+  disabled: true

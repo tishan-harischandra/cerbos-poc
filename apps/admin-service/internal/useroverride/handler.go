@@ -158,15 +158,8 @@ func (h *Handler) Save(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var storeEffect assignmentstore.OverrideEffect
-	switch req.Effect {
-	case EffectInherit:
-		storeEffect = ""
-	case EffectGrant:
-		storeEffect = assignmentstore.EffectGrant
-	case EffectRevoke:
-		storeEffect = assignmentstore.EffectRevoke
-	default:
+	storeEffect, ok := parseEffect(req.Effect)
+	if !ok {
 		writeError(w, http.StatusBadRequest, fmt.Sprintf("effect must be INHERIT, GRANT or REVOKE, got %q", req.Effect))
 		return
 	}
@@ -259,11 +252,92 @@ func (h *Handler) Save(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	writeJSON(w, http.StatusOK, map[string]any{
+	response := map[string]any{
 		"revision":          newRevision,
 		"roleResult":        roleResult,
 		"effectiveResult":   effectiveResult,
 		"noPracticalEffect": effectiveResult == roleResult,
+	}
+	// §9.3's "the safe choice is the default choice" is only a UI-visible
+	// guarantee if the console can see what was actually applied - the
+	// caller's own request may have named no expiry at all.
+	if !validUntil.IsZero() {
+		response["appliedValidUntil"] = validUntil
+	}
+	writeJSON(w, http.StatusOK, response)
+}
+
+// parseEffect maps the request-shape Effect onto assignmentstore's
+// narrower vocabulary. The zero value stands in for INHERIT, since the
+// store has no INHERIT value to name (§8.3: INHERIT is the absence of a
+// row, not a storable effect). ok is false for anything else.
+func parseEffect(effect Effect) (assignmentstore.OverrideEffect, bool) {
+	switch effect {
+	case EffectInherit:
+		return "", true
+	case EffectGrant:
+		return assignmentstore.EffectGrant, true
+	case EffectRevoke:
+		return assignmentstore.EffectRevoke, true
+	default:
+		return "", false
+	}
+}
+
+type previewRequest struct {
+	ResourceKey     string   `json:"resourceKey"`
+	ActionKey       string   `json:"actionKey"`
+	Effect          Effect   `json:"effect"`
+	RoleExternalIDs []string `json:"roleExternalIds"`
+}
+
+// Preview handles POST .../overrides/preview (§9.3: "Show the underlying
+// role result and final effective result before saving"). It writes
+// nothing - the same roleResult/effectiveResult computation Save performs
+// as part of a real write, offered here as a read so the console can show
+// it before the administrator commits to anything.
+func (h *Handler) Preview(w http.ResponseWriter, r *http.Request) {
+	identity, ok := tokenauth.From(r.Context())
+	if !ok {
+		writeError(w, http.StatusUnauthorized, "no verified identity on this request")
+		return
+	}
+
+	tenant := r.PathValue("tenant")
+	hospital := r.PathValue("hospital")
+
+	if err := authority.Validate(
+		authority.Principal{TenantID: identity.TenantID, HospitalID: identity.HospitalID},
+		tenant, hospital); err != nil {
+		writeError(w, http.StatusForbidden, "you do not have authority over this tenant and hospital")
+		return
+	}
+
+	var req previewRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeError(w, http.StatusBadRequest, "malformed request body")
+		return
+	}
+	if req.ResourceKey == "" || req.ActionKey == "" {
+		writeError(w, http.StatusBadRequest, "resourceKey and actionKey are required")
+		return
+	}
+	if !h.Catalog.Has(req.ResourceKey, req.ActionKey) {
+		writeError(w, http.StatusBadRequest, fmt.Sprintf("not in the active catalog: %s:%s", req.ResourceKey, req.ActionKey))
+		return
+	}
+	storeEffect, ok := parseEffect(req.Effect)
+	if !ok {
+		writeError(w, http.StatusBadRequest, fmt.Sprintf("effect must be INHERIT, GRANT or REVOKE, got %q", req.Effect))
+		return
+	}
+
+	roleResult := h.roleResult(r.Context(), tenant, req.ResourceKey, req.ActionKey, req.RoleExternalIDs, h.now())
+	effective := effectiveResult(storeEffect, roleResult)
+	writeJSON(w, http.StatusOK, map[string]any{
+		"roleResult":        roleResult,
+		"effectiveResult":   effective,
+		"noPracticalEffect": effective == roleResult,
 	})
 }
 

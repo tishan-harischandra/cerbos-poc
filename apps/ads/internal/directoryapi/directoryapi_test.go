@@ -175,6 +175,47 @@ func TestAnUnreadablePageWindowIsRefusedRatherThanGuessed(t *testing.T) {
 	}
 }
 
+func TestUserRolesReportsTheRolesDirectlyAssignedToThatUser(t *testing.T) {
+	directory := &recordingDirectory{
+		userRoles: []idpdirectory.RoleRef{
+			{CanonicalID: "kc:cerbos-poc:patient-app:doctor", ExternalID: "58d1e7c8-role", Name: "doctor"},
+		},
+	}
+	handler := directoryapi.NewUserRolesHandler(directoryapi.Config{Directory: directory})
+
+	req := get("/internal/directory/users/user-doctor/roles")
+	req.SetPathValue("externalId", "user-doctor")
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, want %d: %s", rec.Code, http.StatusOK, rec.Body)
+	}
+	if !strings.Contains(rec.Body.String(), "kc:cerbos-poc:patient-app:doctor") {
+		t.Errorf("response carries no canonical identifier: %s", rec.Body)
+	}
+	if directory.userRolesFor != "user-doctor" {
+		t.Errorf("the directory was asked about %q, want user-doctor", directory.userRolesFor)
+	}
+}
+
+func TestUserRolesRequiresAuthentication(t *testing.T) {
+	directory := &recordingDirectory{}
+	handler := directoryapi.NewUserRolesHandler(directoryapi.Config{Directory: directory})
+
+	req := httptest.NewRequest(http.MethodGet, "/internal/directory/users/user-doctor/roles", nil)
+	req.SetPathValue("externalId", "user-doctor")
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusUnauthorized {
+		t.Errorf("status = %d, want %d", rec.Code, http.StatusUnauthorized)
+	}
+	if directory.calls != 0 {
+		t.Error("the directory was called for an unauthenticated request")
+	}
+}
+
 func get(target string) *http.Request {
 	request := httptest.NewRequest(http.MethodGet, target, nil)
 	return request.WithContext(tokenauth.WithIdentity(request.Context(), tokenauth.Identity{
@@ -186,14 +227,16 @@ func get(target string) *http.Request {
 }
 
 type recordingDirectory struct {
-	calls      int
-	tenant     idpdirectory.TenantID
-	userSearch idpdirectory.UserSearch
-	roleSearch idpdirectory.RoleSearch
+	calls        int
+	tenant       idpdirectory.TenantID
+	userSearch   idpdirectory.UserSearch
+	roleSearch   idpdirectory.RoleSearch
+	userRolesFor string
 
-	users idpdirectory.Page[idpdirectory.UserRef]
-	roles idpdirectory.Page[idpdirectory.RoleRef]
-	err   error
+	users     idpdirectory.Page[idpdirectory.UserRef]
+	roles     idpdirectory.Page[idpdirectory.RoleRef]
+	userRoles []idpdirectory.RoleRef
+	err       error
 }
 
 func (d *recordingDirectory) SearchUsers(_ context.Context, tenant idpdirectory.TenantID, query idpdirectory.UserSearch) (idpdirectory.Page[idpdirectory.UserRef], error) {
@@ -214,6 +257,12 @@ func (d *recordingDirectory) GetUser(context.Context, idpdirectory.TenantID, str
 
 func (d *recordingDirectory) GetRole(context.Context, idpdirectory.TenantID, string) (idpdirectory.RoleRef, error) {
 	return idpdirectory.RoleRef{}, idpdirectory.ErrNotFound
+}
+
+func (d *recordingDirectory) GetUserRoles(_ context.Context, tenant idpdirectory.TenantID, userExternalID string) ([]idpdirectory.RoleRef, error) {
+	d.calls++
+	d.tenant, d.userRolesFor = tenant, userExternalID
+	return d.userRoles, d.err
 }
 
 func (d *recordingDirectory) ResolveRuntimeRoles(_ context.Context, token tokenverifier.VerifiedToken, _ idpdirectory.TenantID) ([]string, error) {

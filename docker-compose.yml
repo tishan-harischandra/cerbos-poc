@@ -109,6 +109,10 @@ services:
       - --kafka-addr=PLAINTEXT://0.0.0.0:9092
       - --advertise-kafka-addr=PLAINTEXT://redpanda:9092
       - --check=false
+      # Redpanda reports anonymous usage stats to Redpanda Data by default;
+      # this is an invalidation transport internal to the compose network,
+      # not a deployment with a Redpanda support relationship.
+      - --set=redpanda.enable_usage_stats=false
     healthcheck:
       test: ["CMD", "rpk", "cluster", "health", "--exit-when-healthy"]
       interval: 5s

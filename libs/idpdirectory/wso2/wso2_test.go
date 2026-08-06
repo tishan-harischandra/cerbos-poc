@@ -45,6 +45,10 @@ func TestEveryOperationReportsThatItIsNotImplemented(t *testing.T) {
 			_, err := port.GetRole(ctx, "tenant-a", "doctor")
 			return err
 		},
+		"GetUserRoles": func() error {
+			_, err := port.GetUserRoles(ctx, "tenant-a", "user-doctor")
+			return err
+		},
 		"ResolveRuntimeRoles": func() error {
 			_, err := port.ResolveRuntimeRoles(ctx, tokenverifier.VerifiedToken{}, "tenant-a")
 			return err
