@@ -95,6 +95,27 @@ func TestCatalogRouteRequiresABearerToken(t *testing.T) {
 	}
 }
 
+func TestCapabilityImpactRouteIsAbsentWithoutACatalogHandler(t *testing.T) {
+	handler := server.New(server.Config{})
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/admin/authz/resources/patient_record/actions/read/capabilities", nil))
+	if rec.Code != http.StatusNotFound {
+		t.Fatalf("status = %d, want 404 when no catalog handler is configured", rec.Code)
+	}
+}
+
+func TestCapabilityImpactRouteRequiresABearerToken(t *testing.T) {
+	handler := server.New(server.Config{
+		Verifier: fakeVerifier{},
+		Catalog:  &catalogapi.Handler{},
+	})
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/admin/authz/resources/patient_record/actions/read/capabilities", nil))
+	if rec.Code != http.StatusUnauthorized {
+		t.Fatalf("status = %d, want 401 with no bearer token", rec.Code)
+	}
+}
+
 func TestReadyzReportsReadyWithNoDependencies(t *testing.T) {
 	handler := server.New(server.Config{})
 	rec := httptest.NewRecorder()

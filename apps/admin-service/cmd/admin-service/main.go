@@ -48,6 +48,12 @@ func main() {
 		os.Exit(1)
 	}
 
+	uiCapabilities, err := capabilitycatalog.LoadDefinitionsDir(cfg.CapabilityCatalogDir)
+	if err != nil {
+		logger.Error("could not load the UI capability catalog for the impact index", slog.Any("error", err))
+		os.Exit(1)
+	}
+
 	// The identity provider is selected here and nowhere else (§7.1), the
 	// same as every other service that verifies a token.
 	idpConfig, err := provider.FromEnv(os.LookupEnv)
@@ -80,6 +86,7 @@ func main() {
 		Catalog: &catalogapi.Handler{
 			Resources:          resourceCatalog,
 			RootPolicyRevision: cfg.RootPolicyRevision,
+			Capabilities:       uiCapabilities,
 		},
 	})
 

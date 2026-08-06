@@ -49,6 +49,78 @@ func TestReadReturnsTheCatalogAndRootPolicyRevision(t *testing.T) {
 	}
 }
 
+func TestCapabilityImpactRequiresAVerifiedIdentity(t *testing.T) {
+	handler := &catalogapi.Handler{}
+	req := httptest.NewRequest(http.MethodGet, "/admin/authz/resources/patient_record/actions/read/capabilities", nil)
+	req.SetPathValue("resource", "patient_record")
+	req.SetPathValue("action", "read")
+	rec := httptest.NewRecorder()
+	handler.CapabilityImpact(rec, req)
+
+	if rec.Code != http.StatusUnauthorized {
+		t.Fatalf("status = %d, want 401", rec.Code)
+	}
+}
+
+// Issue #18's "Selecting a resource-action lists every capability that
+// depends on it".
+func TestCapabilityImpactListsEveryDependentCapability(t *testing.T) {
+	handler := &catalogapi.Handler{
+		Capabilities: []capabilitycatalog.UiCapabilityDefinition{
+			{
+				Key: "patient.route.edit", Module: "clinical", Context: "INSTANCE",
+				Expression: capabilitycatalog.Expression{AllOf: []capabilitycatalog.Expression{
+					{Permission: &capabilitycatalog.PermissionRequirement{Resource: "patient_record", Action: "update", TargetRef: "patient"}},
+				}},
+			},
+		},
+	}
+
+	req := httptest.NewRequest(http.MethodGet, "/admin/authz/resources/patient_record/actions/update/capabilities", nil)
+	req.SetPathValue("resource", "patient_record")
+	req.SetPathValue("action", "update")
+	req = req.WithContext(tokenauth.WithIdentity(req.Context(), tokenauth.Identity{PrincipalID: "admin-1"}))
+	rec := httptest.NewRecorder()
+	handler.CapabilityImpact(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, want 200: %s", rec.Code, rec.Body.String())
+	}
+	if !contains(rec.Body.String(), `"key":"patient.route.edit"`) {
+		t.Errorf("body = %s, want patient.route.edit", rec.Body.String())
+	}
+}
+
+// Issue #18's "A resource-action used by no capability is clearly shown
+// as such rather than as an empty error" - the response must still be
+// 200 with an empty list, never a 404.
+func TestCapabilityImpactReturnsAnEmptyListRatherThanAnErrorWhenNothingDepends(t *testing.T) {
+	handler := &catalogapi.Handler{
+		Capabilities: []capabilitycatalog.UiCapabilityDefinition{
+			{
+				Key: "patient.route.view", Module: "clinical", Context: "INSTANCE",
+				Expression: capabilitycatalog.Expression{
+					Permission: &capabilitycatalog.PermissionRequirement{Resource: "patient_record", Action: "read", TargetRef: "patient"},
+				},
+			},
+		},
+	}
+
+	req := httptest.NewRequest(http.MethodGet, "/admin/authz/resources/patient_record/actions/delete/capabilities", nil)
+	req.SetPathValue("resource", "patient_record")
+	req.SetPathValue("action", "delete")
+	req = req.WithContext(tokenauth.WithIdentity(req.Context(), tokenauth.Identity{PrincipalID: "admin-1"}))
+	rec := httptest.NewRecorder()
+	handler.CapabilityImpact(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, want 200: %s", rec.Code, rec.Body.String())
+	}
+	if !contains(rec.Body.String(), `"capabilities":[]`) {
+		t.Errorf("body = %s, want an empty capabilities array, not an error", rec.Body.String())
+	}
+}
+
 func contains(haystack, needle string) bool {
 	return len(haystack) >= len(needle) && indexOf(haystack, needle) >= 0
 }

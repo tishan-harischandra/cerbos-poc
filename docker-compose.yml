@@ -200,6 +200,10 @@ services:
       IDP_ISSUER: "${KEYCLOAK_HOSTNAME:-http://localhost:8081}/realms/${IDP_REALM:-cerbos-poc}"
       IDP_CREDENTIALS_SECRET_REF: "/run/secrets/idp-admin-credentials"
       AUTHORIZATION_CATALOG_DIR: "/authorization-catalog"
+      # The capability impact endpoint (§9.1, issue #18) reads the same
+      # committed capability catalog Cerbos and the ADS's own capability
+      # snapshot endpoint read theirs from.
+      CAPABILITY_CATALOG_DIR: "/capability-catalog"
       KAFKA_BROKERS: "redpanda:9092"
       KAFKA_PERMISSION_CHANGED_TOPIC: "${KAFKA_PERMISSION_CHANGED_TOPIC:-permission-changed}"
       # §9.3: high-risk actions default to a bounded expiry when a GRANT or
@@ -209,6 +213,7 @@ services:
     volumes:
       - ./deploy/secrets/idp-admin-credentials:/run/secrets/idp-admin-credentials:ro
       - ./deploy/cerbos/catalog/resources:/authorization-catalog:ro
+      - ./deploy/cerbos/catalog/ui-capabilities:/capability-catalog:ro
     depends_on:
       postgres:
         condition: service_healthy
