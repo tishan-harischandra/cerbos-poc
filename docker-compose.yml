@@ -111,8 +111,12 @@ services:
       - --check=false
       # Redpanda reports anonymous usage stats to Redpanda Data by default;
       # this is an invalidation transport internal to the compose network,
-      # not a deployment with a Redpanda support relationship.
-      - --set=redpanda.enable_usage_stats=false
+      # not a deployment with a Redpanda support relationship. This must
+      # be two array entries: v24.2.7's rpk forwards '--set' straight to
+      # the redpanda binary's own parser, which rejects the '--set=key=value'
+      # single-token form.
+      - --set
+      - enable_usage_stats=false
     healthcheck:
       test: ["CMD", "rpk", "cluster", "health", "--exit-when-healthy"]
       interval: 5s
