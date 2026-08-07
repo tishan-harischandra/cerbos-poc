@@ -82,6 +82,21 @@ migrate-oracle: ## Apply the same schema to Oracle, starting it if needed
 	bash scripts/oracle-wait.sh
 	bash scripts/liquibase.sh oracle update
 
+.PHONY: policy-release-up
+policy-release-up: ## Start Gitea, a managed Cerbos and the policy controller (issue #21)
+	$(COMPOSE) --profile policy-release up --build --detach gitea postgres cerbos-managed
+	bash scripts/compose-wait.sh gitea postgres cerbos-managed
+	$(MAKE) policy-release-seed
+	$(COMPOSE) --profile policy-release up --build --detach policy-controller
+
+.PHONY: policy-release-seed
+policy-release-seed: ## Seed Gitea with the root policy repository and a protected tag
+	bash scripts/gitea-seed.sh
+
+.PHONY: policy-release-down
+policy-release-down: ## Stop the policy-release profile's services
+	$(COMPOSE) --profile policy-release down --remove-orphans
+
 .PHONY: seed
 seed: ## Write the demo role matrix into the authorization database
 	bash scripts/seed.sh postgres

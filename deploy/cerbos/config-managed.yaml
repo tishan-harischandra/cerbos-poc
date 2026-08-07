@@ -1,0 +1,41 @@
+server:
+  httpListenAddr: ":3592"
+  grpcListenAddr: ":3593"
+  # The Admin API backs the policy controller's explicit store reload
+  # (§13.2, issue #21). It is optional and currently basic-auth-only [R7], so
+  # it must never be exposed through ingress (§14.4): the port it shares
+  # with the runtime gRPC service is never published to the host in
+  # docker-compose.yml, and the only caller is the policy-controller
+  # container on the same internal network.
+  adminAPI:
+    enabled: true
+    adminCredentials:
+      # Same dev credential as deploy/cerbos/config.yaml; see there for
+      # how this hash was generated and verified.
+      username: cerbos
+      passwordHash: "JDJhJDEwJHVDYzlFTXhQWmw3em1LMFpBdHM2RWVqMkhJLnpUdjBvT3NUWHh6eUc4YkY5UWpYMUJhVWVD"
+
+storage:
+  driver: disk
+  disk:
+    # /policies is the policy-release-store volume's mount point (see
+    # docker-compose.yml's cerbos-managed and policy-controller services);
+    # this must be a subdirectory of it, not that mount point itself.
+    # policy-controller's atomicInstall (libs/policyrelease/install.go)
+    # renames a staging directory into place as a sibling of its target,
+    # and a directory rename can't cross the volume's own mount boundary
+    # (confirmed against a live container: os.Rename onto "/policies"
+    # itself failed with "mkdir /.policyrelease-install-...: permission
+    # denied", because filepath.Dir("/policies") is "/", the container's
+    # own read-only-ish rootfs, not the mounted volume).
+    directory: /policies/current
+    watchForChanges: true
+
+schema:
+  enforcement: reject
+
+audit:
+  enabled: false
+
+telemetry:
+  disabled: true
