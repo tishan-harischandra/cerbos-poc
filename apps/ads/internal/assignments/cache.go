@@ -16,6 +16,18 @@ import (
 // when it does this becomes a backstop rather than the primary mechanism.
 const DefaultCacheTTL = 30 * time.Second
 
+// CacheMetrics reports whether a lookup was served from memory or had to
+// read through, so §17.1's per-cache hit ratio has something to divide.
+type CacheMetrics interface {
+	Hit()
+	Miss()
+}
+
+type noopCacheMetrics struct{}
+
+func (noopCacheMetrics) Hit()  {}
+func (noopCacheMetrics) Miss() {}
+
 // CachingRoleMatrix is the in-process warm path in front of the authorization
 // database (§11.2).
 //
@@ -41,8 +53,9 @@ const DefaultCacheTTL = 30 * time.Second
 // eviction beyond that. Adding one before the load slice has measured the real
 // keyspace would be machinery built against a guess.
 type CachingRoleMatrix struct {
-	inner RoleMatrix
-	ttl   time.Duration
+	inner   RoleMatrix
+	ttl     time.Duration
+	metrics CacheMetrics
 	// now is the clock entries are aged against, injected so tests can advance
 	// time without sleeping. Unexported: a caller mutating it while decisions
 	// are in flight would be a data race on the hot path.
@@ -61,6 +74,8 @@ type CacheConfig struct {
 	TTL time.Duration
 	// Now defaults to time.Now.
 	Now func() time.Time
+	// Metrics reports hits and misses (§17.1). Nil means no reporting.
+	Metrics CacheMetrics
 }
 
 type roleCacheKey struct {
@@ -90,10 +105,15 @@ func NewCachingRoleMatrix(cfg CacheConfig) *CachingRoleMatrix {
 	if now == nil {
 		now = time.Now
 	}
+	metrics := cfg.Metrics
+	if metrics == nil {
+		metrics = noopCacheMetrics{}
+	}
 	return &CachingRoleMatrix{
 		inner:     cfg.Matrix,
 		ttl:       ttl,
 		now:       now,
+		metrics:   metrics,
 		roles:     make(map[roleCacheKey]cachedActions),
 		revisions: make(map[string]cachedRevision),
 	}
@@ -123,8 +143,10 @@ func (c *CachingRoleMatrix) ActiveRolePermissions(ctx context.Context, query ass
 	c.mu.Unlock()
 
 	if len(missing) == 0 {
+		c.metrics.Hit()
 		return resolved, nil
 	}
+	c.metrics.Miss()
 
 	miss := query
 	miss.RoleExternalIDs = missing

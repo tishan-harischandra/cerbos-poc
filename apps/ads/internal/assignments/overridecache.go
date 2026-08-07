@@ -16,9 +16,10 @@ import (
 // two are resolved from different places and change at different times,
 // which is why Resolver already keeps them as separate collaborators.
 type CachingOverrides struct {
-	inner Overrides
-	ttl   time.Duration
-	now   func() time.Time
+	inner   Overrides
+	ttl     time.Duration
+	metrics CacheMetrics
+	now     func() time.Time
 
 	mu      sync.Mutex
 	entries map[overrideCacheKey]cachedOverrides
@@ -32,6 +33,8 @@ type OverrideCacheConfig struct {
 	TTL time.Duration
 	// Now defaults to time.Now.
 	Now func() time.Time
+	// Metrics reports hits and misses (§17.1). Nil means no reporting.
+	Metrics CacheMetrics
 }
 
 type overrideCacheKey struct {
@@ -57,10 +60,15 @@ func NewCachingOverrides(cfg OverrideCacheConfig) *CachingOverrides {
 	if now == nil {
 		now = time.Now
 	}
+	metrics := cfg.Metrics
+	if metrics == nil {
+		metrics = noopCacheMetrics{}
+	}
 	return &CachingOverrides{
 		inner:   cfg.Overrides,
 		ttl:     ttl,
 		now:     now,
+		metrics: metrics,
 		entries: make(map[overrideCacheKey]cachedOverrides),
 	}
 }
@@ -85,8 +93,10 @@ func (c *CachingOverrides) For(ctx context.Context, query authz.AssignmentQuery)
 	entry, cached := c.entries[key]
 	c.mu.Unlock()
 	if cached && now.Sub(entry.readAt) < c.ttl {
+		c.metrics.Hit()
 		return entry.overrides, nil
 	}
+	c.metrics.Miss()
 
 	fresh, err := c.inner.For(ctx, query)
 	if err != nil {

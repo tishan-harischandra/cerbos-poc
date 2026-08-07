@@ -126,6 +126,33 @@ func TestOverrideCache_AFailedReadThroughIsNeverCached(t *testing.T) {
 	}
 }
 
+// §17.1's per-cache hit ratio needs a hit reported for a lookup served
+// entirely from memory, for the user overrides cache too.
+func TestOverrideCache_ASecondIdenticalLookupReportsAHit(t *testing.T) {
+	inner := &recordingOverrides{overrides: []permissioncontext.UserOverride{
+		{Action: "update", State: permissioncontext.Revoke},
+	}}
+	metrics := &fakeCacheMetrics{}
+	cache := assignments.NewCachingOverrides(assignments.OverrideCacheConfig{
+		Overrides: inner, TTL: time.Minute, Now: func() time.Time { return decidedAt }, Metrics: metrics,
+	})
+	ctx := context.Background()
+
+	if _, err := cache.For(ctx, doctorQuery()); err != nil {
+		t.Fatalf("first lookup: %v", err)
+	}
+	if _, err := cache.For(ctx, doctorQuery()); err != nil {
+		t.Fatalf("second lookup: %v", err)
+	}
+
+	if metrics.misses != 1 {
+		t.Errorf("misses = %d, want 1 (the first, cold lookup)", metrics.misses)
+	}
+	if metrics.hits != 1 {
+		t.Errorf("hits = %d, want 1 (the second, warm lookup)", metrics.hits)
+	}
+}
+
 // InvalidateUser drops every cached entry for one user within one tenant,
 // so the outbox consumer's SUBJECT_USER events (§10.1) have something to
 // act on.
