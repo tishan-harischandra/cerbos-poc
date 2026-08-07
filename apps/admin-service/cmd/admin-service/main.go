@@ -17,6 +17,7 @@ import (
 	"github.com/tishan-harischandra/cerbos-poc/apps/admin-service/internal/auditsearch"
 	"github.com/tishan-harischandra/cerbos-poc/apps/admin-service/internal/catalogapi"
 	"github.com/tishan-harischandra/cerbos-poc/apps/admin-service/internal/config"
+	"github.com/tishan-harischandra/cerbos-poc/apps/admin-service/internal/platformstatus"
 	"github.com/tishan-harischandra/cerbos-poc/apps/admin-service/internal/rolematrix"
 	"github.com/tishan-harischandra/cerbos-poc/apps/admin-service/internal/server"
 	"github.com/tishan-harischandra/cerbos-poc/apps/admin-service/internal/simulate"
@@ -26,6 +27,7 @@ import (
 	"github.com/tishan-harischandra/cerbos-poc/libs/idpdirectory/provider"
 	"github.com/tishan-harischandra/cerbos-poc/libs/outbox"
 	"github.com/tishan-harischandra/cerbos-poc/libs/outbox/kafkapublisher"
+	"github.com/tishan-harischandra/cerbos-poc/libs/policyrelease"
 )
 
 func main() {
@@ -96,6 +98,13 @@ func main() {
 		},
 		AuditSearch: &auditsearch.Handler{
 			Store: store,
+		},
+		PlatformStatus: &platformstatus.Handler{
+			PolicyStore:          policyrelease.NewStore(cfg.PolicyReleaseStoreDir),
+			ADS:                  adsclient.New(cfg.ADSAddr),
+			IdPType:              string(idpConfig.Type),
+			IdPRoleSource:        string(idpConfig.RoleSource),
+			IdPTenantMappingMode: string(idpConfig.TenantMappingMode),
 		},
 	})
 

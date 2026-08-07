@@ -1,0 +1,16 @@
+<h1>Identity provider diagnostics</h1>
+
+@if (diagnostics(); as status) {
+  <p data-testid="idp-provider">Provider: {{ status.provider }}</p>
+  <p>Role source: {{ status.roleSource }}</p>
+  <p>Tenant mapping mode: {{ status.tenantMappingMode }}</p>
+  <p data-testid="idp-connectivity" [attr.data-status]="status.connectivity">
+    Connectivity: {{ status.connectivity }}
+    @if (status.connectivity === 'degraded') {
+      - the identity provider's admin API is unreachable. User and role search are degraded;
+      runtime authorization is unaffected.
+    }
+  </p>
+} @else if (error()) {
+  <p data-testid="idp-diagnostics-error" class="error">{{ error() }}</p>
+}

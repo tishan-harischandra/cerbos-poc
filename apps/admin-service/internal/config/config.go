@@ -35,6 +35,12 @@ type Config struct {
 	// (§9.4's "current root revision"), e.g. "root-v1.4.0". Mirrors the
 	// ADS's own config field of the same name and default.
 	RootPolicyRevision string
+	// PolicyReleaseStoreDir is where the policy controller's archives and
+	// release history live (issue #22's revision and activation module). It
+	// is only ever populated when the policy-release compose profile is
+	// running the real controller (issue #21); reading an empty directory
+	// simply reports no current revision and no history, never an error.
+	PolicyReleaseStoreDir string
 
 	// KafkaBrokers are the Kafka (or Redpanda) bootstrap addresses the
 	// outbox publisher loop writes PermissionChanged to (§10).
@@ -63,14 +69,15 @@ type LookupFunc func(key string) (string, bool)
 // service names used by the walking skeleton.
 func FromEnv(lookup LookupFunc) Config {
 	return Config{
-		HTTPAddr:             valueOr(lookup, "ADMIN_SERVICE_HTTP_ADDR", ":8081"),
-		PostgresAddr:         valueOr(lookup, "POSTGRES_ADDR", "postgres:5432"),
-		PostgresDSN:          valueOr(lookup, "ASSIGNMENTSTORE_POSTGRES_DSN", ""),
-		IdPAddr:              valueOr(lookup, "IDP_ADDR", "keycloak:8080"),
-		CatalogDir:           valueOr(lookup, "AUTHORIZATION_CATALOG_DIR", "/etc/cerbos-catalog/resources"),
-		CapabilityCatalogDir: valueOr(lookup, "CAPABILITY_CATALOG_DIR", "/etc/cerbos-catalog/ui-capabilities"),
-		ADSAddr:              valueOr(lookup, "ADS_ADDR", "http://ads:8080"),
-		RootPolicyRevision:   valueOr(lookup, "ROOT_POLICY_REVISION", "root-v1.4.0"),
+		HTTPAddr:              valueOr(lookup, "ADMIN_SERVICE_HTTP_ADDR", ":8081"),
+		PostgresAddr:          valueOr(lookup, "POSTGRES_ADDR", "postgres:5432"),
+		PostgresDSN:           valueOr(lookup, "ASSIGNMENTSTORE_POSTGRES_DSN", ""),
+		IdPAddr:               valueOr(lookup, "IDP_ADDR", "keycloak:8080"),
+		CatalogDir:            valueOr(lookup, "AUTHORIZATION_CATALOG_DIR", "/etc/cerbos-catalog/resources"),
+		CapabilityCatalogDir:  valueOr(lookup, "CAPABILITY_CATALOG_DIR", "/etc/cerbos-catalog/ui-capabilities"),
+		ADSAddr:               valueOr(lookup, "ADS_ADDR", "http://ads:8080"),
+		RootPolicyRevision:    valueOr(lookup, "ROOT_POLICY_REVISION", "root-v1.4.0"),
+		PolicyReleaseStoreDir: valueOr(lookup, "POLICY_ARCHIVE_STORE_DIR", ""),
 
 		KafkaBrokers:          splitOr(lookup, "KAFKA_BROKERS", []string{"redpanda:9092"}),
 		KafkaTopic:            valueOr(lookup, "KAFKA_PERMISSION_CHANGED_TOPIC", "permission-changed"),

@@ -16,6 +16,7 @@ COPY libs/idpdirectory/go.mod ./libs/idpdirectory/
 COPY libs/tokenverifier/go.mod ./libs/tokenverifier/
 COPY libs/outbox/go.mod libs/outbox/go.sum ./libs/outbox/
 COPY libs/permissionevents/go.mod ./libs/permissionevents/
+COPY libs/policyrelease/go.mod libs/policyrelease/go.sum ./libs/policyrelease/
 WORKDIR /src/apps/admin-service
 RUN go mod download
 

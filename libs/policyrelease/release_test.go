@@ -128,4 +128,80 @@ func TestRunOnce_NeverActivatesATagThatFailsValidation(t *testing.T) {
 	if _, err := cfg.Store.Active(); err == nil {
 		t.Fatal("Active: want error, no revision should be marked active")
 	}
+
+	history, err := cfg.Store.History()
+	if err != nil {
+		t.Fatalf("History: %v", err)
+	}
+	if len(history) != 1 {
+		t.Fatalf("len(history) = %d, want 1", len(history))
+	}
+	if history[0].Revision != "root-v1.4.0" || history[0].Activated {
+		t.Fatalf("history[0] = %+v, want a non-activated root-v1.4.0", history[0])
+	}
+	if history[0].Error == "" {
+		t.Fatal("history[0].Error is empty, want the validation failure recorded")
+	}
+}
+
+func TestRunOnce_RecordsASuccessfulActivationInHistory(t *testing.T) {
+	storeDir := t.TempDir()
+	replicaDir := t.TempDir()
+
+	cfg := policyrelease.ReleaseConfig{
+		Fetcher:   &fakeFetcher{tags: []policyrelease.Tag{{Name: "root-v1.4.0", Commit: "bbb", Protected: true}}, tarball: releaseTreeTarball(t)},
+		TagPrefix: "root-v",
+		Validate:  policyrelease.ValidateOptions{Compiler: &fakeCompiler{}},
+		Replicas:  []policyrelease.Replica{{PolicyDir: replicaDir, Admin: policyrelease.AdminEndpoint{Name: "cerbos-a"}}},
+		Reloader:  &fakeReloader{},
+		Store:     policyrelease.NewStore(storeDir),
+		WorkDir:   t.TempDir(),
+	}
+
+	if _, err := policyrelease.RunOnce(context.Background(), cfg); err != nil {
+		t.Fatalf("RunOnce: %v", err)
+	}
+
+	history, err := cfg.Store.History()
+	if err != nil {
+		t.Fatalf("History: %v", err)
+	}
+	if len(history) != 1 {
+		t.Fatalf("len(history) = %d, want 1", len(history))
+	}
+	if history[0].Revision != "root-v1.4.0" || !history[0].Activated || history[0].Error != "" {
+		t.Fatalf("history[0] = %+v, want an activated root-v1.4.0 with no error", history[0])
+	}
+}
+
+func TestRunOnce_RecordsAFailedInstallInHistory(t *testing.T) {
+	storeDir := t.TempDir()
+
+	cfg := policyrelease.ReleaseConfig{
+		Fetcher:   &fakeFetcher{tags: []policyrelease.Tag{{Name: "root-v1.4.0", Commit: "bbb", Protected: true}}, tarball: releaseTreeTarball(t)},
+		TagPrefix: "root-v",
+		Validate:  policyrelease.ValidateOptions{Compiler: &fakeCompiler{}},
+		Replicas:  []policyrelease.Replica{{PolicyDir: t.TempDir(), Admin: policyrelease.AdminEndpoint{Name: "cerbos-a"}}},
+		Reloader:  &fakeReloader{failFor: map[string]error{"cerbos-a": context.DeadlineExceeded}},
+		Store:     policyrelease.NewStore(storeDir),
+		WorkDir:   t.TempDir(),
+	}
+
+	if _, err := policyrelease.RunOnce(context.Background(), cfg); err == nil {
+		t.Fatal("RunOnce: want error when a replica fails to reload, got nil")
+	}
+
+	history, err := cfg.Store.History()
+	if err != nil {
+		t.Fatalf("History: %v", err)
+	}
+	if len(history) != 1 {
+		t.Fatalf("len(history) = %d, want 1", len(history))
+	}
+	if history[0].Revision != "root-v1.4.0" || history[0].Activated {
+		t.Fatalf("history[0] = %+v, want a non-activated root-v1.4.0", history[0])
+	}
+	if history[0].Error == "" {
+		t.Fatal("history[0].Error is empty, want the reload failure recorded")
+	}
 }
