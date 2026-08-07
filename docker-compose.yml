@@ -288,7 +288,12 @@ services:
   # committed catalog+policies tree, tags it and protects the tag - run it
   # once after `docker compose --profile policy-release up -d gitea`.
   gitea:
-    image: docker.io/gitea/gitea:1.22
+    # 1.23 is the first release with the tag_protections REST API
+    # (go-gitea/gitea#31295): before it, a tag's protected status could
+    # only be read back from the settings UI, never the API GiteaClient
+    # actually calls. Confirmed against a live 1.22 container, which 404s
+    # on GET .../tag_protections.
+    image: docker.io/gitea/gitea:1.23
     profiles:
       - policy-release
     environment:
@@ -299,12 +304,36 @@ services:
       GITEA__actions__ENABLED: "false"
     volumes:
       - gitea-data:/data
+    # Published so scripts/gitea-seed.sh can push the root policy tree and
+    # protect its tag from the host with a plain git+curl, the same way
+    # Keycloak's realm import needs no in-container tooling either. The
+    # policy-controller container itself still reaches Gitea over the
+    # internal compose network at http://gitea:3000.
+    ports:
+      - "${GITEA_PORT:-3001}:3000"
     healthcheck:
       test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://127.0.0.1:3000/api/healthz"]
       interval: 5s
       timeout: 5s
       retries: 30
       start_period: 10s
+
+  # Cerbos's disk store fails to start if storage.disk.directory doesn't
+  # exist yet, but policy-release-store is a fresh empty volume until the
+  # controller's atomic install ever runs. This one-shot init creates the
+  # (empty) /policies/current directory on the shared volume before
+  # cerbos-managed starts, so the very first controller install can still
+  # rename its staged directory over it (§13.4 atomic install).
+  policy-release-store-init:
+    image: docker.io/library/alpine:3.20
+    profiles:
+      - policy-release
+    # policy-controller runs as uid 10001 (see its Dockerfile) and needs to
+    # create staging directories and rename them at the volume root during
+    # atomic install (§13.4), not just inside /policies/current.
+    command: ["sh", "-c", "mkdir -p /policies/current && chown -R 10001:10001 /policies"]
+    volumes:
+      - policy-release-store:/policies
 
   # A dedicated Cerbos instance so this profile never touches the default
   # `cerbos` service's bind-mounted policy tree: policy-release-store starts
@@ -315,8 +344,11 @@ services:
       - policy-release
     command: ["server", "--config=/conf/config.yaml"]
     volumes:
-      - ./deploy/cerbos/config.yaml:/conf/config.yaml:ro
+      - ./deploy/cerbos/config-managed.yaml:/conf/config.yaml:ro
       - policy-release-store:/policies
+    depends_on:
+      policy-release-store-init:
+        condition: service_completed_successfully
     healthcheck:
       test: ["CMD", "/cerbos", "healthcheck", "--config=/conf/config.yaml"]
       interval: 5s
@@ -342,7 +374,11 @@ services:
       CERBOS_ADMIN_USERNAME: "cerbos"
       CERBOS_ADMIN_PASSWORD: "change-me"
       CERBOS_ADMIN_PLAINTEXT: "true"
-      POLICY_DIR: "/policies"
+      # /policies/current, not /policies itself - see
+      # deploy/cerbos/config-managed.yaml's storage.disk.directory comment
+      # for why the atomic install needs a subdirectory of the volume
+      # mount, not the mount point.
+      POLICY_DIR: "/policies/current"
       POLICY_ARCHIVE_STORE_DIR: "/var/lib/policy-controller/archives"
       POLICY_WORK_DIR: "/var/lib/policy-controller/work"
       POLICY_CONTROLLER_POLL_INTERVAL: "${POLICY_CONTROLLER_POLL_INTERVAL:-15s}"

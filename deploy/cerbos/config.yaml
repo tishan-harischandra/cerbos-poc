@@ -17,8 +17,13 @@ server:
       # (§14.4). The policy-controller's CERBOS_ADMIN_PASSWORD default
       # (apps/policy-controller/internal/config) is the plaintext this
       # hashes.
+      # base64 of the bcrypt hash above, as Cerbos's own adminAPI
+      # passwordHash expects (confirmed against a live Cerbos 0.46.0: an
+      # unescaped raw hash first tripped its '$'-as-env-var config
+      # expansion, and once escaped it still failed to base64-decode).
+      # Round-tripped with `base64 -d` before committing.
       username: cerbos
-      passwordHash: "$2a$10$uCc9EMxPZl7zmK0ZAts6Eej2HI.zTv0oOsTXxzyG8bF9QjX1BaUeC"
+      passwordHash: "JDJhJDEwJHVDYzlFTXhQWmw3em1LMFpBdHM2RWVqMkhJLnpUdjBvT3NUWHh6eUc4YkY5UWpYMUJhVWVD"
 
 storage:
   driver: disk
