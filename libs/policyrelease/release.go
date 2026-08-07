@@ -73,7 +73,11 @@ func RunOnce(ctx context.Context, cfg ReleaseConfig) (ActivationResult, error) {
 	}
 
 	if err := Validate(ctx, releaseRoot, cfg.Validate); err != nil {
-		return ActivationResult{}, fmt.Errorf("policyrelease: tag %s failed validation: %w", tag.Name, err)
+		validationErr := fmt.Errorf("policyrelease: tag %s failed validation: %w", tag.Name, err)
+		if recordErr := recordOutcome(cfg.Store, ActivationResult{Revision: tag.Name}, validationErr); recordErr != nil {
+			return ActivationResult{}, recordErr
+		}
+		return ActivationResult{}, validationErr
 	}
 
 	archive, err := BuildArchive(ctx, ArchiveInput{

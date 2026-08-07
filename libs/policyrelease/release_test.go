@@ -128,6 +128,20 @@ func TestRunOnce_NeverActivatesATagThatFailsValidation(t *testing.T) {
 	if _, err := cfg.Store.Active(); err == nil {
 		t.Fatal("Active: want error, no revision should be marked active")
 	}
+
+	history, err := cfg.Store.History()
+	if err != nil {
+		t.Fatalf("History: %v", err)
+	}
+	if len(history) != 1 {
+		t.Fatalf("len(history) = %d, want 1", len(history))
+	}
+	if history[0].Revision != "root-v1.4.0" || history[0].Activated {
+		t.Fatalf("history[0] = %+v, want a non-activated root-v1.4.0", history[0])
+	}
+	if history[0].Error == "" {
+		t.Fatal("history[0].Error is empty, want the validation failure recorded")
+	}
 }
 
 func TestRunOnce_RecordsASuccessfulActivationInHistory(t *testing.T) {
