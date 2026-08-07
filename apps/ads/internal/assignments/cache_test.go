@@ -85,6 +85,41 @@ func TestTheCacheKeySeparatesTenantsRolesAndResources(t *testing.T) {
 	}
 }
 
+type fakeCacheMetrics struct {
+	hits   int
+	misses int
+}
+
+func (m *fakeCacheMetrics) Hit()  { m.hits++ }
+func (m *fakeCacheMetrics) Miss() { m.misses++ }
+
+// §17.1's per-cache hit ratio needs a hit reported for a lookup served
+// entirely from memory.
+func TestASecondIdenticalLookupReportsAHit(t *testing.T) {
+	inner := &recordingMatrix{permissions: []assignmentstore.RolePermission{
+		grant("tenant-a", "role-doctor", "read", true),
+	}}
+	metrics := &fakeCacheMetrics{}
+	cache := assignments.NewCachingRoleMatrix(assignments.CacheConfig{
+		Matrix: inner, TTL: time.Minute, Now: func() time.Time { return decidedAt }, Metrics: metrics,
+	})
+	ctx := context.Background()
+
+	if _, err := cache.ActiveRolePermissions(ctx, matrixQuery("tenant-a", "role-doctor")); err != nil {
+		t.Fatalf("first lookup: %v", err)
+	}
+	if _, err := cache.ActiveRolePermissions(ctx, matrixQuery("tenant-a", "role-doctor")); err != nil {
+		t.Fatalf("second lookup: %v", err)
+	}
+
+	if metrics.misses != 1 {
+		t.Errorf("misses = %d, want 1 (the first, cold lookup)", metrics.misses)
+	}
+	if metrics.hits != 1 {
+		t.Errorf("hits = %d, want 1 (the second, warm lookup)", metrics.hits)
+	}
+}
+
 // A principal's roles are cached one role at a time, so a second principal
 // sharing most of them reads only the roles the cache has never seen.
 func TestOnlyTheRolesTheCacheHasNotSeenAreRead(t *testing.T) {

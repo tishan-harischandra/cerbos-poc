@@ -97,6 +97,14 @@ policy-release-seed: ## Seed Gitea with the root policy repository and a protect
 policy-release-down: ## Stop the policy-release profile's services
 	$(COMPOSE) --profile policy-release down --remove-orphans
 
+.PHONY: observability-up
+observability-up: ## Start Prometheus and Grafana, scraping the ADS and Cerbos (issue #23)
+	$(COMPOSE) --profile observability up --build --detach prometheus grafana
+
+.PHONY: observability-down
+observability-down: ## Stop the observability profile's services
+	$(COMPOSE) --profile observability down --remove-orphans
+
 .PHONY: seed
 seed: ## Write the demo role matrix into the authorization database
 	bash scripts/seed.sh postgres

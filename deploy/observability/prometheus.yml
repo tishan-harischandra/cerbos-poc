@@ -1,0 +1,26 @@
+# Scrape config for the observability compose profile (issue #23, §17.1).
+#
+# Every target here already runs unauthenticated on the internal compose
+# network - the same trust boundary every other internal-only endpoint in
+# this topology relies on (§16.1). Nothing here is published to the host
+# except Prometheus and Grafana themselves.
+global:
+  scrape_interval: 5s
+  evaluation_interval: 5s
+
+scrape_configs:
+  # apps/ads/internal/adsmetrics: decision rate/outcome/latency by
+  # resource and action, per-cache hit ratio, DB cache-miss query latency
+  # and pool saturation, and the revision gauges.
+  # apps/ads/internal/invalidationmetrics: Kafka consumer lag and
+  # invalidation/revocation latency (issue #14).
+  - job_name: ads
+    static_configs:
+      - targets: ["ads:8080"]
+
+  # Cerbos's own built-in Prometheus endpoint: request rate, engine
+  # latency, error rate, and the standard Go process CPU/memory metrics.
+  - job_name: cerbos
+    metrics_path: /_cerbos/metrics
+    static_configs:
+      - targets: ["cerbos:3592"]
