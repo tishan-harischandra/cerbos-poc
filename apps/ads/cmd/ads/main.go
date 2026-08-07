@@ -31,6 +31,44 @@ import (
 	"github.com/tishan-harischandra/cerbos-poc/libs/idpdirectory/provider"
 )
 
+// invalidationCaches presents the role-permission and user-override caches
+// as one invalidation.Cache and one invalidation.ReconcilerCache: the
+// outbox consumer and the reconciler each need to act on whichever of the
+// two an event or a drift actually names, without either of them knowing
+// there are two.
+type invalidationCaches struct {
+	roles     *assignments.CachingRoleMatrix
+	overrides *assignments.CachingOverrides
+}
+
+func (c invalidationCaches) InvalidateRole(tenantID, roleID string) {
+	c.roles.InvalidateRole(tenantID, roleID)
+}
+
+func (c invalidationCaches) InvalidateRevision(tenantID string) {
+	c.roles.InvalidateRevision(tenantID)
+}
+
+func (c invalidationCaches) InvalidateUser(tenantID, userID string) {
+	c.overrides.InvalidateUser(tenantID, userID)
+}
+
+func (c invalidationCaches) KnownTenants() []string {
+	return c.roles.KnownTenants()
+}
+
+func (c invalidationCaches) CachedRevision(tenantID string) (int64, bool) {
+	return c.roles.CachedRevision(tenantID)
+}
+
+// InvalidateTenant drops every cached entry for one tenant in both caches -
+// the reconciler's tool (§10.3) for a drifted revision it cannot narrow to
+// one role or one user.
+func (c invalidationCaches) InvalidateTenant(tenantID string) {
+	c.roles.InvalidateTenant(tenantID)
+	c.overrides.InvalidateTenant(tenantID)
+}
+
 func main() {
 	logger := slog.New(slog.NewJSONHandler(os.Stdout, nil))
 	cfg := config.FromEnv(os.LookupEnv)
@@ -91,6 +129,15 @@ func main() {
 		Matrix: store,
 		TTL:    cfg.RoleMatrixCacheTTL,
 	})
+	// A separate cache from roleMatrixCache (§17.1's "cache hit ratios for
+	// role permissions and user overrides", reported per cache, not as a
+	// single aggregate): the two are resolved from different places and
+	// invalidated by different outbox events.
+	overridesCache := assignments.NewCachingOverrides(assignments.OverrideCacheConfig{
+		Overrides: assignments.NewDBOverrides(store, nil),
+		TTL:       cfg.RoleMatrixCacheTTL,
+	})
+	invalidationCache := invalidationCaches{roles: roleMatrixCache, overrides: overridesCache}
 
 	registry := prometheus.NewRegistry()
 	invalidationMetrics := invalidationmetrics.New(registry)
@@ -106,7 +153,7 @@ func main() {
 	consumer := &invalidation.Consumer{
 		Reader: kafkaReader,
 		Handler: &invalidation.Handler{
-			Cache:   roleMatrixCache,
+			Cache:   invalidationCache,
 			Metrics: invalidationMetrics,
 		},
 		OnError: func(err error) {
@@ -132,7 +179,7 @@ func main() {
 	}()
 
 	reconciler := invalidation.NewReconciler(invalidation.ReconcilerConfig{
-		Cache:    roleMatrixCache,
+		Cache:    invalidationCache,
 		Store:    store,
 		Interval: cfg.ReconcileInterval,
 		OnDrift: func(tenantID string, cached, actual int64) {
@@ -155,7 +202,7 @@ func main() {
 			PDP: pdp,
 			Assignments: assignments.NewResolver(assignments.ResolverConfig{
 				Matrix:    roleMatrixCache,
-				Overrides: assignments.NewDBOverrides(store, nil),
+				Overrides: overridesCache,
 			}),
 			Logger: logger,
 		})),
@@ -177,7 +224,7 @@ func main() {
 			TargetResolver:    capability.DefaultTargetResolver{},
 			Assignments: assignments.NewResolver(assignments.ResolverConfig{
 				Matrix:    roleMatrixCache,
-				Overrides: assignments.NewDBOverrides(store, nil),
+				Overrides: overridesCache,
 			}),
 			RootPolicyRevision: cfg.RootPolicyRevision,
 			Logger:             logger,
@@ -186,7 +233,7 @@ func main() {
 			PDP: pdp,
 			Assignments: assignments.NewResolver(assignments.ResolverConfig{
 				Matrix:    roleMatrixCache,
-				Overrides: assignments.NewDBOverrides(store, nil),
+				Overrides: overridesCache,
 			}),
 			Logger: logger,
 		})),
@@ -195,7 +242,7 @@ func main() {
 			CapabilityCatalog: capability.NewFSCatalog(cfg.CapabilityCatalogDir, cfg.CapabilityCatalogRevision, nil),
 			Assignments: assignments.NewResolver(assignments.ResolverConfig{
 				Matrix:    roleMatrixCache,
-				Overrides: assignments.NewDBOverrides(store, nil),
+				Overrides: overridesCache,
 			}),
 			RootPolicyRevision: cfg.RootPolicyRevision,
 			Logger:             logger,

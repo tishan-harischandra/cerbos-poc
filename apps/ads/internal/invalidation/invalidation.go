@@ -18,11 +18,15 @@ import (
 	"github.com/tishan-harischandra/cerbos-poc/libs/permissionevents"
 )
 
-// Cache is the narrow slice of assignments.CachingRoleMatrix this package
-// needs to act on an invalidation.
+// Cache is the narrow slice of assignments.CachingRoleMatrix and
+// assignments.CachingOverrides this package needs to act on an
+// invalidation.
 type Cache interface {
 	InvalidateRole(tenantID, roleID string)
 	InvalidateRevision(tenantID string)
+	// InvalidateUser drops a SUBJECT_USER event's named user's cached
+	// overrides.
+	InvalidateUser(tenantID, userID string)
 }
 
 // Metrics is where a handled batch reports what happened. Both durations
@@ -67,8 +71,11 @@ func (h *Handler) HandleMessage(value []byte) error {
 	now := h.now()
 	for _, event := range events {
 		h.Cache.InvalidateRevision(event.TenantID)
-		if event.SubjectType == permissionevents.SubjectRole {
+		switch event.SubjectType {
+		case permissionevents.SubjectRole:
 			h.Cache.InvalidateRole(event.TenantID, event.SubjectID)
+		case permissionevents.SubjectUser:
+			h.Cache.InvalidateUser(event.TenantID, event.SubjectID)
 		}
 
 		if h.Metrics == nil {

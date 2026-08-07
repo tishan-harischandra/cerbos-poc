@@ -13,6 +13,7 @@ import (
 type fakeCache struct {
 	invalidatedRoles     []string
 	invalidatedRevisions []string
+	invalidatedUsers     []string
 }
 
 func (c *fakeCache) InvalidateRole(tenantID, roleID string) {
@@ -21,6 +22,10 @@ func (c *fakeCache) InvalidateRole(tenantID, roleID string) {
 
 func (c *fakeCache) InvalidateRevision(tenantID string) {
 	c.invalidatedRevisions = append(c.invalidatedRevisions, tenantID)
+}
+
+func (c *fakeCache) InvalidateUser(tenantID, userID string) {
+	c.invalidatedUsers = append(c.invalidatedUsers, tenantID+"/"+userID)
 }
 
 type fakeMetrics struct {
@@ -73,9 +78,10 @@ func TestHandleMessageInvalidatesTheNamedRoleAndTheTenantRevision(t *testing.T) 
 	}
 }
 
-// A USER event must invalidate the tenant's revision but must not call
-// InvalidateRole - there is no per-user cache entry to drop by that method.
-func TestHandleMessageForAUserEventDoesNotInvalidateARole(t *testing.T) {
+// A USER event must invalidate the named user's override cache entries and
+// the tenant's revision, but must not call InvalidateRole - there is no
+// per-user cache entry to drop by that method.
+func TestHandleMessageForAUserEventInvalidatesTheUserNotARole(t *testing.T) {
 	cache := &fakeCache{}
 	handler := &invalidation.Handler{Cache: cache}
 
@@ -98,6 +104,31 @@ func TestHandleMessageForAUserEventDoesNotInvalidateARole(t *testing.T) {
 	}
 	if len(cache.invalidatedRevisions) != 1 {
 		t.Errorf("invalidated revisions = %v, want [tenant-a]", cache.invalidatedRevisions)
+	}
+	if len(cache.invalidatedUsers) != 1 || cache.invalidatedUsers[0] != "tenant-a/user-1" {
+		t.Errorf("invalidated users = %v, want [tenant-a/user-1]", cache.invalidatedUsers)
+	}
+}
+
+// A ROLE event must not call InvalidateUser - there is no per-user cache
+// entry to drop for a role change.
+func TestHandleMessageForARoleEventDoesNotInvalidateAUser(t *testing.T) {
+	cache := &fakeCache{}
+	handler := &invalidation.Handler{Cache: cache}
+
+	batch := marshalBatch(t, permissionevents.PermissionChanged{
+		TenantID:    "tenant-a",
+		SubjectType: permissionevents.SubjectRole,
+		SubjectID:   "role-doctor",
+		OccurredAt:  time.Unix(99, 0),
+	})
+
+	if err := handler.HandleMessage(batch); err != nil {
+		t.Fatalf("HandleMessage: %v", err)
+	}
+
+	if len(cache.invalidatedUsers) != 0 {
+		t.Errorf("invalidated users = %v, want none for a ROLE event", cache.invalidatedUsers)
 	}
 }
 
