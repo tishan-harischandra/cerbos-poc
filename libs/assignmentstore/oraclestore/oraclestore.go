@@ -416,12 +416,14 @@ func (s *Store) AppendAuditEvent(ctx context.Context, event assignmentstore.Audi
 	const statement = `
 		INSERT INTO permission_audit_event (
 			event_id, actor_id, operation, target_type, before_json, after_json,
-			tenant_id, hospital_id, correlation_id, created_at)
-		VALUES (:1, :2, :3, :4, :5, :6, :7, :8, :9, :10)`
+			tenant_id, hospital_id, role_external_id, target_user_id,
+			resource_action_keys, correlation_id, created_at)
+		VALUES (:1, :2, :3, :4, :5, :6, :7, :8, :9, :10, :11, :12, :13)`
 
 	_, err := s.db.ExecContext(ctx, statement,
 		event.EventID, event.ActorID, event.Operation, event.TargetType,
 		event.BeforeJSON, event.AfterJSON, event.TenantID, event.HospitalID,
+		event.RoleExternalID, event.TargetUserID, event.ResourceActionKeys,
 		event.CorrelationID, event.CreatedAt)
 	if err != nil {
 		return fmt.Errorf("oraclestore: appending an audit event: %w", err)
@@ -430,26 +432,134 @@ func (s *Store) AppendAuditEvent(ctx context.Context, event assignmentstore.Audi
 }
 
 // AuditEvent reads one audit record.
+//
+// role_external_id, target_user_id and resource_action_keys are nullable,
+// and Oracle cannot tell an empty string from NULL, so all three come back
+// as the empty string rather than as a distinction callers would have to
+// handle differently per engine.
 func (s *Store) AuditEvent(ctx context.Context, eventID string) (assignmentstore.AuditEvent, bool, error) {
 	const query = `
 		SELECT actor_id, operation, target_type, before_json, after_json,
-		       tenant_id, hospital_id, correlation_id, created_at
+		       tenant_id, hospital_id, role_external_id, target_user_id,
+		       resource_action_keys, correlation_id, created_at
 		FROM permission_audit_event WHERE event_id = :1`
 
 	event := assignmentstore.AuditEvent{EventID: eventID}
+	var roleExternalID, targetUserID, resourceActionKeys sql.NullString
 	// The JSON columns are CLOBs. go-ora returns them as string when scanned
 	// into one, so no LOB handling leaks out of this package.
 	err := s.db.QueryRowContext(ctx, query, eventID).Scan(
 		&event.ActorID, &event.Operation, &event.TargetType,
 		&event.BeforeJSON, &event.AfterJSON, &event.TenantID,
-		&event.HospitalID, &event.CorrelationID, &event.CreatedAt)
+		&event.HospitalID, &roleExternalID, &targetUserID,
+		&resourceActionKeys, &event.CorrelationID, &event.CreatedAt)
 	if errors.Is(err, sql.ErrNoRows) {
 		return assignmentstore.AuditEvent{}, false, nil
 	}
 	if err != nil {
 		return assignmentstore.AuditEvent{}, false, fmt.Errorf("oraclestore: reading an audit event: %w", err)
 	}
+	event.RoleExternalID = roleExternalID.String
+	event.TargetUserID = targetUserID.String
+	event.ResourceActionKeys = resourceActionKeys.String
 	return event, true, nil
+}
+
+// SearchAuditEvents searches the append-only administration audit (§9.1,
+// §9.4) across every documented dimension, newest first.
+func (s *Store) SearchAuditEvents(ctx context.Context, query assignmentstore.AuditEventSearchQuery) ([]assignmentstore.AuditEvent, int, error) {
+	conditions := []string{"tenant_id = :1"}
+	args := []any{query.TenantID}
+	arg := func(value any) string {
+		args = append(args, value)
+		return fmt.Sprintf(":%d", len(args))
+	}
+
+	if query.HospitalID != "" {
+		conditions = append(conditions, "hospital_id = "+arg(query.HospitalID))
+	}
+	if query.ActorID != "" {
+		conditions = append(conditions, "actor_id = "+arg(query.ActorID))
+	}
+	if query.RoleExternalID != "" {
+		conditions = append(conditions, "role_external_id = "+arg(query.RoleExternalID))
+	}
+	if query.TargetUserID != "" {
+		conditions = append(conditions, "target_user_id = "+arg(query.TargetUserID))
+	}
+	if query.ResourceKey != "" {
+		// A key must match a whole "resourceKey:actionKey" pair, not a
+		// substring of one: without the comma-or-start anchor, a
+		// ResourceKey of "record" would falsely match "patient_record:read".
+		start := arg(query.ResourceKey + ":%")
+		middle := arg("%," + query.ResourceKey + ":%")
+		conditions = append(conditions,
+			fmt.Sprintf("(resource_action_keys LIKE %s OR resource_action_keys LIKE %s)", start, middle))
+	}
+	if query.ActionKey != "" {
+		// Symmetric anchor on the trailing side: without it, an ActionKey
+		// of "rea" would falsely match "patient_record:read" as a prefix
+		// of "read".
+		end := arg("%:" + query.ActionKey)
+		middle := arg("%:" + query.ActionKey + ",%")
+		conditions = append(conditions,
+			fmt.Sprintf("(resource_action_keys LIKE %s OR resource_action_keys LIKE %s)", end, middle))
+	}
+	if !query.CreatedFrom.IsZero() {
+		conditions = append(conditions, "created_at >= "+arg(query.CreatedFrom))
+	}
+	if !query.CreatedTo.IsZero() {
+		conditions = append(conditions, "created_at <= "+arg(query.CreatedTo))
+	}
+
+	limit := query.Limit
+	if limit <= 0 {
+		limit = assignmentstore.DefaultAuditSearchLimit
+	}
+
+	where := strings.Join(conditions, " AND ")
+
+	var totalCount int
+	countQuery := "SELECT count(*) FROM permission_audit_event WHERE " + where
+	if err := s.db.QueryRowContext(ctx, countQuery, args...).Scan(&totalCount); err != nil {
+		return nil, 0, fmt.Errorf("oraclestore: counting audit events: %w", err)
+	}
+
+	offsetArg := arg(query.Offset)
+	limitArg := arg(limit)
+	pageQuery := fmt.Sprintf(`
+		SELECT event_id, actor_id, operation, target_type, before_json, after_json,
+		       tenant_id, hospital_id, role_external_id, target_user_id,
+		       resource_action_keys, correlation_id, created_at
+		FROM permission_audit_event WHERE %s
+		ORDER BY created_at DESC, event_id DESC
+		OFFSET %s ROWS FETCH NEXT %s ROWS ONLY`, where, offsetArg, limitArg)
+
+	rows, err := s.db.QueryContext(ctx, pageQuery, args...)
+	if err != nil {
+		return nil, 0, fmt.Errorf("oraclestore: searching audit events: %w", err)
+	}
+	defer rows.Close()
+
+	var page []assignmentstore.AuditEvent
+	for rows.Next() {
+		var event assignmentstore.AuditEvent
+		var roleExternalID, targetUserID, resourceActionKeys sql.NullString
+		if err := rows.Scan(&event.EventID, &event.ActorID, &event.Operation, &event.TargetType,
+			&event.BeforeJSON, &event.AfterJSON, &event.TenantID, &event.HospitalID,
+			&roleExternalID, &targetUserID, &resourceActionKeys,
+			&event.CorrelationID, &event.CreatedAt); err != nil {
+			return nil, 0, fmt.Errorf("oraclestore: scanning an audit event: %w", err)
+		}
+		event.RoleExternalID = roleExternalID.String
+		event.TargetUserID = targetUserID.String
+		event.ResourceActionKeys = resourceActionKeys.String
+		page = append(page, event)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, 0, fmt.Errorf("oraclestore: reading audit event rows: %w", err)
+	}
+	return page, totalCount, nil
 }
 
 // AppendOutboxEvent appends one outbox row.
@@ -594,10 +704,12 @@ func (s *Store) SaveRoleMatrix(ctx context.Context, write assignmentstore.RoleMa
 	if _, err := tx.ExecContext(ctx, `
 		INSERT INTO permission_audit_event (
 			event_id, actor_id, operation, target_type, before_json, after_json,
-			tenant_id, hospital_id, correlation_id, created_at)
-		VALUES (:1, :2, :3, :4, :5, :6, :7, :8, :9, :10)`,
+			tenant_id, hospital_id, role_external_id, resource_action_keys,
+			correlation_id, created_at)
+		VALUES (:1, :2, :3, :4, :5, :6, :7, :8, :9, :10, :11, :12)`,
 		write.Audit.EventID, write.Audit.ActorID, write.Audit.Operation, write.Audit.TargetType,
 		write.Audit.BeforeJSON, write.Audit.AfterJSON, write.TenantID, write.Audit.HospitalID,
+		write.RoleExternalID, assignmentstore.JoinResourceActionKeys(write.Permissions),
 		write.Audit.CorrelationID, write.Audit.CreatedAt); err != nil {
 		return 0, fmt.Errorf("oraclestore: appending the audit event: %w", err)
 	}
@@ -700,10 +812,12 @@ func (s *Store) SaveUserOverrideWrite(ctx context.Context, write assignmentstore
 	if _, err := tx.ExecContext(ctx, `
 		INSERT INTO permission_audit_event (
 			event_id, actor_id, operation, target_type, before_json, after_json,
-			tenant_id, hospital_id, correlation_id, created_at)
-		VALUES (:1, :2, :3, :4, :5, :6, :7, :8, :9, :10)`,
+			tenant_id, hospital_id, target_user_id, resource_action_keys,
+			correlation_id, created_at)
+		VALUES (:1, :2, :3, :4, :5, :6, :7, :8, :9, :10, :11, :12)`,
 		write.Audit.EventID, write.Audit.ActorID, write.Audit.Operation, write.Audit.TargetType,
 		write.Audit.BeforeJSON, write.Audit.AfterJSON, key.TenantID, key.HospitalID,
+		key.UserExternalID, assignmentstore.ResourceActionKey(key.ResourceKey, key.ActionKey),
 		write.Audit.CorrelationID, write.Audit.CreatedAt); err != nil {
 		return 0, fmt.Errorf("oraclestore: appending the audit event: %w", err)
 	}

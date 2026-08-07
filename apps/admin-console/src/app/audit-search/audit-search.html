@@ -1,0 +1,84 @@
+<h1>Audit</h1>
+<p data-testid="scope-note">
+  Scope: tenant {{ tenant() }} (your own authority - audit history outside this tenant cannot
+  be searched here).
+</p>
+
+<section class="filters">
+  <label>
+    Actor
+    <input type="text" data-testid="actor-input" [(ngModel)]="actor" />
+  </label>
+  <label>
+    Role
+    <input type="text" data-testid="role-input" [(ngModel)]="role" />
+  </label>
+  <label>
+    User
+    <input type="text" data-testid="user-input" [(ngModel)]="user" />
+  </label>
+  <label>
+    Resource
+    <input type="text" data-testid="resource-input" [(ngModel)]="resource" />
+  </label>
+  <label>
+    Action
+    <input type="text" data-testid="action-input" [(ngModel)]="action" />
+  </label>
+  <label>
+    Hospital
+    <input type="text" data-testid="hospital-input" [(ngModel)]="hospital" />
+  </label>
+  <label>
+    From
+    <input type="datetime-local" data-testid="from-input" [(ngModel)]="from" />
+  </label>
+  <label>
+    To
+    <input type="datetime-local" data-testid="to-input" [(ngModel)]="to" />
+  </label>
+  <button type="button" data-testid="search-button" [disabled]="searching()" (click)="search()">
+    Search
+  </button>
+</section>
+
+@if (searchError()) {
+  <p data-testid="search-error" class="error">{{ searchError() }}</p>
+}
+
+<table data-testid="audit-results">
+  <thead>
+    <tr>
+      <th>When</th>
+      <th>Actor</th>
+      <th>Operation</th>
+      <th>Role</th>
+      <th>User</th>
+      <th>Resource:action</th>
+      <th>Correlation ID</th>
+    </tr>
+  </thead>
+  <tbody>
+    @for (event of events(); track event.eventId) {
+      <tr data-testid="audit-row">
+        <td>{{ event.createdAt }}</td>
+        <td>{{ event.actorId }}</td>
+        <td>{{ event.operation }}</td>
+        <td>{{ event.roleExternalId }}</td>
+        <td>{{ event.targetUserId }}</td>
+        <td>{{ event.resourceActionKeys }}</td>
+        <td>{{ event.correlationId }}</td>
+      </tr>
+    }
+  </tbody>
+</table>
+
+<div class="pagination">
+  <span data-testid="total-count">{{ totalCount() }} total</span>
+  <button type="button" data-testid="prev-page" [disabled]="offset() === 0" (click)="previousPage()">
+    Previous
+  </button>
+  <button type="button" data-testid="next-page" [disabled]="!hasMore()" (click)="nextPage()">
+    Next
+  </button>
+</div>

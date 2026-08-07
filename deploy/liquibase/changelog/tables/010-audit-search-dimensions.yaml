@@ -1,0 +1,42 @@
+databaseChangeLog:
+  - changeSet:
+      id: 010-audit-search-dimensions
+      author: cerbos-poc
+      comment: >-
+        Searchable dimensions for the administration audit (§9.1, §9.4):
+        role, target user and the resource:action keys an event touched.
+        All nullable because a single audit event may name a role
+        (ROLE_MATRIX_SAVE) or a target user (USER_OVERRIDE_SAVE) but never
+        both, and resource_action_keys is a comma-separated list because one
+        ROLE_MATRIX_SAVE audit event can span many resource:action pairs
+        while still being exactly one audit event (§9.4's "one database
+        transaction" guarantee already established by issue #13).
+      changes:
+        - addColumn:
+            tableName: permission_audit_event
+            columns:
+              - column:
+                  name: role_external_id
+                  type: VARCHAR(128)
+              - column:
+                  name: target_user_id
+                  type: VARCHAR(128)
+              - column:
+                  name: resource_action_keys
+                  type: CLOB
+        - createIndex:
+            tableName: permission_audit_event
+            indexName: ix_audit_role
+            columns:
+              - column:
+                  name: tenant_id
+              - column:
+                  name: role_external_id
+        - createIndex:
+            tableName: permission_audit_event
+            indexName: ix_audit_target_user
+            columns:
+              - column:
+                  name: tenant_id
+              - column:
+                  name: target_user_id

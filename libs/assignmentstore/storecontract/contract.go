@@ -132,6 +132,18 @@ func Run(t *testing.T, newStore Factory) {
 	t.Run("SaveUserOverrideWrite with no effect clears an existing override row", func(t *testing.T) {
 		assertSaveUserOverrideWriteInheritClearsTheRow(t, newStore(t))
 	})
+	t.Run("SearchAuditEvents filters across every documented dimension and paginates", func(t *testing.T) {
+		assertSearchAuditEventsFiltersAndPaginates(t, newStore(t))
+	})
+	t.Run("SearchAuditEvents never returns audit events from another tenant", func(t *testing.T) {
+		assertSearchAuditEventsScopedToTenant(t, newStore(t))
+	})
+	t.Run("SaveRoleMatrix stamps its audit event with the role and every touched resource:action key", func(t *testing.T) {
+		assertSaveRoleMatrixAuditCarriesSearchDimensions(t, newStore(t))
+	})
+	t.Run("SaveUserOverrideWrite stamps its audit event with the target user and the resource:action key", func(t *testing.T) {
+		assertSaveUserOverrideWriteAuditCarriesSearchDimensions(t, newStore(t))
+	})
 }
 
 // The hot path resolves every role a principal holds at once (§11.2). What that
@@ -1740,6 +1752,274 @@ func assertSaveUserOverrideWriteInheritClearsTheRow(t *testing.T, store assignme
 		t.Fatalf("reading the cleared override: %v", err)
 	} else if found {
 		t.Error("the override row still exists after an INHERIT write")
+	}
+}
+
+// SearchAuditEvents must let an administrator filter across every dimension
+// §9.1's audit module names - actor, role, target user, resource, action,
+// tenant and date - and page through the results, newest first.
+func assertSearchAuditEventsFiltersAndPaginates(t *testing.T, store assignmentstore.Store) {
+	t.Helper()
+	defer closeStore(t, store)
+	ctx := context.Background()
+	truncate(t, store, "permission_audit_event")
+
+	base := time.Date(2026, 6, 1, 12, 0, 0, 0, time.UTC)
+	events := []assignmentstore.AuditEvent{
+		{
+			EventID: "search-1", ActorID: "admin-1", Operation: "ROLE_MATRIX_SAVE",
+			TargetType: "role_permission", TenantID: "tenant-a", HospitalID: "hospital-1",
+			RoleExternalID: "role-doctor", ResourceActionKeys: "patient_record:read,patient_record:update",
+			CreatedAt: base,
+		},
+		{
+			EventID: "search-2", ActorID: "admin-2", Operation: "USER_OVERRIDE_SAVE",
+			TargetType: "user_permission_override", TenantID: "tenant-a", HospitalID: "hospital-1",
+			TargetUserID: "user-1", ResourceActionKeys: "patient_record:delete",
+			CreatedAt: base.Add(time.Hour),
+		},
+		{
+			EventID: "search-3", ActorID: "admin-1", Operation: "ROLE_MATRIX_SAVE",
+			TargetType: "role_permission", TenantID: "tenant-a", HospitalID: "hospital-2",
+			RoleExternalID: "role-nurse", ResourceActionKeys: "appointment:list",
+			CreatedAt: base.Add(2 * time.Hour),
+		},
+	}
+	for _, event := range events {
+		if err := store.AppendAuditEvent(ctx, event); err != nil {
+			t.Fatalf("appending %s: %v", event.EventID, err)
+		}
+	}
+
+	// Filtering by actor finds only that actor's events, newest first.
+	page, total, err := store.SearchAuditEvents(ctx, assignmentstore.AuditEventSearchQuery{
+		TenantID: "tenant-a", ActorID: "admin-1",
+	})
+	if err != nil {
+		t.Fatalf("searching by actor: %v", err)
+	}
+	if total != 2 || len(page) != 2 {
+		t.Fatalf("actor search: total=%d len=%d, want 2 and 2", total, len(page))
+	}
+	if page[0].EventID != "search-3" || page[1].EventID != "search-1" {
+		t.Errorf("actor search order = [%s %s], want [search-3 search-1] (newest first)",
+			page[0].EventID, page[1].EventID)
+	}
+
+	// Filtering by role finds only that role's events.
+	if page, _, err := store.SearchAuditEvents(ctx, assignmentstore.AuditEventSearchQuery{
+		TenantID: "tenant-a", RoleExternalID: "role-doctor",
+	}); err != nil || len(page) != 1 || page[0].EventID != "search-1" {
+		t.Errorf("role search = %+v (err=%v), want exactly search-1", page, err)
+	}
+
+	// Filtering by target user finds only that user's events.
+	if page, _, err := store.SearchAuditEvents(ctx, assignmentstore.AuditEventSearchQuery{
+		TenantID: "tenant-a", TargetUserID: "user-1",
+	}); err != nil || len(page) != 1 || page[0].EventID != "search-2" {
+		t.Errorf("target user search = %+v (err=%v), want exactly search-2", page, err)
+	}
+
+	// Filtering by resource finds every event that touched it, even inside
+	// a comma-separated multi-resource event.
+	if page, _, err := store.SearchAuditEvents(ctx, assignmentstore.AuditEventSearchQuery{
+		TenantID: "tenant-a", ResourceKey: "patient_record",
+	}); err != nil || len(page) != 2 {
+		t.Errorf("resource search = %+v (err=%v), want two events touching patient_record", page, err)
+	}
+
+	// Filtering by action finds every event that touched it.
+	if page, _, err := store.SearchAuditEvents(ctx, assignmentstore.AuditEventSearchQuery{
+		TenantID: "tenant-a", ActionKey: "update",
+	}); err != nil || len(page) != 1 || page[0].EventID != "search-1" {
+		t.Errorf("action search = %+v (err=%v), want exactly search-1", page, err)
+	}
+
+	// A resource or action filter must match a whole key, not a substring
+	// of one: "record" must not match "patient_record", and "rea" (a
+	// prefix of "read") must not match it either.
+	if page, _, err := store.SearchAuditEvents(ctx, assignmentstore.AuditEventSearchQuery{
+		TenantID: "tenant-a", ResourceKey: "record",
+	}); err != nil || len(page) != 0 {
+		t.Errorf("resource search for a substring = %+v (err=%v), want no matches for 'record'", page, err)
+	}
+	if page, _, err := store.SearchAuditEvents(ctx, assignmentstore.AuditEventSearchQuery{
+		TenantID: "tenant-a", ActionKey: "rea",
+	}); err != nil || len(page) != 0 {
+		t.Errorf("action search for a prefix = %+v (err=%v), want no matches for 'rea'", page, err)
+	}
+
+	// Filtering by hospital finds only that hospital's events.
+	if page, _, err := store.SearchAuditEvents(ctx, assignmentstore.AuditEventSearchQuery{
+		TenantID: "tenant-a", HospitalID: "hospital-2",
+	}); err != nil || len(page) != 1 || page[0].EventID != "search-3" {
+		t.Errorf("hospital search = %+v (err=%v), want exactly search-3", page, err)
+	}
+
+	// A date range excludes events outside it.
+	if page, _, err := store.SearchAuditEvents(ctx, assignmentstore.AuditEventSearchQuery{
+		TenantID: "tenant-a", CreatedFrom: base.Add(30 * time.Minute), CreatedTo: base.Add(90 * time.Minute),
+	}); err != nil || len(page) != 1 || page[0].EventID != "search-2" {
+		t.Errorf("date range search = %+v (err=%v), want exactly search-2", page, err)
+	}
+
+	// Pagination: Limit bounds the page, Offset advances it, and TotalCount
+	// always reports every matching row rather than just this page.
+	firstPage, total, err := store.SearchAuditEvents(ctx, assignmentstore.AuditEventSearchQuery{
+		TenantID: "tenant-a", Limit: 2, Offset: 0,
+	})
+	if err != nil {
+		t.Fatalf("searching page 1: %v", err)
+	}
+	if total != 3 || len(firstPage) != 2 {
+		t.Fatalf("page 1: total=%d len=%d, want 3 and 2", total, len(firstPage))
+	}
+	secondPage, total, err := store.SearchAuditEvents(ctx, assignmentstore.AuditEventSearchQuery{
+		TenantID: "tenant-a", Limit: 2, Offset: 2,
+	})
+	if err != nil {
+		t.Fatalf("searching page 2: %v", err)
+	}
+	if total != 3 || len(secondPage) != 1 {
+		t.Fatalf("page 2: total=%d len=%d, want 3 and 1", total, len(secondPage))
+	}
+	if firstPage[0].EventID == secondPage[0].EventID {
+		t.Error("page 1 and page 2 returned the same event")
+	}
+}
+
+// An administration query without a tenant predicate is exactly the mistake
+// §8.2 warns every administration query to guard against; SearchAuditEvents
+// must never let one tenant's audit search surface another tenant's events.
+func assertSearchAuditEventsScopedToTenant(t *testing.T, store assignmentstore.Store) {
+	t.Helper()
+	defer closeStore(t, store)
+	ctx := context.Background()
+	truncate(t, store, "permission_audit_event")
+
+	created := time.Date(2026, 6, 1, 12, 0, 0, 0, time.UTC)
+	for _, tenant := range []string{"tenant-a", "tenant-b"} {
+		if err := store.AppendAuditEvent(ctx, assignmentstore.AuditEvent{
+			EventID: "tenant-scope-" + tenant, ActorID: "admin-1",
+			Operation: "ROLE_MATRIX_SAVE", TargetType: "role_permission",
+			TenantID: tenant, CreatedAt: created,
+		}); err != nil {
+			t.Fatalf("appending for %s: %v", tenant, err)
+		}
+	}
+
+	page, total, err := store.SearchAuditEvents(ctx, assignmentstore.AuditEventSearchQuery{TenantID: "tenant-a"})
+	if err != nil {
+		t.Fatalf("searching tenant-a: %v", err)
+	}
+	if total != 1 || len(page) != 1 || page[0].EventID != "tenant-scope-tenant-a" {
+		t.Fatalf("tenant-a search = %+v (total=%d), want exactly tenant-scope-tenant-a", page, total)
+	}
+
+	if page, total, err := store.SearchAuditEvents(ctx, assignmentstore.AuditEventSearchQuery{TenantID: ""}); err != nil {
+		t.Fatalf("searching with an empty tenant: %v", err)
+	} else if total != 0 || len(page) != 0 {
+		t.Errorf("an empty TenantID matched %d rows, want zero - it must match no tenant, not every tenant", total)
+	}
+}
+
+// SaveRoleMatrix must stamp its one audit event with the role and every
+// resource:action key the write touched, so the event is findable by any
+// of §9.1's audit search dimensions without the handler having to
+// duplicate what the write already knows.
+func assertSaveRoleMatrixAuditCarriesSearchDimensions(t *testing.T, store assignmentstore.Store) {
+	t.Helper()
+	defer closeStore(t, store)
+	ctx := context.Background()
+	truncate(t, store, "role_permission", "permission_audit_event", "outbox_event", "permission_revision")
+
+	created := time.Date(2026, 6, 1, 12, 0, 0, 0, time.UTC)
+	write := assignmentstore.RoleMatrixWrite{
+		TenantID:         "tenant-a",
+		RoleExternalID:   "role-doctor",
+		ExpectedRevision: 0,
+		Permissions: []assignmentstore.RolePermissionInput{
+			{ResourceKey: "patient_record", ActionKey: "read", Enabled: true, ValidFrom: created},
+			{ResourceKey: "patient_record", ActionKey: "update", Enabled: true, ValidFrom: created},
+		},
+		Audit: assignmentstore.AuditEvent{
+			EventID: "audit-dimensions-role-1", Operation: "ROLE_MATRIX_SAVE",
+			// A caller-supplied RoleExternalID or ResourceActionKeys must be
+			// ignored: the write's own fields are authoritative.
+			RoleExternalID: "some-other-role", CreatedAt: created,
+		},
+		Outbox: assignmentstore.OutboxEvent{
+			EventID: "outbox-dimensions-role-1", AggregateKey: "tenant-a:role-doctor",
+			EventType: "permission.changed", Payload: `{}`, CreatedAt: created,
+		},
+	}
+	if _, err := store.SaveRoleMatrix(ctx, write); err != nil {
+		t.Fatalf("SaveRoleMatrix: %v", err)
+	}
+
+	audit, found, err := store.AuditEvent(ctx, "audit-dimensions-role-1")
+	if err != nil || !found {
+		t.Fatalf("reading the audit event back: found=%t err=%v", found, err)
+	}
+	if audit.RoleExternalID != "role-doctor" {
+		t.Errorf("audit.RoleExternalID = %q, want role-doctor (the write's own role, not the caller-supplied one)", audit.RoleExternalID)
+	}
+	if audit.ResourceActionKeys != "patient_record:read,patient_record:update" {
+		t.Errorf("audit.ResourceActionKeys = %q, want both touched pairs", audit.ResourceActionKeys)
+	}
+
+	if page, _, err := store.SearchAuditEvents(ctx, assignmentstore.AuditEventSearchQuery{
+		TenantID: "tenant-a", RoleExternalID: "role-doctor",
+	}); err != nil || len(page) != 1 || page[0].EventID != "audit-dimensions-role-1" {
+		t.Errorf("searching by the audited role = %+v (err=%v), want exactly the event just written", page, err)
+	}
+}
+
+// SaveUserOverrideWrite must stamp its one audit event with the target user
+// and the resource:action key the write touched.
+func assertSaveUserOverrideWriteAuditCarriesSearchDimensions(t *testing.T, store assignmentstore.Store) {
+	t.Helper()
+	defer closeStore(t, store)
+	ctx := context.Background()
+	truncate(t, store, "user_permission_override", "permission_audit_event", "outbox_event", "permission_revision")
+
+	created := time.Date(2026, 6, 1, 12, 0, 0, 0, time.UTC)
+	write := assignmentstore.UserOverrideWrite{
+		Key: assignmentstore.UserOverrideKey{
+			TenantID: "tenant-a", HospitalID: "hospital-1", UserExternalID: "user-1",
+			ResourceKey: "patient_record", ActionKey: "delete",
+		},
+		Effect: assignmentstore.EffectRevoke, Reason: "under investigation",
+		ValidFrom: created, ExpectedRevision: 0,
+		Audit: assignmentstore.AuditEvent{
+			EventID: "audit-dimensions-override-1", Operation: "USER_OVERRIDE_SAVE",
+			// A caller-supplied TargetUserID must be ignored the same way.
+			TargetUserID: "some-other-user", CreatedAt: created,
+		},
+		Outbox: assignmentstore.OutboxEvent{
+			EventID: "outbox-dimensions-override-1", AggregateKey: "tenant-a:user-1",
+			EventType: "permission.changed", Payload: `{}`, CreatedAt: created,
+		},
+	}
+	if _, err := store.SaveUserOverrideWrite(ctx, write); err != nil {
+		t.Fatalf("SaveUserOverrideWrite: %v", err)
+	}
+
+	audit, found, err := store.AuditEvent(ctx, "audit-dimensions-override-1")
+	if err != nil || !found {
+		t.Fatalf("reading the audit event back: found=%t err=%v", found, err)
+	}
+	if audit.TargetUserID != "user-1" {
+		t.Errorf("audit.TargetUserID = %q, want user-1 (the write's own key, not the caller-supplied one)", audit.TargetUserID)
+	}
+	if audit.ResourceActionKeys != "patient_record:delete" {
+		t.Errorf("audit.ResourceActionKeys = %q, want patient_record:delete", audit.ResourceActionKeys)
+	}
+
+	if page, _, err := store.SearchAuditEvents(ctx, assignmentstore.AuditEventSearchQuery{
+		TenantID: "tenant-a", TargetUserID: "user-1", ActionKey: "delete",
+	}); err != nil || len(page) != 1 || page[0].EventID != "audit-dimensions-override-1" {
+		t.Errorf("searching by target user and action = %+v (err=%v), want exactly the event just written", page, err)
 	}
 }
 

@@ -1,5 +1,6 @@
 import { Route } from '@angular/router';
 
+import { AuditSearch } from './audit-search/audit-search';
 import { authGuard } from './auth/auth.guard';
 import { Callback } from './auth/callback';
 import { ResourceCatalogBrowser } from './resource-catalog-browser/resource-catalog-browser';
@@ -20,6 +21,7 @@ export const appRoutes: Route[] = [
       { path: 'user-overrides', component: UserOverride },
       { path: 'resource-catalog', component: ResourceCatalogBrowser },
       { path: 'simulator', component: Simulator },
+      { path: 'audit', component: AuditSearch },
     ],
   },
 ];
