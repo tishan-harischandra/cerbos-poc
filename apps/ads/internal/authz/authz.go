@@ -14,6 +14,7 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
+	"time"
 
 	"github.com/tishan-harischandra/cerbos-poc/apps/ads/internal/tokenauth"
 	"github.com/tishan-harischandra/cerbos-poc/libs/canonicalid"
@@ -42,11 +43,22 @@ type Assignments interface {
 	For(ctx context.Context, query AssignmentQuery) (permissioncontext.Input, error)
 }
 
+// Metrics is where a served decision reports its outcome and latency
+// (§17.1: request rate, allow/deny/error rate and latency by resource and
+// action). Nil means nothing is reported.
+type Metrics interface {
+	Observe(resource, action, outcome string, latency time.Duration)
+}
+
 // Config holds the handler's collaborators.
 type Config struct {
 	PDP         PDP
 	Assignments Assignments
 	Logger      *slog.Logger
+	Metrics     Metrics
+	// RootPolicyRevision is the immutable root-policy tag this replica
+	// currently serves, logged on every decision (§17.2).
+	RootPolicyRevision string
 }
 
 // Request is the Appendix B decision request.
@@ -88,14 +100,24 @@ type Decision struct {
 	Source  Source `json:"source"`
 }
 
+type noopMetrics struct{}
+
+func (noopMetrics) Observe(string, string, string, time.Duration) {}
+
 // NewHandler builds the POST /internal/authz/check handler.
 func NewHandler(cfg Config) http.Handler {
 	logger := cfg.Logger
 	if logger == nil {
 		logger = slog.Default()
 	}
+	metrics := cfg.Metrics
+	if metrics == nil {
+		metrics = noopMetrics{}
+	}
 
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		start := time.Now()
+
 		// The identity is the middleware's, never the body's. A handler
 		// reached without one has been mounted outside the authenticated
 		// routes, which is a wiring defect rather than a caller error.
@@ -186,10 +208,17 @@ func NewHandler(cfg Config) http.Handler {
 			logger.ErrorContext(r.Context(), "the PDP could not be reached",
 				slog.String("principalId", identity.PrincipalID),
 				slog.Any("error", err))
+			latency := time.Since(start)
+			for _, resource := range req.Resources {
+				for _, action := range resource.Actions {
+					metrics.Observe(resource.Kind, action, "error", latency)
+				}
+			}
 			writeError(w, http.StatusServiceUnavailable, "could not reach the policy decision point")
 			return
 		}
 
+		latency := time.Since(start)
 		response := Response{CerbosCallID: result.CallID}
 		for _, resource := range req.Resources {
 			ref := cerbosclient.ResourceRef{Kind: resource.Kind, ID: resource.ID}
@@ -201,6 +230,11 @@ func NewHandler(cfg Config) http.Handler {
 					Allowed: decision.Allowed,
 					Source:  DecisionSource(action, decision.Allowed, result.FiredRules[ref]),
 				}
+				outcome := "deny"
+				if decision.Allowed {
+					outcome = "allow"
+				}
+				metrics.Observe(resource.Kind, action, outcome, latency)
 			}
 			response.Resources = append(response.Resources, ResourceDecision{
 				Kind:               resource.Kind,
@@ -210,13 +244,25 @@ func NewHandler(cfg Config) http.Handler {
 			})
 		}
 
-		// §11.3: the Cerbos call ID is logged next to the application
-		// correlation ID so a decision can be traced into the PDP audit log.
+		// §11.3, §17.2: the Cerbos call ID is logged next to the
+		// application correlation ID so a decision can be traced into the
+		// PDP audit log, alongside the permission and root policy
+		// revisions and the idp roles a decision was matched against - a
+		// decision can be reconstructed end-to-end from this one record
+		// without a second lookup. No resource attribute or clinical
+		// value is logged here (§16.2).
+		loggedRevisions := make(map[string]int64, len(revisions))
+		for ref, revision := range revisions {
+			loggedRevisions[ref.Kind+":"+ref.ID] = revision
+		}
 		logger.InfoContext(r.Context(), "authorization decision served",
 			slog.String("correlationId", correlationID(r)),
 			slog.String("cerbosCallId", result.CallID),
 			slog.String("principalId", identity.PrincipalID),
-			slog.String("tenantId", identity.TenantID))
+			slog.String("tenantId", identity.TenantID),
+			slog.String("rootPolicyRevision", cfg.RootPolicyRevision),
+			slog.Any("permissionRevisions", loggedRevisions),
+			slog.Any("roleIds", identity.Roles))
 
 		writeJSON(w, http.StatusOK, response)
 	})

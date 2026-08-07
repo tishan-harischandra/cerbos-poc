@@ -51,11 +51,11 @@ func TestConvergence_ReportsConvergedWhenCachedMatchesActual(t *testing.T) {
 		t.Fatalf("status = %d, want %d: %s", rec.Code, http.StatusOK, rec.Body)
 	}
 	var body struct {
-		Tenant          string `json:"tenant"`
-		CachedRevision  int64  `json:"cachedRevision"`
-		ActualRevision  int64  `json:"actualRevision"`
-		Converged       bool   `json:"converged"`
-		ReplicasBehind  int    `json:"replicasBehindTarget"`
+		Tenant         string `json:"tenant"`
+		CachedRevision int64  `json:"cachedRevision"`
+		ActualRevision int64  `json:"actualRevision"`
+		Converged      bool   `json:"converged"`
+		ReplicasBehind int    `json:"replicasBehindTarget"`
 	}
 	if err := json.Unmarshal(rec.Body.Bytes(), &body); err != nil {
 		t.Fatalf("response is not JSON: %v", err)

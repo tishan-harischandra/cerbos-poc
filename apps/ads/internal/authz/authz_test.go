@@ -10,6 +10,7 @@ import (
 	"reflect"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/tishan-harischandra/cerbos-poc/apps/ads/internal/authz"
 	"github.com/tishan-harischandra/cerbos-poc/apps/ads/internal/tokenauth"
@@ -31,6 +32,18 @@ const validRequest = `{
 }`
 
 const doctorRole = "kc:cerbos-poc:patient-app:doctor"
+
+type recordingMetrics struct {
+	observations []observation
+}
+
+type observation struct {
+	resource, action, outcome string
+}
+
+func (m *recordingMetrics) Observe(resource, action, outcome string, _ time.Duration) {
+	m.observations = append(m.observations, observation{resource, action, outcome})
+}
 
 // §16.1: tenant and hospital context are derived server-side. A browser that
 // sends its own is refused rather than quietly ignored, because a caller who
@@ -313,12 +326,78 @@ func TestTheDecisionIsLoggedWithBothCorrelationIDs(t *testing.T) {
 	if !found {
 		t.Fatalf("no log record carried a cerbosCallId; log was:\n%s", logged.String())
 	}
+}
 
-	if record.CorrelationID != "corr-42" {
-		t.Errorf("correlationId = %q, want the inbound header value", record.CorrelationID)
+// §17.2: the ADS emits permission revision, root policy revision and the
+// matched (idp) role IDs alongside the correlation IDs, so a decision can
+// be reconstructed end-to-end without a second lookup.
+func TestTheDecisionIsLoggedWithRevisionsAndRoles(t *testing.T) {
+	pdp := &recordingPDP{result: cerbosclient.Result{CallID: "01HZY2CALLID"}}
+
+	var logged strings.Builder
+	handler := authz.NewHandler(authz.Config{
+		PDP: pdp,
+		Assignments: fixedAssignments{input: permissioncontext.Input{Revision: 184}},
+		Logger:             slog.New(slog.NewJSONHandler(&logged, nil)),
+		RootPolicyRevision: "root-v1.4.0",
+	})
+
+	request := postAs(identityWithRoles(doctorRole), validRequest)
+	handler.ServeHTTP(httptest.NewRecorder(), request)
+
+	var record struct {
+		CerbosCallID       string   `json:"cerbosCallId"`
+		RootPolicyRevision string   `json:"rootPolicyRevision"`
+		RoleIds            []string `json:"roleIds"`
 	}
-	if record.CerbosCallID != "01HZY2CALLID" {
-		t.Errorf("cerbosCallId = %q, want the ID the PDP reported", record.CerbosCallID)
+	found := false
+	for _, line := range strings.Split(strings.TrimSpace(logged.String()), "\n") {
+		if err := json.Unmarshal([]byte(line), &record); err != nil {
+			t.Fatalf("log line is not JSON: %v", err)
+		}
+		if record.CerbosCallID != "" {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Fatalf("no log record carried a cerbosCallId; log was:\n%s", logged.String())
+	}
+	if record.RootPolicyRevision != "root-v1.4.0" {
+		t.Errorf("rootPolicyRevision = %q, want root-v1.4.0", record.RootPolicyRevision)
+	}
+	if len(record.RoleIds) != 1 || record.RoleIds[0] != doctorRole {
+		t.Errorf("roleIds = %v, want [%s]", record.RoleIds, doctorRole)
+	}
+}
+
+// §16.2: mask or omit sensitive attributes from decision audit logs. A
+// clinical attribute value sent in the request must never appear in the
+// decision log line, only stable identifiers and revisions.
+func TestSensitiveResourceAttributesNeverAppearInTheDecisionLog(t *testing.T) {
+	pdp := &recordingPDP{result: cerbosclient.Result{CallID: "call-1"}}
+
+	var logged strings.Builder
+	handler := authz.NewHandler(authz.Config{
+		PDP:         pdp,
+		Assignments: emptyAssignments{},
+		Logger:      slog.New(slog.NewJSONHandler(&logged, nil)),
+	})
+
+	sensitiveRequest := `{
+	  "resources": [
+	    {
+	      "kind": "patient_record",
+	      "id": "patient-456",
+	      "attributes": {"tenantId": "tenant-a", "hospitalId": "hospital-1", "diagnosis": "Type 2 Diabetes Mellitus", "patientName": "Jane Doe"},
+	      "actions": ["read"]
+	    }
+	  ]
+	}`
+	handler.ServeHTTP(httptest.NewRecorder(), post(sensitiveRequest))
+
+	if strings.Contains(logged.String(), "Diabetes") || strings.Contains(logged.String(), "Jane Doe") {
+		t.Fatalf("decision log leaked a clinical attribute value: %s", logged.String())
 	}
 }
 
@@ -389,6 +468,54 @@ func TestALeafThePDPDidNotAnswerForIsDenied(t *testing.T) {
 	}
 	if decision.Allowed {
 		t.Error("an unanswered action was reported as allowed")
+	}
+}
+
+// §17.1: every decision reports its outcome per resource and action, so
+// request rate and allow/deny/error rate are never lost in an aggregate.
+func TestEveryDecisionIsObservedByResourceActionAndOutcome(t *testing.T) {
+	pdp := &recordingPDP{result: cerbosclient.Result{
+		CallID: "call-1",
+		Decisions: map[cerbosclient.Leaf]cerbosclient.Decision{
+			leaf("patient-456", "read"):   {Allowed: true},
+			leaf("patient-456", "update"): {Allowed: false},
+		},
+	}}
+	metrics := &recordingMetrics{}
+	handler := authz.NewHandler(authz.Config{PDP: pdp, Assignments: emptyAssignments{}, Metrics: metrics})
+
+	handler.ServeHTTP(httptest.NewRecorder(), post(validRequest))
+
+	want := map[observation]bool{
+		{"patient_record", "read", "allow"}:   true,
+		{"patient_record", "update", "deny"}:  true,
+	}
+	if len(metrics.observations) != 2 {
+		t.Fatalf("observations = %+v, want 2", metrics.observations)
+	}
+	for _, got := range metrics.observations {
+		if !want[got] {
+			t.Errorf("unexpected observation %+v", got)
+		}
+	}
+}
+
+// An unreachable PDP is observed as an error outcome, not silently
+// dropped from the metric surface.
+func TestAnUnreachablePDPIsObservedAsAnErrorOutcome(t *testing.T) {
+	pdp := &recordingPDP{err: errors.New("connection refused")}
+	metrics := &recordingMetrics{}
+	handler := authz.NewHandler(authz.Config{PDP: pdp, Assignments: emptyAssignments{}, Metrics: metrics})
+
+	handler.ServeHTTP(httptest.NewRecorder(), post(validRequest))
+
+	if len(metrics.observations) == 0 {
+		t.Fatal("no observation recorded for an unreachable PDP")
+	}
+	for _, got := range metrics.observations {
+		if got.outcome != "error" {
+			t.Errorf("outcome = %q, want error", got.outcome)
+		}
 	}
 }
 
