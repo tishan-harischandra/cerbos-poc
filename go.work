@@ -3,6 +3,7 @@ go 1.25.11
 use (
 ./apps/admin-service
 ./apps/ads
+./apps/policy-controller
 ./apps/resource-service
 ./libs/assignmentstore
 ./libs/authzcache
