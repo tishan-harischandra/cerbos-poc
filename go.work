@@ -15,6 +15,7 @@ use (
 ./libs/outbox
 ./libs/permissioncontext
 ./libs/permissionevents
+./libs/policyrelease
 ./libs/tokenverifier
 ./tests/architecture
 )
