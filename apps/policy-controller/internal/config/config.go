@@ -61,7 +61,9 @@ func FromEnv(lookup LookupFunc) Config {
 
 		CerbosAdminAddresses: splitOr(lookup, "CERBOS_ADMIN_ADDRESSES", []string{"cerbos:3593"}),
 		CerbosAdminUsername:  valueOr(lookup, "CERBOS_ADMIN_USERNAME", "cerbos"),
-		CerbosAdminPassword:  valueOr(lookup, "CERBOS_ADMIN_PASSWORD", ""),
+		// The default matches deploy/cerbos/config.yaml's adminAPI
+		// passwordHash, which is a bcrypt hash of this same value.
+		CerbosAdminPassword:  valueOr(lookup, "CERBOS_ADMIN_PASSWORD", "change-me"),
 		CerbosAdminPlaintext: boolOr(lookup, "CERBOS_ADMIN_PLAINTEXT", true),
 
 		CerbosBinary: valueOr(lookup, "CERBOS_BINARY", "cerbos"),

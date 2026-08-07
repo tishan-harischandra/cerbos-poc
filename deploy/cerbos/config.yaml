@@ -1,6 +1,24 @@
 server:
   httpListenAddr: ":3592"
   grpcListenAddr: ":3593"
+  # The Admin API backs the policy controller's explicit store reload
+  # (§13.2, issue #21). It is optional and currently basic-auth-only [R7], so
+  # it must never be exposed through ingress (§14.4): the port it shares
+  # with the runtime gRPC service is never published to the host in
+  # docker-compose.yml, and the only caller is the policy-controller
+  # container on the same internal network.
+  adminAPI:
+    enabled: true
+    adminCredentials:
+      # bcrypt hash of "change-me", the same default password used
+      # elsewhere in this compose topology (POSTGRES_PASSWORD,
+      # KEYCLOAK_ADMIN_PASSWORD): this is a dev environment inside the
+      # operator's own compose network, never exposed through ingress
+      # (§14.4). The policy-controller's CERBOS_ADMIN_PASSWORD default
+      # (apps/policy-controller/internal/config) is the plaintext this
+      # hashes.
+      username: cerbos
+      passwordHash: "$2a$10$uCc9EMxPZl7zmK0ZAts6Eej2HI.zTv0oOsTXxzyG8bF9QjX1BaUeC"
 
 storage:
   driver: disk
