@@ -44,6 +44,13 @@ func (s *Store) Close() error {
 	return nil
 }
 
+// PoolStats reports the pool's current connection saturation (§17.1's
+// "PostgreSQL... connection-pool saturation").
+func (s *Store) PoolStats() (acquired, idle, max int32) {
+	stat := s.pool.Stat()
+	return stat.AcquiredConns(), stat.IdleConns(), stat.MaxConns()
+}
+
 // Schema reports the shape of the migrated schema.
 func (s *Store) Schema() assignmentstore.SchemaInspector {
 	return inspector{pool: s.pool}

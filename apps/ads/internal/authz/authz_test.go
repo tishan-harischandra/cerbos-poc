@@ -336,8 +336,8 @@ func TestTheDecisionIsLoggedWithRevisionsAndRoles(t *testing.T) {
 
 	var logged strings.Builder
 	handler := authz.NewHandler(authz.Config{
-		PDP: pdp,
-		Assignments: fixedAssignments{input: permissioncontext.Input{Revision: 184}},
+		PDP:                pdp,
+		Assignments:        fixedAssignments{input: permissioncontext.Input{Revision: 184}},
 		Logger:             slog.New(slog.NewJSONHandler(&logged, nil)),
 		RootPolicyRevision: "root-v1.4.0",
 	})
@@ -487,8 +487,8 @@ func TestEveryDecisionIsObservedByResourceActionAndOutcome(t *testing.T) {
 	handler.ServeHTTP(httptest.NewRecorder(), post(validRequest))
 
 	want := map[observation]bool{
-		{"patient_record", "read", "allow"}:   true,
-		{"patient_record", "update", "deny"}:  true,
+		{"patient_record", "read", "allow"}:  true,
+		{"patient_record", "update", "deny"}: true,
 	}
 	if len(metrics.observations) != 2 {
 		t.Fatalf("observations = %+v, want 2", metrics.observations)

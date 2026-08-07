@@ -85,10 +85,10 @@ func (c *Cache) For(name string) interface {
 // DB exports the authorization database's cache-miss query latency and
 // connection-pool saturation.
 type DB struct {
-	queryLatency  *prometheus.HistogramVec
-	poolAcquired  prometheus.Gauge
-	poolIdle      prometheus.Gauge
-	poolMax       prometheus.Gauge
+	queryLatency *prometheus.HistogramVec
+	poolAcquired prometheus.Gauge
+	poolIdle     prometheus.Gauge
+	poolMax      prometheus.Gauge
 }
 
 // NewDB builds the collectors and registers them with reg.

@@ -14,6 +14,7 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 
+	"github.com/tishan-harischandra/cerbos-poc/apps/ads/internal/adsmetrics"
 	"github.com/tishan-harischandra/cerbos-poc/apps/ads/internal/assignments"
 	"github.com/tishan-harischandra/cerbos-poc/apps/ads/internal/authz"
 	"github.com/tishan-harischandra/cerbos-poc/apps/ads/internal/cacheconvergence"
@@ -24,11 +25,14 @@ import (
 	"github.com/tishan-harischandra/cerbos-poc/apps/ads/internal/invalidation"
 	"github.com/tishan-harischandra/cerbos-poc/apps/ads/internal/invalidationmetrics"
 	"github.com/tishan-harischandra/cerbos-poc/apps/ads/internal/netprobe"
+	"github.com/tishan-harischandra/cerbos-poc/apps/ads/internal/revisionmetrics"
 	"github.com/tishan-harischandra/cerbos-poc/apps/ads/internal/server"
 	"github.com/tishan-harischandra/cerbos-poc/apps/ads/internal/tokenauth"
+	"github.com/tishan-harischandra/cerbos-poc/libs/assignmentstore"
 	"github.com/tishan-harischandra/cerbos-poc/libs/assignmentstore/postgresstore"
 	"github.com/tishan-harischandra/cerbos-poc/libs/cerbosclient"
 	"github.com/tishan-harischandra/cerbos-poc/libs/idpdirectory/provider"
+	"github.com/tishan-harischandra/cerbos-poc/libs/permissioncontext"
 )
 
 // invalidationCaches presents the role-permission and user-override caches
@@ -67,6 +71,36 @@ func (c invalidationCaches) CachedRevision(tenantID string) (int64, bool) {
 func (c invalidationCaches) InvalidateTenant(tenantID string) {
 	c.roles.InvalidateTenant(tenantID)
 	c.overrides.InvalidateTenant(tenantID)
+}
+
+// timingRoleMatrix and timingOverrides time every call that reaches them,
+// which is exactly the calls the caches in front of them make on a miss
+// (§17.1's "PostgreSQL cache-miss query latency"): a cache hit never
+// reaches either type.
+type timingRoleMatrix struct {
+	inner   assignments.RoleMatrix
+	metrics *adsmetrics.DB
+}
+
+func (t timingRoleMatrix) ActiveRolePermissions(ctx context.Context, query assignmentstore.ActiveRolePermissionQuery) ([]assignmentstore.RolePermission, error) {
+	start := time.Now()
+	defer func() { t.metrics.ObserveQueryLatency("role_permissions", time.Since(start)) }()
+	return t.inner.ActiveRolePermissions(ctx, query)
+}
+
+func (t timingRoleMatrix) PermissionRevision(ctx context.Context, tenantID string) (assignmentstore.PermissionRevision, bool, error) {
+	return t.inner.PermissionRevision(ctx, tenantID)
+}
+
+type timingOverrides struct {
+	inner   assignments.Overrides
+	metrics *adsmetrics.DB
+}
+
+func (t timingOverrides) For(ctx context.Context, query authz.AssignmentQuery) ([]permissioncontext.UserOverride, error) {
+	start := time.Now()
+	defer func() { t.metrics.ObserveQueryLatency("user_overrides", time.Since(start)) }()
+	return t.inner.For(ctx, query)
 }
 
 func main() {
@@ -141,6 +175,28 @@ func main() {
 
 	registry := prometheus.NewRegistry()
 	invalidationMetrics := invalidationmetrics.New(registry)
+	decisionMetrics := adsmetrics.NewDecision(registry)
+	cacheMetrics := adsmetrics.NewCache(registry)
+	dbMetrics := adsmetrics.NewDB(registry)
+	revisionMetrics := adsmetrics.NewRevision(registry)
+	revisionMetrics.SetRootPolicyRevision(cfg.RootPolicyRevision)
+
+	// The two caches built above did not yet have a metrics collaborator
+	// (§17.1's per-cache hit ratio); rebuilding them here, once the
+	// collector exists, keeps their construction next to each other above
+	// rather than threading the registry through NewCachingRoleMatrix's
+	// call site.
+	roleMatrixCache = assignments.NewCachingRoleMatrix(assignments.CacheConfig{
+		Matrix:  timingRoleMatrix{inner: store, metrics: dbMetrics},
+		TTL:     cfg.RoleMatrixCacheTTL,
+		Metrics: cacheMetrics.For("role_permissions"),
+	})
+	overridesCache = assignments.NewCachingOverrides(assignments.OverrideCacheConfig{
+		Overrides: timingOverrides{inner: assignments.NewDBOverrides(store, nil), metrics: dbMetrics},
+		TTL:       cfg.RoleMatrixCacheTTL,
+		Metrics:   cacheMetrics.For("user_overrides"),
+	})
+	invalidationCache = invalidationCaches{roles: roleMatrixCache, overrides: overridesCache}
 
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer stop()
@@ -192,6 +248,32 @@ func main() {
 	})
 	go reconciler.Run(ctx)
 
+	// §17.1's revision gauges: a read-only observer, independent of the
+	// reconciler above, which is the one thing allowed to act on drift.
+	revisionPoller := revisionmetrics.NewPoller(revisionmetrics.PollerConfig{
+		Cache:   roleMatrixCache,
+		Store:   store,
+		Metrics: revisionMetrics,
+	})
+	go revisionPoller.Run(ctx, 5*time.Second)
+
+	// §17.1's connection-pool saturation: polled on its own schedule, the
+	// same as Kafka consumer lag above, since it is an observability signal
+	// rather than something any decision waits on.
+	go func() {
+		ticker := time.NewTicker(5 * time.Second)
+		defer ticker.Stop()
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case <-ticker.C:
+				acquired, idle, max := store.PoolStats()
+				dbMetrics.SetPoolStats(acquired, idle, max)
+			}
+		}
+	}()
+
 	handler := server.New(server.Config{
 		Dependencies: []server.Dependency{
 			{Name: "cerbos", Probe: cerbos.NewGRPCProbe(cfg.CerbosGRPCAddr)},
@@ -204,7 +286,9 @@ func main() {
 				Matrix:    roleMatrixCache,
 				Overrides: overridesCache,
 			}),
-			Logger: logger,
+			Logger:             logger,
+			Metrics:            decisionMetrics,
+			RootPolicyRevision: cfg.RootPolicyRevision,
 		})),
 		DirectoryUsersHandler: authenticated(directoryapi.NewUsersHandler(directoryapi.Config{
 			Directory: directory,
