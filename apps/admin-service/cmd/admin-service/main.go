@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/tishan-harischandra/cerbos-poc/apps/admin-service/internal/adsclient"
+	"github.com/tishan-harischandra/cerbos-poc/apps/admin-service/internal/auditsearch"
 	"github.com/tishan-harischandra/cerbos-poc/apps/admin-service/internal/catalogapi"
 	"github.com/tishan-harischandra/cerbos-poc/apps/admin-service/internal/config"
 	"github.com/tishan-harischandra/cerbos-poc/apps/admin-service/internal/rolematrix"
@@ -92,6 +93,9 @@ func main() {
 		},
 		Simulate: &simulate.Handler{
 			ADS: adsclient.New(cfg.ADSAddr),
+		},
+		AuditSearch: &auditsearch.Handler{
+			Store: store,
 		},
 	})
 

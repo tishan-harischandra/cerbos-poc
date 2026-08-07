@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/tishan-harischandra/cerbos-poc/apps/admin-service/internal/auditsearch"
 	"github.com/tishan-harischandra/cerbos-poc/apps/admin-service/internal/catalogapi"
 	"github.com/tishan-harischandra/cerbos-poc/apps/admin-service/internal/rolematrix"
 	"github.com/tishan-harischandra/cerbos-poc/apps/admin-service/internal/simulate"
@@ -53,6 +54,10 @@ type Config struct {
 	// Simulate serves the effective-access simulator endpoints (issue
 	// #19). Nil means the routes are not registered.
 	Simulate *simulate.Handler
+
+	// AuditSearch serves the audit search endpoint (issue #20). Nil means
+	// the route is not registered.
+	AuditSearch *auditsearch.Handler
 }
 
 // New builds the Administration Service HTTP handler.
@@ -90,6 +95,9 @@ func New(cfg Config) http.Handler {
 		if cfg.Simulate != nil {
 			mux.Handle("POST /admin/authz/simulate", authenticated(cfg.Simulate.SimulateAccess))
 			mux.Handle("POST /admin/authz/simulate-capabilities", authenticated(cfg.Simulate.SimulateCapabilities))
+		}
+		if cfg.AuditSearch != nil {
+			mux.Handle("GET /admin/authz/audit", authenticated(cfg.AuditSearch.Search))
 		}
 	}
 
