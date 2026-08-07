@@ -63,6 +63,11 @@ type Config struct {
 	// (issue #14). Nil means the route does not exist. Unauthenticated,
 	// like every other Prometheus scrape target on this network.
 	MetricsHandler http.Handler
+
+	// CacheConvergenceHandler serves GET /internal/cache/convergence, the
+	// Admin Console's revision and activation module (issue #22). Nil means
+	// the route does not exist.
+	CacheConvergenceHandler http.Handler
 }
 
 // New builds the ADS HTTP handler.
@@ -94,6 +99,9 @@ func New(cfg Config) http.Handler {
 	}
 	if cfg.MetricsHandler != nil {
 		mux.Handle("GET /metrics", cfg.MetricsHandler)
+	}
+	if cfg.CacheConvergenceHandler != nil {
+		mux.Handle("GET /internal/cache/convergence", cfg.CacheConvergenceHandler)
 	}
 
 	timeout := cfg.ReadinessTimeout

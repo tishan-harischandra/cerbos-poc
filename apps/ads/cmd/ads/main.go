@@ -16,6 +16,7 @@ import (
 
 	"github.com/tishan-harischandra/cerbos-poc/apps/ads/internal/assignments"
 	"github.com/tishan-harischandra/cerbos-poc/apps/ads/internal/authz"
+	"github.com/tishan-harischandra/cerbos-poc/apps/ads/internal/cacheconvergence"
 	"github.com/tishan-harischandra/cerbos-poc/apps/ads/internal/capability"
 	"github.com/tishan-harischandra/cerbos-poc/apps/ads/internal/cerbos"
 	"github.com/tishan-harischandra/cerbos-poc/apps/ads/internal/config"
@@ -200,6 +201,10 @@ func main() {
 			Logger:             logger,
 		})),
 		MetricsHandler: promhttp.HandlerFor(registry, promhttp.HandlerOpts{}),
+		CacheConvergenceHandler: authenticated(cacheconvergence.NewHandler(cacheconvergence.Config{
+			Cache: roleMatrixCache,
+			Store: store,
+		})),
 	})
 
 	httpServer := &http.Server{
