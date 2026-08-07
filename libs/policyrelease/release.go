@@ -87,6 +87,9 @@ func RunOnce(ctx context.Context, cfg ReleaseConfig) (ActivationResult, error) {
 	}
 
 	result, err := InstallAndActivate(ctx, archive, cfg.Replicas, cfg.Reloader)
+	if recordErr := recordOutcome(cfg.Store, result, err); recordErr != nil {
+		return result, recordErr
+	}
 	if err != nil {
 		return result, err
 	}
@@ -100,6 +103,20 @@ func RunOnce(ctx context.Context, cfg ReleaseConfig) (ActivationResult, error) {
 		}
 	}
 	return result, nil
+}
+
+// recordOutcome records one RunOnce attempt in the store's history,
+// regardless of whether it activated (issue #22's "a release that failed to
+// activate is visibly distinguished from one that succeeded").
+func recordOutcome(store *Store, result ActivationResult, runErr error) error {
+	entry := HistoryEntry{
+		Revision:  result.Revision,
+		Activated: result.Activated,
+	}
+	if runErr != nil {
+		entry.Error = runErr.Error()
+	}
+	return store.RecordAttempt(entry)
 }
 
 // findReleaseRoot returns the directory under extractDir that directly
