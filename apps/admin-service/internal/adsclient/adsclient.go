@@ -130,6 +130,62 @@ func (c *Client) SimulateCapabilities(ctx context.Context, token string, req Sim
 	return resp, nil
 }
 
+// ConvergenceResponse is the ADS's own cache convergence report for the
+// caller's tenant (issue #22).
+type ConvergenceResponse struct {
+	Tenant               string `json:"tenant"`
+	CachedRevision       int64  `json:"cachedRevision"`
+	ActualRevision       int64  `json:"actualRevision"`
+	Converged            bool   `json:"converged"`
+	ReplicasBehindTarget int    `json:"replicasBehindTarget"`
+}
+
+// Convergence asks the ADS for its own cache convergence state.
+func (c *Client) Convergence(ctx context.Context, token string) (ConvergenceResponse, error) {
+	var resp ConvergenceResponse
+	if err := c.get(ctx, token, "/internal/cache/convergence", &resp); err != nil {
+		return ConvergenceResponse{}, err
+	}
+	return resp, nil
+}
+
+// DirectoryHealth asks the ADS's identity directory proxy for a minimal,
+// one-item role search. A response, however small, means the ADS could
+// reach the identity provider's admin API just now; an error means it
+// could not - the IdP diagnostics module's live connectivity check
+// (issue #22), never the decision path, which never depends on it.
+func (c *Client) DirectoryHealth(ctx context.Context, token string) error {
+	var discard struct{}
+	return c.get(ctx, token, "/internal/directory/roles?limit=1", &discard)
+}
+
+func (c *Client) get(ctx context.Context, token, path string, responseBody any) error {
+	httpReq, err := http.NewRequestWithContext(ctx, http.MethodGet, c.baseURL+path, nil)
+	if err != nil {
+		return fmt.Errorf("adsclient: building the request: %w", err)
+	}
+	httpReq.Header.Set("Authorization", "Bearer "+token)
+
+	resp, err := c.http.Do(httpReq)
+	if err != nil {
+		return fmt.Errorf("adsclient: calling the ADS: %w", err)
+	}
+	defer func() { _ = resp.Body.Close() }()
+
+	respBody, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return fmt.Errorf("adsclient: reading the ADS response: %w", err)
+	}
+	if resp.StatusCode != http.StatusOK {
+		return fmt.Errorf("adsclient: the ADS returned %d: %s", resp.StatusCode, respBody)
+	}
+
+	if err := json.Unmarshal(respBody, responseBody); err != nil {
+		return fmt.Errorf("adsclient: decoding the ADS response: %w", err)
+	}
+	return nil
+}
+
 func (c *Client) post(ctx context.Context, token, path string, requestBody, responseBody any) error {
 	body, err := json.Marshal(requestBody)
 	if err != nil {

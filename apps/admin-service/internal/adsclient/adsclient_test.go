@@ -92,3 +92,60 @@ func TestSimulateCapabilitiesForwardsTheCallersOwnBearerTokenAndReturnsTheRequir
 		t.Errorf("requirementTree = %+v, want one read leaf", resp.RequirementTree)
 	}
 }
+
+func TestConvergenceForwardsTheCallersOwnBearerTokenAndReturnsTheStatus(t *testing.T) {
+	var gotAuth, gotPath string
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		gotAuth = r.Header.Get("Authorization")
+		gotPath = r.URL.Path
+		_ = json.NewEncoder(w).Encode(adsclient.ConvergenceResponse{
+			Tenant: "tenant-a", CachedRevision: 4, ActualRevision: 4, Converged: true,
+		})
+	}))
+	defer server.Close()
+
+	client := adsclient.New(server.URL)
+	resp, err := client.Convergence(t.Context(), "admin-token")
+	if err != nil {
+		t.Fatalf("Convergence: %v", err)
+	}
+
+	if gotAuth != "Bearer admin-token" {
+		t.Errorf("Authorization header = %q, want %q", gotAuth, "Bearer admin-token")
+	}
+	if gotPath != "/internal/cache/convergence" {
+		t.Errorf("path = %q, want /internal/cache/convergence", gotPath)
+	}
+	if !resp.Converged || resp.Tenant != "tenant-a" {
+		t.Errorf("response = %+v, want converged tenant-a", resp)
+	}
+}
+
+func TestDirectoryHealthSucceedsWhenTheADSAnswers(t *testing.T) {
+	var gotPath string
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		gotPath = r.URL.Path
+		_ = json.NewEncoder(w).Encode(map[string]any{"items": []any{}, "offset": 0, "limit": 1, "hasMore": false})
+	}))
+	defer server.Close()
+
+	client := adsclient.New(server.URL)
+	if err := client.DirectoryHealth(t.Context(), "admin-token"); err != nil {
+		t.Fatalf("DirectoryHealth: %v", err)
+	}
+	if gotPath != "/internal/directory/roles" {
+		t.Errorf("path = %q, want /internal/directory/roles", gotPath)
+	}
+}
+
+func TestDirectoryHealthFailsWhenTheADSReturnsAnError(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusServiceUnavailable)
+	}))
+	defer server.Close()
+
+	client := adsclient.New(server.URL)
+	if err := client.DirectoryHealth(t.Context(), "admin-token"); err == nil {
+		t.Fatal("expected an error for a non-200 response")
+	}
+}
