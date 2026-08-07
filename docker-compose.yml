@@ -218,10 +218,17 @@ services:
       # and Cerbos path for an explicitly named principal, never a second
       # evaluation implementation of its own.
       ADS_ADDR: "http://ads:8080"
+      # The revision and activation module (§9.1, issue #22) reads the
+      # policy controller's release history from this shared volume. It is
+      # empty unless the policy-release profile's controller (issue #21)
+      # has actually run, in which case the module simply reports no
+      # current revision and no history - never an error.
+      POLICY_ARCHIVE_STORE_DIR: "/var/lib/policy-controller/archives"
     volumes:
       - ./deploy/secrets/idp-admin-credentials:/run/secrets/idp-admin-credentials:ro
       - ./deploy/cerbos/catalog/resources:/authorization-catalog:ro
       - ./deploy/cerbos/catalog/ui-capabilities:/capability-catalog:ro
+      - policy-release-archives:/var/lib/policy-controller/archives:ro
     depends_on:
       postgres:
         condition: service_healthy

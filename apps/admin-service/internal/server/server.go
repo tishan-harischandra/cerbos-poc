@@ -10,6 +10,7 @@ import (
 
 	"github.com/tishan-harischandra/cerbos-poc/apps/admin-service/internal/auditsearch"
 	"github.com/tishan-harischandra/cerbos-poc/apps/admin-service/internal/catalogapi"
+	"github.com/tishan-harischandra/cerbos-poc/apps/admin-service/internal/platformstatus"
 	"github.com/tishan-harischandra/cerbos-poc/apps/admin-service/internal/rolematrix"
 	"github.com/tishan-harischandra/cerbos-poc/apps/admin-service/internal/simulate"
 	"github.com/tishan-harischandra/cerbos-poc/apps/admin-service/internal/tokenauth"
@@ -58,6 +59,11 @@ type Config struct {
 	// AuditSearch serves the audit search endpoint (issue #20). Nil means
 	// the route is not registered.
 	AuditSearch *auditsearch.Handler
+
+	// PlatformStatus serves the revision and activation module plus IdP
+	// diagnostics endpoints (issue #22). Nil means the routes are not
+	// registered.
+	PlatformStatus *platformstatus.Handler
 }
 
 // New builds the Administration Service HTTP handler.
@@ -98,6 +104,11 @@ func New(cfg Config) http.Handler {
 		}
 		if cfg.AuditSearch != nil {
 			mux.Handle("GET /admin/authz/audit", authenticated(cfg.AuditSearch.Search))
+		}
+		if cfg.PlatformStatus != nil {
+			mux.Handle("GET /admin/authz/policy-releases", authenticated(cfg.PlatformStatus.PolicyReleases))
+			mux.Handle("GET /admin/authz/tenants/{tenant}/convergence", authenticated(cfg.PlatformStatus.Convergence))
+			mux.Handle("GET /admin/idp/diagnostics", authenticated(cfg.PlatformStatus.IdPDiagnostics))
 		}
 	}
 
