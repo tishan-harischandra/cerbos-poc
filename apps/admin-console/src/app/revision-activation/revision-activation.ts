@@ -35,6 +35,13 @@ export class RevisionActivation {
   readonly convergenceError = signal<string | null>(null);
 
   constructor() {
+    void this.refresh();
+  }
+
+  /** Reloads both the release history and the tenant's cache convergence
+   * report - the current permission revision it carries reflects whatever
+   * changed since the last load only once this runs again. */
+  refresh(): void {
     void this.loadPolicyReleases();
     void this.loadConvergence();
   }

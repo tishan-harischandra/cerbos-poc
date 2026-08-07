@@ -103,4 +103,33 @@ describe('RevisionActivation', () => {
     expect(rows[1].getAttribute('data-outcome')).toBe('failed');
     expect(rows[1].textContent).toContain('replica cerbos-b failed to reload');
   });
+
+  it('shows the current permission revision, refreshed on demand after a change', async () => {
+    const httpMock = setUp();
+    const fixture = TestBed.createComponent(RevisionActivation);
+    httpMock.expectOne('/api/admin/authz/policy-releases').flush({ current: null, history: [] });
+    httpMock.expectOne('/api/admin/authz/tenants/tenant-a/convergence').flush({
+      tenant: 'tenant-a', cachedRevision: 4, actualRevision: 4, converged: true, replicasBehindTarget: 0,
+    });
+    await Promise.resolve();
+    fixture.detectChanges();
+
+    let revision = fixture.nativeElement.querySelector(
+      '[data-testid="current-permission-revision"]',
+    ) as HTMLElement;
+    expect(revision.textContent).toContain('4');
+
+    fixture.componentInstance.refresh();
+    httpMock.expectOne('/api/admin/authz/policy-releases').flush({ current: null, history: [] });
+    httpMock.expectOne('/api/admin/authz/tenants/tenant-a/convergence').flush({
+      tenant: 'tenant-a', cachedRevision: 5, actualRevision: 5, converged: true, replicasBehindTarget: 0,
+    });
+    await Promise.resolve();
+    fixture.detectChanges();
+
+    revision = fixture.nativeElement.querySelector(
+      '[data-testid="current-permission-revision"]',
+    ) as HTMLElement;
+    expect(revision.textContent).toContain('5');
+  });
 });

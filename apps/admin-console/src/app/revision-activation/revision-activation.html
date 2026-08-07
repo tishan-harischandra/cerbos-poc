@@ -1,5 +1,7 @@
 <h1>Revision and activation</h1>
 
+<button type="button" data-testid="refresh" (click)="refresh()">Refresh</button>
+
 <section class="root-policy">
   <h2>Root policy</h2>
   @if (currentRelease(); as current) {
@@ -45,6 +47,9 @@
 <section class="cache-convergence">
   <h2>Cache convergence</h2>
   @if (convergence(); as status) {
+    <p data-testid="current-permission-revision">
+      Current permission revision: {{ status.actualRevision }}
+    </p>
     <p data-testid="convergence-status">
       Tenant {{ status.tenant }}: cached revision {{ status.cachedRevision }}, actual revision
       {{ status.actualRevision }} -
