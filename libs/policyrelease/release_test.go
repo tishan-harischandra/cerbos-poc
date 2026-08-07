@@ -22,11 +22,15 @@ func (f *fakeFetcher) FetchArchive(ctx context.Context, commit string) ([]byte, 
 	return f.tarball, nil
 }
 
+// releaseTreeTarball wraps the release tree in a single top-level directory,
+// the same shape Gitea's own /archive/{ref}.tar.gz endpoint produces (e.g.
+// "root-policy-bbb1234/..."), so RunOnce is exercised against a real
+// archive shape rather than one flattened for convenience.
 func releaseTreeTarball(t *testing.T) []byte {
 	t.Helper()
 	return buildTestTarball(t, map[string]string{
-		"catalog/resources/patient_record.yaml":  "actions: [read, update]",
-		"policies/resources/patient_record.yaml": "kind: ResourcePolicy",
+		"root-policy-bbb/catalog/resources/patient_record.yaml":  "actions: [read, update]",
+		"root-policy-bbb/policies/resources/patient_record.yaml": "kind: ResourcePolicy",
 	})
 }
 

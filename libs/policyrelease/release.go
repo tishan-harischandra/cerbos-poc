@@ -64,12 +64,20 @@ func RunOnce(ctx context.Context, cfg ReleaseConfig) (ActivationResult, error) {
 		return ActivationResult{}, fmt.Errorf("policyrelease: extracting commit %s: %w", tag.Commit, err)
 	}
 
-	if err := Validate(ctx, extractDir, cfg.Validate); err != nil {
+	// Gitea's own /archive/{ref}.tar.gz endpoint wraps every entry in one
+	// top-level directory (named after the ref, e.g. "root-policy-bbb1234"),
+	// so the release tree is not always extractDir itself.
+	releaseRoot, err := findReleaseRoot(extractDir)
+	if err != nil {
+		return ActivationResult{}, fmt.Errorf("policyrelease: commit %s: %w", tag.Commit, err)
+	}
+
+	if err := Validate(ctx, releaseRoot, cfg.Validate); err != nil {
 		return ActivationResult{}, fmt.Errorf("policyrelease: tag %s failed validation: %w", tag.Name, err)
 	}
 
 	archive, err := BuildArchive(ctx, ArchiveInput{
-		SourceDir: filepath.Join(extractDir, "policies"),
+		SourceDir: filepath.Join(releaseRoot, "policies"),
 		Revision:  tag.Name,
 		Commit:    tag.Commit,
 		OutputDir: cfg.Store.dir,
@@ -92,4 +100,37 @@ func RunOnce(ctx context.Context, cfg ReleaseConfig) (ActivationResult, error) {
 		}
 	}
 	return result, nil
+}
+
+// findReleaseRoot returns the directory under extractDir that directly
+// contains a "policies" subdirectory: extractDir itself, or - when the
+// archive wrapped everything in one top-level directory, as Gitea's does -
+// that single subdirectory.
+func findReleaseRoot(extractDir string) (string, error) {
+	if isDir(filepath.Join(extractDir, "policies")) {
+		return extractDir, nil
+	}
+
+	entries, err := os.ReadDir(extractDir)
+	if err != nil {
+		return "", fmt.Errorf("reading extracted tree: %w", err)
+	}
+	var dirs []string
+	for _, e := range entries {
+		if e.IsDir() {
+			dirs = append(dirs, e.Name())
+		}
+	}
+	if len(dirs) == 1 {
+		candidate := filepath.Join(extractDir, dirs[0])
+		if isDir(filepath.Join(candidate, "policies")) {
+			return candidate, nil
+		}
+	}
+	return "", fmt.Errorf("no \"policies\" directory found under %s", extractDir)
+}
+
+func isDir(path string) bool {
+	info, err := os.Stat(path)
+	return err == nil && info.IsDir()
 }

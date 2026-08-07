@@ -274,6 +274,95 @@ services:
       timeout: 5s
       retries: 20
 
+  # Everything below is issue #21's policy sync and release pipeline. It sits
+  # behind the policy-release profile and runs its own Gitea, its own Cerbos
+  # instance and its own policy volume, entirely separate from the `cerbos`
+  # service and the committed deploy/cerbos/policies bind mount every other
+  # service above still serves from. That keeps the default `docker compose
+  # up` walking skeleton exactly as it was; this profile is where the
+  # controller's poll-validate-package-install-activate pipeline (§13) is
+  # exercised end to end, starting from a real Gitea tag rather than a file
+  # already sitting on disk.
+  #
+  # `make policy-release-seed` creates the root policy repository, pushes the
+  # committed catalog+policies tree, tags it and protects the tag - run it
+  # once after `docker compose --profile policy-release up -d gitea`.
+  gitea:
+    image: docker.io/gitea/gitea:1.22
+    profiles:
+      - policy-release
+    environment:
+      GITEA__security__INSTALL_LOCK: "true"
+      GITEA__server__DOMAIN: gitea
+      GITEA__server__ROOT_URL: "http://gitea:3000/"
+      GITEA__database__DB_TYPE: sqlite3
+      GITEA__actions__ENABLED: "false"
+    volumes:
+      - gitea-data:/data
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://127.0.0.1:3000/api/healthz"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+      start_period: 10s
+
+  # A dedicated Cerbos instance so this profile never touches the default
+  # `cerbos` service's bind-mounted policy tree: policy-release-store starts
+  # empty and is filled only by the controller's atomic install.
+  cerbos-managed:
+    image: ghcr.io/cerbos/cerbos:0.46.0
+    profiles:
+      - policy-release
+    command: ["server", "--config=/conf/config.yaml"]
+    volumes:
+      - ./deploy/cerbos/config.yaml:/conf/config.yaml:ro
+      - policy-release-store:/policies
+    healthcheck:
+      test: ["CMD", "/cerbos", "healthcheck", "--config=/conf/config.yaml"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  policy-controller:
+    build:
+      context: .
+      dockerfile: apps/policy-controller/Dockerfile
+    profiles:
+      - policy-release
+    environment:
+      POLICY_CONTROLLER_HTTP_ADDR: ":8082"
+      GITEA_BASE_URL: "http://gitea:3000"
+      GITEA_REPO: "${POLICY_RELEASE_GITEA_REPO:-authz/root-policy}"
+      GITEA_TOKEN: "${POLICY_RELEASE_GITEA_TOKEN:-}"
+      ROOT_POLICY_TAG_PREFIX: "${ROOT_POLICY_TAG_PREFIX:-root-v}"
+      # Leader election only: this DSN grants no access to assignment data,
+      # and the controller never opens the assignmentstore port (§13.1).
+      POSTGRES_DSN: "postgres://${POSTGRES_USER:-cerbos_poc}:${POSTGRES_PASSWORD:-change-me}@postgres:5432/${POSTGRES_DB:-cerbos_poc}?sslmode=disable"
+      CERBOS_ADMIN_ADDRESSES: "cerbos-managed:3593"
+      CERBOS_ADMIN_USERNAME: "cerbos"
+      CERBOS_ADMIN_PASSWORD: "change-me"
+      CERBOS_ADMIN_PLAINTEXT: "true"
+      POLICY_DIR: "/policies"
+      POLICY_ARCHIVE_STORE_DIR: "/var/lib/policy-controller/archives"
+      POLICY_WORK_DIR: "/var/lib/policy-controller/work"
+      POLICY_CONTROLLER_POLL_INTERVAL: "${POLICY_CONTROLLER_POLL_INTERVAL:-15s}"
+      POLICY_CONTROLLER_RETAIN_COUNT: "${POLICY_CONTROLLER_RETAIN_COUNT:-5}"
+    volumes:
+      - policy-release-store:/policies
+      - policy-release-archives:/var/lib/policy-controller/archives
+    depends_on:
+      gitea:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+      cerbos-managed:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://127.0.0.1:8082/readyz"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
   admin-console:
     build:
       context: .
@@ -311,3 +400,6 @@ services:
 
 volumes:
   postgres-data:
+  gitea-data:
+  policy-release-store:
+  policy-release-archives:
