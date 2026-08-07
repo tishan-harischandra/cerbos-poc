@@ -18,28 +18,33 @@ import (
 )
 
 // evaluate implements the §12.3 backend evaluation algorithm end to end.
-func evaluate(ctx context.Context, cfg Config, maxResources int, identity tokenauth.Identity, req Request) (Snapshot, error) {
+// The returned leafOutcomes carries every leaf's decision, allowed and
+// denied alike - NewHandler's own snapshot only surfaces the denied ones
+// as FailedRequirements, but the simulator (issue #19) needs the complete
+// requirement tree, and reusing this return value rather than
+// re-evaluating is what keeps it from being a second implementation.
+func evaluate(ctx context.Context, cfg Config, maxResources int, identity tokenauth.Identity, req Request) (Snapshot, map[capabilityeval.Leaf]capabilityeval.LeafOutcome, error) {
 	// Step 1: load definitions for the active capability-catalog revision.
 	allDefs, catalogRevision, err := cfg.CapabilityCatalog.Definitions(ctx, req.Module)
 	if err != nil {
-		return Snapshot{}, fmt.Errorf("loading capability definitions: %w", err)
+		return Snapshot{}, nil, fmt.Errorf("loading capability definitions: %w", err)
 	}
 
 	defs, err := selectRequested(allDefs, req.CapabilityKeys)
 	if err != nil {
-		return Snapshot{}, err
+		return Snapshot{}, nil, err
 	}
 
 	// Step 2: resolve every targetRef into a concrete resource, server-side.
 	targets, targetOrder, resourceAttrs, err := resolveTargets(ctx, cfg, identity, req, defs)
 	if err != nil {
-		return Snapshot{}, fmt.Errorf("resolving targets: %w", err)
+		return Snapshot{}, nil, fmt.Errorf("resolving targets: %w", err)
 	}
 
 	// Steps 3-4: flatten and deduplicate every permission leaf.
 	leaves, err := capabilityeval.Flatten(defs, targets)
 	if err != nil {
-		return Snapshot{}, fmt.Errorf("flattening capabilities: %w", err)
+		return Snapshot{}, nil, fmt.Errorf("flattening capabilities: %w", err)
 	}
 
 	// Group deduplicated leaves by resource, so assignments and Cerbos are
@@ -50,13 +55,13 @@ func evaluate(ctx context.Context, cfg Config, maxResources int, identity tokena
 	// Step 5: resolve assignments once per resource for this subject.
 	revision, resourceChecks, err := buildResourceChecks(ctx, cfg, identity, resourceOrder, resourceActions, resourceAttrs)
 	if err != nil {
-		return Snapshot{}, fmt.Errorf("resolving assignments: %w", err)
+		return Snapshot{}, nil, fmt.Errorf("resolving assignments: %w", err)
 	}
 
 	// Steps 6-7: issue a bounded number of Cerbos calls and merge results.
 	decisions, firedRules, err := checkInChunks(ctx, cfg, maxResources, identity, resourceChecks)
 	if err != nil {
-		return Snapshot{}, fmt.Errorf("checking resources: %w", err)
+		return Snapshot{}, nil, fmt.Errorf("checking resources: %w", err)
 	}
 
 	leafOutcomes := make(map[capabilityeval.Leaf]capabilityeval.LeafOutcome, len(leaves))
@@ -72,7 +77,7 @@ func evaluate(ctx context.Context, cfg Config, maxResources int, identity tokena
 	// Step 8: evaluate every capability expression in memory.
 	outcomes, err := capabilityeval.Evaluate(defs, targets, leafOutcomes)
 	if err != nil {
-		return Snapshot{}, fmt.Errorf("evaluating capabilities: %w", err)
+		return Snapshot{}, nil, fmt.Errorf("evaluating capabilities: %w", err)
 	}
 
 	// Step 9: assemble the snapshot.
@@ -102,7 +107,7 @@ func evaluate(ctx context.Context, cfg Config, maxResources int, identity tokena
 		Module:                    req.Module,
 		ContextFingerprint:        contextFingerprint(identity, req, targetOrder, targets),
 		Capabilities:              capabilities,
-	}, nil
+	}, leafOutcomes, nil
 }
 
 // selectRequested filters defs down to exactly the requested capability

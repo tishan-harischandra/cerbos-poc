@@ -199,7 +199,7 @@ func NewHandler(cfg Config) http.Handler {
 			return
 		}
 
-		snapshot, err := evaluate(r.Context(), cfg, maxResources, identity, req)
+		snapshot, _, err := evaluate(r.Context(), cfg, maxResources, identity, req)
 		if err != nil {
 			var badRequest *badRequestError
 			if errors.As(err, &badRequest) {

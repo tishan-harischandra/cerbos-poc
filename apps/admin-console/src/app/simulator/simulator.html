@@ -1,0 +1,107 @@
+<h1>Effective access simulator</h1>
+<p data-testid="scope-note">
+  Scope: tenant {{ tenant() }}, hospital {{ hospital() }} (your own authority).
+</p>
+
+<section class="access-simulator" data-testid="access-simulator">
+  <h2>Simulate one resource-action</h2>
+
+  <label>
+    Principal ID
+    <input type="text" data-testid="principal-id-input" [(ngModel)]="principalId" />
+  </label>
+  <label>
+    IdP roles (comma separated)
+    <input type="text" data-testid="idp-roles-input" [(ngModel)]="idpRoles" />
+  </label>
+  <label>
+    Resource kind
+    <input type="text" data-testid="resource-kind-input" [(ngModel)]="resourceKind" />
+  </label>
+  <label>
+    Resource ID
+    <input type="text" data-testid="resource-id-input" [(ngModel)]="resourceId" />
+  </label>
+  <label>
+    Resource attributes (JSON)
+    <textarea data-testid="resource-attributes-input" [(ngModel)]="resourceAttributes"></textarea>
+  </label>
+  <label>
+    Action
+    <input type="text" data-testid="action-input" [(ngModel)]="action" />
+  </label>
+
+  <button type="button" data-testid="run-access-simulation" [disabled]="accessRunning()" (click)="runAccessSimulation()">
+    Simulate
+  </button>
+
+  @if (accessError()) {
+    <p data-testid="access-error" class="error">{{ accessError() }}</p>
+  }
+  @if (accessResult(); as result) {
+    <div data-testid="access-result">
+      <p data-testid="access-allowed">Allowed: {{ result.allowed }}</p>
+      <p data-testid="access-source">Source: {{ result.source }}</p>
+      <p data-testid="access-revision">Permission revision: {{ result.permissionRevision }}</p>
+    </div>
+  }
+</section>
+
+<section class="capability-simulator" data-testid="capability-simulator">
+  <h2>Simulate composite capabilities</h2>
+
+  <label>
+    Module
+    <input type="text" data-testid="capability-module-input" [(ngModel)]="capabilityModule" />
+  </label>
+  <label>
+    Capability keys (comma separated)
+    <input type="text" data-testid="capability-keys-input" [(ngModel)]="capabilityKeys" />
+  </label>
+  <label>
+    Principal ID
+    <input type="text" data-testid="capability-principal-id-input" [(ngModel)]="capabilityPrincipalId" />
+  </label>
+  <label>
+    IdP roles (comma separated)
+    <input type="text" data-testid="capability-idp-roles-input" [(ngModel)]="capabilityIdpRoles" />
+  </label>
+  <label>
+    Sample attributes per targetRef (JSON)
+    <textarea data-testid="sample-attributes-input" [(ngModel)]="sampleAttributesJSON"></textarea>
+  </label>
+
+  <button
+    type="button"
+    data-testid="run-capability-simulation"
+    [disabled]="capabilityRunning()"
+    (click)="runCapabilitySimulation()"
+  >
+    Simulate
+  </button>
+
+  @if (capabilityError()) {
+    <p data-testid="capability-error" class="error">{{ capabilityError() }}</p>
+  }
+  @if (capabilityResult(); as result) {
+    <div data-testid="capability-result">
+      <ul data-testid="capability-outcomes">
+        @for (entry of capabilityEntries(result); track entry.key) {
+          <li>
+            {{ entry.key }}: {{ entry.allowed ? 'allowed' : 'denied' }}
+          </li>
+        }
+      </ul>
+
+      <h3>Full requirement tree</h3>
+      <ul data-testid="requirement-tree">
+        @for (leaf of result.requirementTree; track leaf.resource + ':' + leaf.action + ':' + leaf.target) {
+          <li [attr.data-testid]="'leaf-' + leaf.resource + '-' + leaf.action">
+            {{ leaf.resource }}:{{ leaf.action }} ({{ leaf.target }}) -
+            {{ leaf.allowed ? 'allowed' : 'denied' }} ({{ leaf.reason }})
+          </li>
+        }
+      </ul>
+    </div>
+  }
+</section>

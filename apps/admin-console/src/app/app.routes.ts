@@ -5,6 +5,7 @@ import { Callback } from './auth/callback';
 import { ResourceCatalogBrowser } from './resource-catalog-browser/resource-catalog-browser';
 import { RoleMatrix } from './role-matrix/role-matrix';
 import { Shell } from './shell/shell';
+import { Simulator } from './simulator/simulator';
 import { UserOverride } from './user-override/user-override';
 
 export const appRoutes: Route[] = [
@@ -18,6 +19,7 @@ export const appRoutes: Route[] = [
       { path: 'role-matrix', component: RoleMatrix },
       { path: 'user-overrides', component: UserOverride },
       { path: 'resource-catalog', component: ResourceCatalogBrowser },
+      { path: 'simulator', component: Simulator },
     ],
   },
 ];

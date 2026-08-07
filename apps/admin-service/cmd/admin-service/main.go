@@ -13,10 +13,12 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/tishan-harischandra/cerbos-poc/apps/admin-service/internal/adsclient"
 	"github.com/tishan-harischandra/cerbos-poc/apps/admin-service/internal/catalogapi"
 	"github.com/tishan-harischandra/cerbos-poc/apps/admin-service/internal/config"
 	"github.com/tishan-harischandra/cerbos-poc/apps/admin-service/internal/rolematrix"
 	"github.com/tishan-harischandra/cerbos-poc/apps/admin-service/internal/server"
+	"github.com/tishan-harischandra/cerbos-poc/apps/admin-service/internal/simulate"
 	"github.com/tishan-harischandra/cerbos-poc/apps/admin-service/internal/useroverride"
 	"github.com/tishan-harischandra/cerbos-poc/libs/assignmentstore/postgresstore"
 	"github.com/tishan-harischandra/cerbos-poc/libs/capabilitycatalog"
@@ -87,6 +89,9 @@ func main() {
 			Resources:          resourceCatalog,
 			RootPolicyRevision: cfg.RootPolicyRevision,
 			Capabilities:       uiCapabilities,
+		},
+		Simulate: &simulate.Handler{
+			ADS: adsclient.New(cfg.ADSAddr),
 		},
 	})
 

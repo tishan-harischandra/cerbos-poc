@@ -1,0 +1,15 @@
+.error {
+  color: #b00020;
+}
+
+.access-simulator label,
+.capability-simulator label {
+  display: block;
+  margin-top: 0.5rem;
+}
+
+textarea {
+  width: 100%;
+  min-height: 4rem;
+  font-family: monospace;
+}

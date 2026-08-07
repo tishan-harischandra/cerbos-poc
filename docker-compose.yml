@@ -111,8 +111,12 @@ services:
       - --check=false
       # Redpanda reports anonymous usage stats to Redpanda Data by default;
       # this is an invalidation transport internal to the compose network,
-      # not a deployment with a Redpanda support relationship.
-      - --set=redpanda.enable_usage_stats=false
+      # not a deployment with a Redpanda support relationship. This must
+      # be two array entries: v24.2.7's rpk forwards '--set' straight to
+      # the redpanda binary's own parser, which rejects the '--set=key=value'
+      # single-token form.
+      - --set
+      - enable_usage_stats=false
     healthcheck:
       test: ["CMD", "rpk", "cluster", "health", "--exit-when-healthy"]
       interval: 5s
@@ -210,6 +214,10 @@ services:
       # REVOKE names none, rather than being left unbounded (issue #15).
       USER_OVERRIDE_HIGH_RISK_ACTIONS: "${USER_OVERRIDE_HIGH_RISK_ACTIONS:-update,delete,assign}"
       USER_OVERRIDE_HIGH_RISK_VALIDITY: "${USER_OVERRIDE_HIGH_RISK_VALIDITY:-2160h}"
+      # The effective-access simulator (§9.4, issue #19) runs the real ADS
+      # and Cerbos path for an explicitly named principal, never a second
+      # evaluation implementation of its own.
+      ADS_ADDR: "http://ads:8080"
     volumes:
       - ./deploy/secrets/idp-admin-credentials:/run/secrets/idp-admin-credentials:ro
       - ./deploy/cerbos/catalog/resources:/authorization-catalog:ro
@@ -220,6 +228,8 @@ services:
       keycloak:
         condition: service_healthy
       redpanda:
+        condition: service_healthy
+      ads:
         condition: service_healthy
     healthcheck:
       test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://127.0.0.1:8081/readyz"]

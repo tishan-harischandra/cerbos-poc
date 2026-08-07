@@ -51,6 +51,14 @@ type Config struct {
 	// does not exist.
 	CapabilityHandler http.Handler
 
+	// SimulateHandler serves POST /internal/authz/simulate and
+	// CapabilitySimulateHandler serves POST /internal/capabilities/simulate
+	// (issue #19). Both are reachable only from other backend services over
+	// the internal compose network, never from a browser - nil means the
+	// route does not exist.
+	SimulateHandler           http.Handler
+	CapabilitySimulateHandler http.Handler
+
 	// MetricsHandler serves GET /metrics, the §10 convergence metrics
 	// (issue #14). Nil means the route does not exist. Unauthenticated,
 	// like every other Prometheus scrape target on this network.
@@ -77,6 +85,12 @@ func New(cfg Config) http.Handler {
 	}
 	if cfg.CapabilityHandler != nil {
 		mux.Handle("POST /internal/capabilities/evaluate", cfg.CapabilityHandler)
+	}
+	if cfg.SimulateHandler != nil {
+		mux.Handle("POST /internal/authz/simulate", cfg.SimulateHandler)
+	}
+	if cfg.CapabilitySimulateHandler != nil {
+		mux.Handle("POST /internal/capabilities/simulate", cfg.CapabilitySimulateHandler)
 	}
 	if cfg.MetricsHandler != nil {
 		mux.Handle("GET /metrics", cfg.MetricsHandler)
