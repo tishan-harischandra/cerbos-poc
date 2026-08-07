@@ -9,6 +9,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -371,12 +372,14 @@ func (s *Store) AppendAuditEvent(ctx context.Context, event assignmentstore.Audi
 	const statement = `
 		INSERT INTO permission_audit_event (
 			event_id, actor_id, operation, target_type, before_json, after_json,
-			tenant_id, hospital_id, correlation_id, created_at)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`
+			tenant_id, hospital_id, role_external_id, target_user_id,
+			resource_action_keys, correlation_id, created_at)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)`
 
 	_, err := s.pool.Exec(ctx, statement,
 		event.EventID, event.ActorID, event.Operation, event.TargetType,
 		event.BeforeJSON, event.AfterJSON, event.TenantID, event.HospitalID,
+		event.RoleExternalID, event.TargetUserID, event.ResourceActionKeys,
 		event.CorrelationID, event.CreatedAt)
 	if err != nil {
 		return fmt.Errorf("postgresstore: appending an audit event: %w", err)
@@ -385,17 +388,24 @@ func (s *Store) AppendAuditEvent(ctx context.Context, event assignmentstore.Audi
 }
 
 // AuditEvent reads one audit record.
+//
+// role_external_id, target_user_id and resource_action_keys are nullable -
+// absent for whichever audit search dimensions a given event does not
+// carry - and COALESCE reads an absent one back as the empty string rather
+// than as a distinction the caller would have to handle.
 func (s *Store) AuditEvent(ctx context.Context, eventID string) (assignmentstore.AuditEvent, bool, error) {
 	const query = `
 		SELECT actor_id, operation, target_type, before_json, after_json,
-		       tenant_id, hospital_id, correlation_id, created_at
+		       tenant_id, hospital_id, COALESCE(role_external_id, ''), COALESCE(target_user_id, ''),
+		       COALESCE(resource_action_keys, ''), correlation_id, created_at
 		FROM permission_audit_event WHERE event_id = $1`
 
 	event := assignmentstore.AuditEvent{EventID: eventID}
 	err := s.pool.QueryRow(ctx, query, eventID).Scan(
 		&event.ActorID, &event.Operation, &event.TargetType,
 		&event.BeforeJSON, &event.AfterJSON, &event.TenantID,
-		&event.HospitalID, &event.CorrelationID, &event.CreatedAt)
+		&event.HospitalID, &event.RoleExternalID, &event.TargetUserID,
+		&event.ResourceActionKeys, &event.CorrelationID, &event.CreatedAt)
 	if isNoRows(err) {
 		return assignmentstore.AuditEvent{}, false, nil
 	}
@@ -403,6 +413,86 @@ func (s *Store) AuditEvent(ctx context.Context, eventID string) (assignmentstore
 		return assignmentstore.AuditEvent{}, false, fmt.Errorf("postgresstore: reading an audit event: %w", err)
 	}
 	return event, true, nil
+}
+
+// SearchAuditEvents searches the append-only administration audit (§9.1,
+// §9.4) across every documented dimension, newest first.
+func (s *Store) SearchAuditEvents(ctx context.Context, query assignmentstore.AuditEventSearchQuery) ([]assignmentstore.AuditEvent, int, error) {
+	conditions := []string{"tenant_id = $1"}
+	args := []any{query.TenantID}
+	arg := func(value any) string {
+		args = append(args, value)
+		return fmt.Sprintf("$%d", len(args))
+	}
+
+	if query.HospitalID != "" {
+		conditions = append(conditions, "hospital_id = "+arg(query.HospitalID))
+	}
+	if query.ActorID != "" {
+		conditions = append(conditions, "actor_id = "+arg(query.ActorID))
+	}
+	if query.RoleExternalID != "" {
+		conditions = append(conditions, "role_external_id = "+arg(query.RoleExternalID))
+	}
+	if query.TargetUserID != "" {
+		conditions = append(conditions, "target_user_id = "+arg(query.TargetUserID))
+	}
+	if query.ResourceKey != "" {
+		conditions = append(conditions, "resource_action_keys LIKE "+arg("%"+query.ResourceKey+":%"))
+	}
+	if query.ActionKey != "" {
+		conditions = append(conditions, "resource_action_keys LIKE "+arg("%:"+query.ActionKey+"%"))
+	}
+	if !query.CreatedFrom.IsZero() {
+		conditions = append(conditions, "created_at >= "+arg(query.CreatedFrom))
+	}
+	if !query.CreatedTo.IsZero() {
+		conditions = append(conditions, "created_at <= "+arg(query.CreatedTo))
+	}
+
+	limit := query.Limit
+	if limit <= 0 {
+		limit = assignmentstore.DefaultAuditSearchLimit
+	}
+
+	where := strings.Join(conditions, " AND ")
+
+	var totalCount int
+	countQuery := "SELECT count(*) FROM permission_audit_event WHERE " + where
+	if err := s.pool.QueryRow(ctx, countQuery, args...).Scan(&totalCount); err != nil {
+		return nil, 0, fmt.Errorf("postgresstore: counting audit events: %w", err)
+	}
+
+	pageArgs := append(append([]any{}, args...), limit, query.Offset)
+	pageQuery := fmt.Sprintf(`
+		SELECT event_id, actor_id, operation, target_type, before_json, after_json,
+		       tenant_id, hospital_id, COALESCE(role_external_id, ''), COALESCE(target_user_id, ''),
+		       COALESCE(resource_action_keys, ''), correlation_id, created_at
+		FROM permission_audit_event WHERE %s
+		ORDER BY created_at DESC, event_id DESC
+		LIMIT $%d OFFSET $%d`, where, len(pageArgs)-1, len(pageArgs))
+
+	rows, err := s.pool.Query(ctx, pageQuery, pageArgs...)
+	if err != nil {
+		return nil, 0, fmt.Errorf("postgresstore: searching audit events: %w", err)
+	}
+	defer rows.Close()
+
+	var page []assignmentstore.AuditEvent
+	for rows.Next() {
+		var event assignmentstore.AuditEvent
+		if err := rows.Scan(&event.EventID, &event.ActorID, &event.Operation, &event.TargetType,
+			&event.BeforeJSON, &event.AfterJSON, &event.TenantID, &event.HospitalID,
+			&event.RoleExternalID, &event.TargetUserID, &event.ResourceActionKeys,
+			&event.CorrelationID, &event.CreatedAt); err != nil {
+			return nil, 0, fmt.Errorf("postgresstore: scanning an audit event: %w", err)
+		}
+		page = append(page, event)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, 0, fmt.Errorf("postgresstore: reading audit event rows: %w", err)
+	}
+	return page, totalCount, nil
 }
 
 // AppendOutboxEvent appends one outbox row.
@@ -539,10 +629,12 @@ func (s *Store) SaveRoleMatrix(ctx context.Context, write assignmentstore.RoleMa
 	if _, err := tx.Exec(ctx, `
 		INSERT INTO permission_audit_event (
 			event_id, actor_id, operation, target_type, before_json, after_json,
-			tenant_id, hospital_id, correlation_id, created_at)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
+			tenant_id, hospital_id, role_external_id, resource_action_keys,
+			correlation_id, created_at)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)`,
 		write.Audit.EventID, write.Audit.ActorID, write.Audit.Operation, write.Audit.TargetType,
 		write.Audit.BeforeJSON, write.Audit.AfterJSON, write.TenantID, write.Audit.HospitalID,
+		write.RoleExternalID, assignmentstore.JoinResourceActionKeys(write.Permissions),
 		write.Audit.CorrelationID, write.Audit.CreatedAt); err != nil {
 		return 0, fmt.Errorf("postgresstore: appending the audit event: %w", err)
 	}
@@ -633,10 +725,12 @@ func (s *Store) SaveUserOverrideWrite(ctx context.Context, write assignmentstore
 	if _, err := tx.Exec(ctx, `
 		INSERT INTO permission_audit_event (
 			event_id, actor_id, operation, target_type, before_json, after_json,
-			tenant_id, hospital_id, correlation_id, created_at)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
+			tenant_id, hospital_id, target_user_id, resource_action_keys,
+			correlation_id, created_at)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)`,
 		write.Audit.EventID, write.Audit.ActorID, write.Audit.Operation, write.Audit.TargetType,
 		write.Audit.BeforeJSON, write.Audit.AfterJSON, key.TenantID, key.HospitalID,
+		key.UserExternalID, assignmentstore.ResourceActionKey(key.ResourceKey, key.ActionKey),
 		write.Audit.CorrelationID, write.Audit.CreatedAt); err != nil {
 		return 0, fmt.Errorf("postgresstore: appending the audit event: %w", err)
 	}

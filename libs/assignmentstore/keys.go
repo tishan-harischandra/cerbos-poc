@@ -3,6 +3,7 @@ package assignmentstore
 import (
 	"fmt"
 	"regexp"
+	"strings"
 )
 
 // NormalizeOverrideKey puts an override key into the one form the database
@@ -17,6 +18,22 @@ func NormalizeOverrideKey(key UserOverrideKey) UserOverrideKey {
 		key.ResourceInstanceID = NoResourceInstance
 	}
 	return key
+}
+
+// ResourceActionKey formats one resource:action pair the way the audit
+// search dimensions "resource" and "action" (§9.1) are stored and matched.
+func ResourceActionKey(resourceKey, actionKey string) string {
+	return resourceKey + ":" + actionKey
+}
+
+// JoinResourceActionKeys formats the resource:action pairs a single audit
+// event touched, comma-separated, for AuditEvent.ResourceActionKeys.
+func JoinResourceActionKeys(inputs []RolePermissionInput) string {
+	keys := make([]string, 0, len(inputs))
+	for _, input := range inputs {
+		keys = append(keys, ResourceActionKey(input.ResourceKey, input.ActionKey))
+	}
+	return strings.Join(keys, ",")
 }
 
 // tableName is deliberately strict: table names reach SQL by concatenation in

@@ -134,17 +134,61 @@ type PermissionRevision struct {
 
 // AuditEvent is one append-only record of an authorization change (§8.1).
 type AuditEvent struct {
-	EventID       string
-	ActorID       string
-	Operation     string
-	TargetType    string
-	BeforeJSON    string
-	AfterJSON     string
-	TenantID      string
-	HospitalID    string
-	CorrelationID string
-	CreatedAt     time.Time
+	EventID    string
+	ActorID    string
+	Operation  string
+	TargetType string
+	BeforeJSON string
+	AfterJSON  string
+	TenantID   string
+	HospitalID string
+	// RoleExternalID names the canonical role a ROLE_MATRIX_SAVE event
+	// changed permissions for. Empty for a USER_OVERRIDE_SAVE event
+	// (§9.1's audit search dimension "role").
+	RoleExternalID string
+	// TargetUserID names the user a USER_OVERRIDE_SAVE event changed an
+	// override for. Empty for a ROLE_MATRIX_SAVE event (§9.1's audit
+	// search dimension "user").
+	TargetUserID string
+	// ResourceActionKeys are the "resourceKey:actionKey" pairs this event
+	// touched, comma-separated. A ROLE_MATRIX_SAVE event can name several;
+	// a USER_OVERRIDE_SAVE event names exactly one (§9.1's audit search
+	// dimensions "resource" and "action").
+	ResourceActionKeys string
+	CorrelationID      string
+	CreatedAt          time.Time
 }
+
+// AuditEventSearchQuery searches the administration audit (§9.1, §9.4)
+// across every documented dimension. Every field is optional except
+// TenantID: an administration query without a tenant predicate is exactly
+// the mistake §8.2 warns every administration query to guard against, so
+// SearchAuditEvents treats an empty TenantID as "match no tenant" rather
+// than "match every tenant".
+type AuditEventSearchQuery struct {
+	TenantID       string
+	HospitalID     string
+	ActorID        string
+	RoleExternalID string
+	TargetUserID   string
+	// ResourceKey and ActionKey each match against ResourceActionKeys.
+	// Either may be given without the other.
+	ResourceKey string
+	ActionKey   string
+	// CreatedFrom and CreatedTo bound CreatedAt, inclusive. Zero means
+	// unbounded on that side.
+	CreatedFrom time.Time
+	CreatedTo   time.Time
+	// Limit bounds the page size. Zero means DefaultAuditSearchLimit.
+	Limit int
+	// Offset is the number of matching rows to skip, for the next page.
+	Offset int
+}
+
+// DefaultAuditSearchLimit is the page size SearchAuditEvents uses when a
+// query's Limit is zero, so a caller that forgets to set one gets a
+// bounded page rather than an installation's entire audit history.
+const DefaultAuditSearchLimit = 50
 
 // OutboxEvent is one row of the transactional outbox (§8.1).
 type OutboxEvent struct {
@@ -181,8 +225,10 @@ type RoleMatrixWrite struct {
 	// saved.
 	ExpectedRevision int64
 	Permissions      []RolePermissionInput
-	// Audit.TenantID is ignored; the write always audits against
-	// RoleMatrixWrite.TenantID so the two can never disagree.
+	// Audit.TenantID, Audit.RoleExternalID and Audit.ResourceActionKeys are
+	// ignored; the write always audits against RoleMatrixWrite.TenantID,
+	// RoleMatrixWrite.RoleExternalID and the resource:action keys named in
+	// Permissions, so none of the four can ever disagree.
 	Audit  AuditEvent
 	Outbox OutboxEvent
 }
@@ -208,9 +254,10 @@ type UserOverrideWrite struct {
 	// ExpectedRevision is the tenant permission revision the caller last
 	// read, the same expected-revision guard SaveRoleMatrix uses (§9.4).
 	ExpectedRevision int64
-	// Audit.TenantID and Audit.HospitalID are ignored; the write always
-	// audits against Key.TenantID and Key.HospitalID so the two can never
-	// disagree.
+	// Audit.TenantID, Audit.HospitalID, Audit.TargetUserID and
+	// Audit.ResourceActionKeys are ignored; the write always audits
+	// against Key.TenantID, Key.HospitalID, Key.UserExternalID and
+	// Key.ResourceKey/Key.ActionKey so none of them can ever disagree.
 	Audit  AuditEvent
 	Outbox OutboxEvent
 }
@@ -316,6 +363,14 @@ type Store interface {
 
 	AppendAuditEvent(ctx context.Context, event AuditEvent) error
 	AuditEvent(ctx context.Context, eventID string) (AuditEvent, bool, error)
+
+	// SearchAuditEvents searches the append-only administration audit
+	// (§9.1, §9.4) across every documented dimension, newest first.
+	// TotalCount is the count of every matching row, not just this page,
+	// so a caller can tell whether more pages remain. There is no path
+	// here, or anywhere else in this interface, to update or delete an
+	// audit row: the history is append-only by construction (§8.2).
+	SearchAuditEvents(ctx context.Context, query AuditEventSearchQuery) (page []AuditEvent, totalCount int, err error)
 
 	AppendOutboxEvent(ctx context.Context, event OutboxEvent) error
 	OutboxEvent(ctx context.Context, eventID string) (OutboxEvent, bool, error)
