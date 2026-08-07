@@ -69,6 +69,28 @@ describe('AuditSearch', () => {
     expect(total.textContent).toContain('1 total');
   });
 
+  it('sends a full RFC3339 timestamp for a date typed as datetime-local, not the bare local string', async () => {
+    const httpMock = setUp();
+    const fixture = TestBed.createComponent(AuditSearch);
+    fixture.detectChanges();
+
+    // What a <input type="datetime-local"> actually produces: no
+    // timezone offset at all.
+    fixture.componentInstance.from.set('2026-06-01T12:00');
+    const searchPromise = fixture.componentInstance.search();
+
+    const req = httpMock.expectOne(
+      (r) => r.url === '/api/admin/authz/audit' && r.params.has('from'),
+    );
+    const from = req.request.params.get('from')!;
+    expect(() => new Date(from)).not.toThrow();
+    expect(Number.isNaN(Date.parse(from))).toBe(false);
+    expect(from).toMatch(/Z$|[+-]\d\d:\d\d$/);
+
+    req.flush({ events: [], totalCount: 0 });
+    await searchPromise;
+  });
+
   it('reports a search failure without leaving stale results on screen', async () => {
     const httpMock = setUp();
     const fixture = TestBed.createComponent(AuditSearch);

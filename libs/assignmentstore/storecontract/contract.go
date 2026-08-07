@@ -1835,6 +1835,20 @@ func assertSearchAuditEventsFiltersAndPaginates(t *testing.T, store assignmentst
 		t.Errorf("action search = %+v (err=%v), want exactly search-1", page, err)
 	}
 
+	// A resource or action filter must match a whole key, not a substring
+	// of one: "record" must not match "patient_record", and "rea" (a
+	// prefix of "read") must not match it either.
+	if page, _, err := store.SearchAuditEvents(ctx, assignmentstore.AuditEventSearchQuery{
+		TenantID: "tenant-a", ResourceKey: "record",
+	}); err != nil || len(page) != 0 {
+		t.Errorf("resource search for a substring = %+v (err=%v), want no matches for 'record'", page, err)
+	}
+	if page, _, err := store.SearchAuditEvents(ctx, assignmentstore.AuditEventSearchQuery{
+		TenantID: "tenant-a", ActionKey: "rea",
+	}); err != nil || len(page) != 0 {
+		t.Errorf("action search for a prefix = %+v (err=%v), want no matches for 'rea'", page, err)
+	}
+
 	// Filtering by hospital finds only that hospital's events.
 	if page, _, err := store.SearchAuditEvents(ctx, assignmentstore.AuditEventSearchQuery{
 		TenantID: "tenant-a", HospitalID: "hospital-2",

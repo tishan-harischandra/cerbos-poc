@@ -8,6 +8,21 @@ import { AuditEventRow, AuditSearchApi } from './audit-search-api';
 const PAGE_LIMIT = 20;
 
 /**
+ * A `<input type="datetime-local">` value carries no timezone offset at
+ * all (e.g. "2026-06-01T12:00"), but the server's `from`/`to` filters
+ * require a full RFC3339 timestamp. Converting here, once, is what keeps
+ * every date an administrator actually picks from failing the server's
+ * "from must be an RFC3339 timestamp" check on every search.
+ */
+function toRFC3339(localValue: string): string | undefined {
+  if (!localValue) {
+    return undefined;
+  }
+  const parsed = new Date(localValue);
+  return Number.isNaN(parsed.getTime()) ? undefined : parsed.toISOString();
+}
+
+/**
  * The Admin Console's audit module (§9.1, §9.4, issue #20): search the
  * append-only administration audit by actor, role, target user, resource,
  * action, hospital and date range, and page through the results. There is
@@ -62,8 +77,8 @@ export class AuditSearch {
           user: this.user() || undefined,
           resource: this.resource() || undefined,
           action: this.action() || undefined,
-          from: this.from() || undefined,
-          to: this.to() || undefined,
+          from: toRFC3339(this.from()),
+          to: toRFC3339(this.to()),
           limit: PAGE_LIMIT,
           offset: this.offset(),
         }),

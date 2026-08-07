@@ -488,10 +488,22 @@ func (s *Store) SearchAuditEvents(ctx context.Context, query assignmentstore.Aud
 		conditions = append(conditions, "target_user_id = "+arg(query.TargetUserID))
 	}
 	if query.ResourceKey != "" {
-		conditions = append(conditions, "resource_action_keys LIKE "+arg("%"+query.ResourceKey+":%"))
+		// A key must match a whole "resourceKey:actionKey" pair, not a
+		// substring of one: without the comma-or-start anchor, a
+		// ResourceKey of "record" would falsely match "patient_record:read".
+		start := arg(query.ResourceKey + ":%")
+		middle := arg("%," + query.ResourceKey + ":%")
+		conditions = append(conditions,
+			fmt.Sprintf("(resource_action_keys LIKE %s OR resource_action_keys LIKE %s)", start, middle))
 	}
 	if query.ActionKey != "" {
-		conditions = append(conditions, "resource_action_keys LIKE "+arg("%:"+query.ActionKey+"%"))
+		// Symmetric anchor on the trailing side: without it, an ActionKey
+		// of "rea" would falsely match "patient_record:read" as a prefix
+		// of "read".
+		end := arg("%:" + query.ActionKey)
+		middle := arg("%:" + query.ActionKey + ",%")
+		conditions = append(conditions,
+			fmt.Sprintf("(resource_action_keys LIKE %s OR resource_action_keys LIKE %s)", end, middle))
 	}
 	if !query.CreatedFrom.IsZero() {
 		conditions = append(conditions, "created_at >= "+arg(query.CreatedFrom))
