@@ -1,0 +1,60 @@
+<h1>Revision and activation</h1>
+
+<section class="root-policy">
+  <h2>Root policy</h2>
+  @if (currentRelease(); as current) {
+    <p data-testid="current-root-revision">
+      Current revision: {{ current.revision }} ({{ current.commit }})
+    </p>
+  } @else {
+    <p data-testid="current-root-revision">No root policy revision has been activated yet.</p>
+  }
+
+  @if (releasesError()) {
+    <p data-testid="releases-error" class="error">{{ releasesError() }}</p>
+  }
+
+  <table data-testid="release-history">
+    <thead>
+      <tr>
+        <th>Revision</th>
+        <th>Commit</th>
+        <th>Outcome</th>
+        <th>Recorded at</th>
+      </tr>
+    </thead>
+    <tbody>
+      @for (entry of history(); track entry.revision + entry.commit + entry.recordedAt) {
+        <tr data-testid="release-history-row" [attr.data-outcome]="outcomeOf(entry)">
+          <td>{{ entry.revision }}</td>
+          <td>{{ entry.commit }}</td>
+          <td>
+            @if (entry.activated) {
+              Activated
+            } @else {
+              Failed to activate @if (entry.error) { - {{ entry.error }} }
+            }
+          </td>
+          <td>{{ entry.recordedAt }}</td>
+        </tr>
+      }
+    </tbody>
+  </table>
+</section>
+
+<section class="cache-convergence">
+  <h2>Cache convergence</h2>
+  @if (convergence(); as status) {
+    <p data-testid="convergence-status">
+      Tenant {{ status.tenant }}: cached revision {{ status.cachedRevision }}, actual revision
+      {{ status.actualRevision }} -
+      @if (status.converged) {
+        converged
+      } @else {
+        {{ status.replicasBehindTarget }} replica(s) behind target
+      }
+    </p>
+  } @else if (convergenceError()) {
+    <p data-testid="convergence-error" class="error">{{ convergenceError() }}</p>
+  }
+</section>
