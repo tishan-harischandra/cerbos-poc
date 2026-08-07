@@ -1,0 +1,148 @@
+{
+  "title": "ADS and Cerbos overview",
+  "uid": "ads-cerbos-overview",
+  "timezone": "browser",
+  "schemaVersion": 39,
+  "version": 1,
+  "refresh": "10s",
+  "time": { "from": "now-15m", "to": "now" },
+  "panels": [
+    {
+      "id": 1,
+      "title": "Decision request rate by resource/action/outcome",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 0 },
+      "targets": [
+        {
+          "expr": "sum by (resource, action, outcome) (rate(ads_decision_requests_total[1m]))",
+          "legendFormat": "{{resource}}/{{action}}/{{outcome}}"
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "title": "Decision latency (p50/p95/p99) by resource/action",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 0 },
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.5, sum by (le, resource, action) (rate(ads_decision_duration_seconds_bucket[5m])))",
+          "legendFormat": "p50 {{resource}}/{{action}}"
+        },
+        {
+          "expr": "histogram_quantile(0.95, sum by (le, resource, action) (rate(ads_decision_duration_seconds_bucket[5m])))",
+          "legendFormat": "p95 {{resource}}/{{action}}"
+        },
+        {
+          "expr": "histogram_quantile(0.99, sum by (le, resource, action) (rate(ads_decision_duration_seconds_bucket[5m])))",
+          "legendFormat": "p99 {{resource}}/{{action}}"
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "title": "Cache hit ratio by cache (not aggregated)",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 8 },
+      "targets": [
+        {
+          "expr": "sum by (cache) (rate(ads_cache_hits_total[5m])) / (sum by (cache) (rate(ads_cache_hits_total[5m])) + sum by (cache) (rate(ads_cache_misses_total[5m])))",
+          "legendFormat": "{{cache}}"
+        }
+      ]
+    },
+    {
+      "id": 4,
+      "title": "PostgreSQL cache-miss query latency (p95) by cache",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 8 },
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.95, sum by (le, cache) (rate(ads_db_cache_miss_query_seconds_bucket[5m])))",
+          "legendFormat": "{{cache}}"
+        }
+      ]
+    },
+    {
+      "id": 5,
+      "title": "PostgreSQL connection-pool saturation",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 16 },
+      "targets": [
+        { "expr": "ads_db_pool_acquired_connections", "legendFormat": "acquired" },
+        { "expr": "ads_db_pool_idle_connections", "legendFormat": "idle" },
+        { "expr": "ads_db_pool_max_connections", "legendFormat": "max" }
+      ]
+    },
+    {
+      "id": 6,
+      "title": "Kafka consumer lag and invalidation/revocation latency",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 16 },
+      "targets": [
+        { "expr": "ads_kafka_consumer_lag", "legendFormat": "consumer lag" },
+        {
+          "expr": "histogram_quantile(0.95, rate(ads_invalidation_processing_seconds_bucket[5m]))",
+          "legendFormat": "p95 invalidation latency"
+        },
+        {
+          "expr": "histogram_quantile(0.95, rate(ads_revocation_latency_seconds_bucket[5m]))",
+          "legendFormat": "p95 revocation latency"
+        }
+      ]
+    },
+    {
+      "id": 7,
+      "title": "Permission revision by tenant: cached vs actual",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 24 },
+      "targets": [
+        { "expr": "ads_permission_revision_cached", "legendFormat": "cached {{tenant}}" },
+        { "expr": "ads_permission_revision_actual", "legendFormat": "actual {{tenant}}" }
+      ]
+    },
+    {
+      "id": 8,
+      "title": "Stale-revision duration and replicas behind target",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 24 },
+      "targets": [
+        { "expr": "ads_stale_revision_seconds", "legendFormat": "stale seconds {{tenant}}" },
+        { "expr": "sum by (tenant) (ads_replica_behind_target)", "legendFormat": "replicas behind {{tenant}}" }
+      ]
+    },
+    {
+      "id": 9,
+      "title": "Current root policy revision",
+      "type": "table",
+      "gridPos": { "h": 4, "w": 12, "x": 0, "y": 32 },
+      "targets": [{ "expr": "ads_root_policy_revision_info", "legendFormat": "{{revision}}" }]
+    },
+    {
+      "id": 10,
+      "title": "Cerbos process CPU and memory",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 36 },
+      "targets": [
+        { "expr": "rate(process_cpu_seconds_total{job=\"cerbos\"}[1m])", "legendFormat": "CPU seconds/sec" },
+        { "expr": "process_resident_memory_bytes{job=\"cerbos\"}", "legendFormat": "resident memory" }
+      ]
+    },
+    {
+      "id": 11,
+      "title": "Cerbos gRPC request rate and latency (engine time)",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 36 },
+      "targets": [
+        {
+          "expr": "sum by (rpc_method, rpc_grpc_status_code) (rate(rpc_server_requests_per_rpc_count{job=\"cerbos\"}[1m]))",
+          "legendFormat": "{{rpc_method}}/{{rpc_grpc_status_code}}"
+        },
+        {
+          "expr": "histogram_quantile(0.95, sum by (le) (rate(cerbos_dev_engine_check_latency_milliseconds_bucket{job=\"cerbos\"}[5m])))",
+          "legendFormat": "p95 engine check latency (ms)"
+        }
+      ]
+    }
+  ]
+}
