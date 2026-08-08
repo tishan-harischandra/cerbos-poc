@@ -24,24 +24,9 @@ cold_probe='{"resources":[{"kind":"patient_record","id":"patient-cold-'"$(date +
 
 token="$(token_for user-unassigned)"
 
-# ads's in-process role-matrix cache is per replica, not shared, so with
-# more than one replica a "warm" request and the request that follows it
-# can land on two different pods and see two different cache states. This
-# scenario is about the cache itself, not load balancing across it, so it
-# pins ads to one replica for its duration and restores the original count
-# on the way out.
-original_replicas="$(kubectl_chaos get deployment/ads -o jsonpath='{.spec.replicas}')"
-if [[ "${original_replicas}" != "1" ]]; then
-  echo "==> Pinning ads to one replica for this scenario (was ${original_replicas})"
-  kubectl_chaos scale deployment/ads --replicas=1
-  wait_for_rollout deployment/ads 120s
-fi
-restore_ads_replicas() {
-  if [[ "${original_replicas}" != "1" ]]; then
-    kubectl_chaos scale deployment/ads --replicas="${original_replicas}"
-  fi
-}
-trap restore_ads_replicas EXIT
+# This scenario is about the cache itself, not load balancing across it;
+# see lib.sh's pin_to_one_replica for why that means one ads replica.
+pin_to_one_replica ads
 
 echo "==> Warming the cache for patient-warm-000"
 warm_code="$(curl -sS -o /dev/null -w '%{http_code}' --max-time 5 \

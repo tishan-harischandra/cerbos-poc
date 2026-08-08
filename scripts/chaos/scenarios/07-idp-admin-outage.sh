@@ -22,23 +22,12 @@ probe='{"resources":[{"kind":"patient_record","id":"patient-000",
 result=0
 
 # Token signature validation is served from ads's own in-process JWKS
-# cache, which - like the role-matrix cache 03-database-outage.sh pins
-# around - is per replica, not shared; a decision that lands on a replica
-# that never fetched the signing key while Keycloak was up 401s once
-# Keycloak goes down, which is a replica-selection artifact of this test,
-# not the fail-closed/fail-open property under test here.
-original_replicas="$(kubectl_chaos get deployment/ads -o jsonpath='{.spec.replicas}')"
-if [[ "${original_replicas}" != "1" ]]; then
-  echo "==> Pinning ads to one replica for this scenario (was ${original_replicas})"
-  kubectl_chaos scale deployment/ads --replicas=1
-  wait_for_rollout deployment/ads 120s
-fi
-restore_ads_replicas() {
-  if [[ "${original_replicas}" != "1" ]]; then
-    kubectl_chaos scale deployment/ads --replicas="${original_replicas}"
-  fi
-}
-trap restore_ads_replicas EXIT
+# cache, which - like the role-matrix cache lib.sh's pin_to_one_replica
+# also exists for - is per replica, not shared; a decision that lands on a
+# replica that never fetched the signing key while Keycloak was up 401s
+# once Keycloak goes down, which is a replica-selection artifact of this
+# test, not the fail-closed/fail-open property under test here.
+pin_to_one_replica ads
 
 echo "==> Minting a token and warming the JWKS cache before the outage"
 token="$(token_for user-unassigned)"

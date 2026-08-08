@@ -131,6 +131,33 @@ decision_probe_loop() {
   done
 }
 
+# pin_to_one_replica <deployment-name>
+# ads's role-matrix and JWKS caches are both per replica, not shared, so a
+# scenario that warms a fact on one replica and asserts on it later needs
+# every request in between to land on that same replica. Echoes the
+# deployment's original replica count and registers an EXIT trap that
+# restores it; callers only need to capture that count if they want to log
+# it, restore_one_replica below is registered automatically.
+pin_to_one_replica() {
+  local deployment="$1"
+  local original
+  original="$(kubectl_chaos get "deployment/${deployment}" -o jsonpath='{.spec.replicas}')"
+  if [[ "${original}" != "1" ]]; then
+    echo "==> Pinning ${deployment} to one replica for this scenario (was ${original})"
+    kubectl_chaos scale "deployment/${deployment}" --replicas=1
+    wait_for_rollout "deployment/${deployment}" 120s
+  fi
+  # shellcheck disable=SC2064
+  trap "restore_replicas '${deployment}' '${original}'" EXIT
+}
+
+restore_replicas() {
+  local deployment="$1" original="$2"
+  if [[ "${original}" != "1" ]]; then
+    kubectl_chaos scale "deployment/${deployment}" --replicas="${original}"
+  fi
+}
+
 # assert_no_failures <failure-count-file> <description>
 assert_no_failures() {
   local out_file="$1" description="$2"
