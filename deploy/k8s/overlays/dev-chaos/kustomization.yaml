@@ -53,3 +53,84 @@ patches:
       - op: replace
         path: /spec/minReplicaCount
         value: 2
+  # 08-node-drain.sh drains whichever worker node happens to host a cerbos
+  # pod, on the assumption that only cerbos and ads are ever at risk of
+  # eviction (issue #26, §18: "Drain a node running Cerbos or ADS pods").
+  # Without this pin, the scheduler is free to co-locate postgres, redpanda,
+  # keycloak, gitea or admin-console on that same worker, and draining it
+  # evicts them too - taking down the persistent port-forwards every
+  # scenario after 08 depends on (confirmed against a live cluster: the run
+  # that motivated this pin broke the keycloak port-forward mid-suite,
+  # cascading into 09 and 10 failing on an unrelated "can't mint a token").
+  # Pinning them to the control-plane node, which 08 never drains, keeps
+  # them out of the blast radius entirely.
+  - target:
+      kind: StatefulSet
+      name: postgres
+    patch: |
+      - op: add
+        path: /spec/template/spec/nodeSelector
+        value:
+          node-role.kubernetes.io/control-plane: ""
+      - op: add
+        path: /spec/template/spec/tolerations
+        value:
+          - key: node-role.kubernetes.io/control-plane
+            operator: Exists
+            effect: NoSchedule
+  - target:
+      kind: StatefulSet
+      name: redpanda
+    patch: |
+      - op: add
+        path: /spec/template/spec/nodeSelector
+        value:
+          node-role.kubernetes.io/control-plane: ""
+      - op: add
+        path: /spec/template/spec/tolerations
+        value:
+          - key: node-role.kubernetes.io/control-plane
+            operator: Exists
+            effect: NoSchedule
+  - target:
+      kind: Deployment
+      name: keycloak
+    patch: |
+      - op: add
+        path: /spec/template/spec/nodeSelector
+        value:
+          node-role.kubernetes.io/control-plane: ""
+      - op: add
+        path: /spec/template/spec/tolerations
+        value:
+          - key: node-role.kubernetes.io/control-plane
+            operator: Exists
+            effect: NoSchedule
+  - target:
+      kind: Deployment
+      name: gitea
+    patch: |
+      - op: add
+        path: /spec/template/spec/nodeSelector
+        value:
+          node-role.kubernetes.io/control-plane: ""
+      - op: add
+        path: /spec/template/spec/tolerations
+        value:
+          - key: node-role.kubernetes.io/control-plane
+            operator: Exists
+            effect: NoSchedule
+  - target:
+      kind: Deployment
+      name: admin-console
+    patch: |
+      - op: add
+        path: /spec/template/spec/nodeSelector
+        value:
+          node-role.kubernetes.io/control-plane: ""
+      - op: add
+        path: /spec/template/spec/tolerations
+        value:
+          - key: node-role.kubernetes.io/control-plane
+            operator: Exists
+            effect: NoSchedule
