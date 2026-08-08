@@ -9,3 +9,29 @@ kind: Component
 resources:
   - gitea
   - policy-controller
+  - pvc.yaml
+patches:
+  # admin-service's own policy-release-archives volume is an emptyDir in the
+  # base (deploy/k8s/base/admin-service/deployment.yaml), populated by
+  # nothing until this component's policy-controller runs. Point it at the
+  # same PVC policy-controller writes to instead, and pin admin-service
+  # alongside it so the ReadWriteOnce mount can be satisfied on one node.
+  - target:
+      kind: Deployment
+      name: admin-service
+    patch: |
+      - op: replace
+        path: /spec/template/spec/volumes/3
+        value:
+          name: policy-release-archives
+          persistentVolumeClaim:
+            claimName: policy-release-archives
+      - op: add
+        path: /spec/template/spec/affinity
+        value:
+          podAffinity:
+            requiredDuringSchedulingIgnoredDuringExecution:
+              - labelSelector:
+                  matchLabels:
+                    app: policy-controller
+                topologyKey: kubernetes.io/hostname

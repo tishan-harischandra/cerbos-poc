@@ -13,3 +13,43 @@ components:
 images:
   - name: cerbos-poc/policy-controller
     newTag: dev
+patches:
+  # dev's own single replica per service (deploy/k8s/overlays/dev's own
+  # replica patches) makes the §18 "kill a Cerbos/ADS pod, no failed
+  # requests" rows untestable by construction: with one replica there is
+  # nothing left to route to (confirmed against a live kind cluster, issue
+  # #26 - killing the sole cerbos pod failed most in-flight decisions).
+  # cerbos and ads get a second replica here, still far short of prod's
+  # floor, so 01-cerbos-pod-failure.sh and 02-ads-pod-failure.sh have a
+  # real second replica to fail over to.
+  - target:
+      kind: Deployment
+      name: cerbos
+    patch: |
+      - op: replace
+        path: /spec/replicas
+        value: 2
+  - target:
+      kind: Deployment
+      name: ads
+    patch: |
+      - op: replace
+        path: /spec/replicas
+        value: 2
+  # KEDA's HPA would otherwise scale straight back down to dev's
+  # minReplicaCount of 1 on its next reconcile, undoing the two patches
+  # above.
+  - target:
+      kind: ScaledObject
+      name: cerbos
+    patch: |
+      - op: replace
+        path: /spec/minReplicaCount
+        value: 2
+  - target:
+      kind: ScaledObject
+      name: ads
+    patch: |
+      - op: replace
+        path: /spec/minReplicaCount
+        value: 2

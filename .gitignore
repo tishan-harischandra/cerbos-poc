@@ -8,6 +8,10 @@ tmp/
 .gocache/
 .agentloop/
 .code-review-graph/
+.chaos-tools/
+.chaos-kubeconfig
+.chaos-port-forward-pids
+.chaos-port-forward.log
 __screenshots__/
 libs/keycloakbulkload/cmd/loadseed/loadseed
 

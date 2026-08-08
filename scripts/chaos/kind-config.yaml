@@ -1,0 +1,8 @@
+# Three nodes, not one: the node-drain scenario (scripts/chaos/scenarios/08-node-drain.sh)
+# needs somewhere else for the scheduler to reschedule evicted pods to.
+kind: Cluster
+apiVersion: kind.x-k8s.io/v1alpha4
+nodes:
+  - role: control-plane
+  - role: worker
+  - role: worker

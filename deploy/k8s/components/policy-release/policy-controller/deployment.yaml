@@ -111,4 +111,5 @@ spec:
         - name: policy-release-store
           emptyDir: {}
         - name: policy-release-archives
-          emptyDir: {}
+          persistentVolumeClaim:
+            claimName: policy-release-archives

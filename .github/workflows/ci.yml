@@ -220,3 +220,21 @@ jobs:
       - name: Tear everything down
         if: always()
         run: make clean
+
+  # The §18 chaos scenario suite (issue #26) stands up its own kind cluster,
+  # separate from the docker-compose skeleton every job above exercises, so
+  # it only runs on a real merge to main rather than on every pull request -
+  # it is slow (a from-scratch cluster, KEDA and metrics-server install, and
+  # every service image built and loaded) and its failure signal matters most
+  # exactly where the §18 table's guarantees have to keep holding: what is
+  # about to stay deployed.
+  chaos:
+    name: chaos scenario suite
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Run the chaos suite against a real kind cluster
+        run: make chaos
