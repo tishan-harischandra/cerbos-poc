@@ -1,0 +1,18 @@
+# The PDP is stateless per request (every decision is computed from the
+# request plus the mounted policy tree, never from prior state), so it is
+# safe to scale on CPU alone. Overlays override minReplicaCount/
+# maxReplicaCount per environment.
+apiVersion: keda.sh/v1alpha1
+kind: ScaledObject
+metadata:
+  name: cerbos
+spec:
+  scaleTargetRef:
+    name: cerbos
+  minReplicaCount: 2
+  maxReplicaCount: 4
+  triggers:
+    - type: cpu
+      metricType: Utilization
+      metadata:
+        value: "75"

@@ -1,0 +1,14 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - deployment.yaml
+  - service.yaml
+  - scaledobject.yaml
+configMapGenerator:
+  - name: resource-service-config
+    literals:
+      - RESOURCE_SERVICE_HTTP_ADDR=:8080
+      - ADS_ADDR=http://ads:8080
+      - POSTGRES_ADDR=postgres:5432
+generatorOptions:
+  disableNameSuffixHash: true

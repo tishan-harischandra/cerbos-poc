@@ -1,0 +1,21 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - deployment.yaml
+  - service.yaml
+  - scaledobject.yaml
+configMapGenerator:
+  - name: admin-service-config
+    literals:
+      - ADMIN_SERVICE_HTTP_ADDR=:8081
+      - POSTGRES_ADDR=postgres:5432
+      - AUTHORIZATION_CATALOG_DIR=/authorization-catalog
+      - CAPABILITY_CATALOG_DIR=/capability-catalog
+      - KAFKA_BROKERS=redpanda:9092
+      - KAFKA_PERMISSION_CHANGED_TOPIC=permission-changed
+      - USER_OVERRIDE_HIGH_RISK_ACTIONS=update,delete,assign
+      - USER_OVERRIDE_HIGH_RISK_VALIDITY=2160h
+      - ADS_ADDR=http://ads:8080
+      - POLICY_ARCHIVE_STORE_DIR=/var/lib/policy-controller/archives
+generatorOptions:
+  disableNameSuffixHash: true

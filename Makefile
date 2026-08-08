@@ -79,6 +79,7 @@ ci: ## Run exactly what CI runs, so a green local run means a green pipeline
 	bash scripts/tests/loadtest-preflight-test.sh
 	bash scripts/tests/loadtest-k6-config-test.sh
 	bash scripts/tests/loadtest-run-test.sh
+	$(MAKE) k8s-validate
 
 .PHONY: migrate
 migrate: ## Apply the authorization schema to PostgreSQL
@@ -159,3 +160,7 @@ gen: ## Run every project's code generators
 .PHONY: graph
 graph: ## Open the single Go plus Angular dependency graph
 	$(NX) graph
+
+.PHONY: k8s-validate
+k8s-validate: ## Render both deploy/k8s overlays and validate every resource against the Kubernetes API schema
+	bash scripts/tests/k8s-manifests-test.sh

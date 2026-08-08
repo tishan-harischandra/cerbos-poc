@@ -1,0 +1,14 @@
+apiVersion: keda.sh/v1alpha1
+kind: ScaledObject
+metadata:
+  name: business-ui
+spec:
+  scaleTargetRef:
+    name: business-ui
+  minReplicaCount: 2
+  maxReplicaCount: 4
+  triggers:
+    - type: cpu
+      metricType: Utilization
+      metadata:
+        value: "80"

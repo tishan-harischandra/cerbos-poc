@@ -101,6 +101,7 @@ apps/admin-console    Angular app: live platform status
 libs/permissioncontext  Assembles permissionContext data; never a verdict
 libs/cerbosclient     Long-lived gRPC channel to the PDP
 deploy/cerbos         Cerbos config, the served policy bundle and the ADR-003 control
+deploy/k8s            kustomize layout for a real cluster (see "Kubernetes deployment")
 tests/architecture    Executable checks for constraints no compiler enforces
 scripts/              Container-backed toolchain helpers and infrastructure tests
 ```
@@ -145,6 +146,65 @@ make loadtest LOADTEST_PROFILE=demo # exercise the harness against the small dem
 **This suite is marked HITL** (issue #25): the threshold values encode
 §15.3's suggested targets, but they will likely need renegotiating against
 the first real measurements taken on real hardware.
+
+## Kubernetes deployment
+
+`deploy/k8s` is a `kustomize` layout for running the same core walking-skeleton
+services docker-compose brings up by default — `postgres`, `cerbos`,
+`keycloak`, `redpanda`, `ads`, `admin-service`, `resource-service`,
+`admin-console` and `business-ui` — on a real cluster instead. The `oracle`,
+`loadtest`, `policy-release` and `observability` compose profiles are out of
+scope for this layout (see issue #55).
+
+```
+deploy/k8s/base/<service>/   One Deployment or StatefulSet, Service, and
+                             (for scalable services) a KEDA ScaledObject
+                             per directory.
+deploy/k8s/base/common/      Shared IdP config/credential and Postgres DSN
+                             every Go service consumes.
+deploy/k8s/overlays/dev/     kind/minikube: 1 replica per service, `:dev`
+                             image tags.
+deploy/k8s/overlays/prod/    A real cluster: 3+ replica floors, pinned
+                             image tags (edit REGISTRY/TAG first).
+```
+
+Cerbos's committed policy tree and the ADS/admin-service capability and
+authorization catalogs are baked into a small `cerbos-poc/cerbos-assets`
+image (`deploy/cerbos/Dockerfile`) and copied into an `emptyDir` by an
+initContainer on every pod that needs one, standing in for compose's host
+bind mounts — the combined tree is well over the ~1MiB a ConfigMap allows,
+and its per-resource directory structure (ADR-006) doesn't survive a flat
+ConfigMap's key space anyway.
+
+To run locally against `kind` or `minikube`:
+
+```bash
+docker build -f deploy/cerbos/Dockerfile -t cerbos-poc/cerbos-assets:dev .
+docker build -f apps/ads/Dockerfile -t cerbos-poc/ads:dev .
+docker build -f apps/admin-service/Dockerfile -t cerbos-poc/admin-service:dev .
+docker build -f apps/resource-service/Dockerfile -t cerbos-poc/resource-service:dev .
+docker build -f apps/admin-console/Dockerfile -t cerbos-poc/admin-console:dev .
+docker build -f apps/business-ui/Dockerfile -t cerbos-poc/business-ui:dev .
+kind load docker-image cerbos-poc/cerbos-assets:dev cerbos-poc/ads:dev \
+  cerbos-poc/admin-service:dev cerbos-poc/resource-service:dev \
+  cerbos-poc/admin-console:dev cerbos-poc/business-ui:dev
+kubectl apply -k deploy/k8s/overlays/dev
+```
+
+`make k8s-validate` (wired into `make ci`) renders both overlays with
+`kustomize` and validates every resource against the Kubernetes API schema
+(KEDA's `ScaledObject` CRD is skipped — no cluster is required, everything
+runs through Docker via `scripts/kustomize.sh`/`scripts/kubeconform.sh`, the
+same pattern as `scripts/go.sh`/`scripts/k6.sh`).
+
+**Remaining manual steps before a real cluster deploy:** a KEDA operator
+installed cluster-wide; the `prod` overlay's `REGISTRY`/`TAG` image
+placeholders replaced (or set with `kustomize edit set image`); an Ingress or
+LoadBalancer Service in front of `admin-console`/`business-ui` (compose's
+host port publishing has no direct equivalent here and isn't defined by this
+layout); and the dev-only fixture credentials in `deploy/k8s/base/common` and
+`deploy/k8s/base/postgres` replaced with real secrets from a cluster secret
+manager.
 
 ## Architectural constraints
 

@@ -1,0 +1,11 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - statefulset.yaml
+  - service.yaml
+secretGenerator:
+  - name: postgres-credentials
+    literals:
+      - POSTGRES_USER=cerbos_poc
+      - POSTGRES_PASSWORD=change-me
+      - POSTGRES_DB=cerbos_poc
