@@ -16,7 +16,7 @@ configMapGenerator:
       - KAFKA_CONSUMER_GROUP=ads
       - ADS_RECONCILE_INTERVAL=2s
       - CAPABILITY_CATALOG_DIR=/capability-catalog
-      - CAPABILITY_CATALOG_REVISION="1"
+      - CAPABILITY_CATALOG_REVISION=1
       - ROOT_POLICY_REVISION=root-v1.4.0
 generatorOptions:
   disableNameSuffixHash: true
