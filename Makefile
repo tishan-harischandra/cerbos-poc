@@ -3,6 +3,7 @@ export PATH := $(CURDIR)/scripts/bin:$(PATH)
 
 COMPOSE ?= docker compose
 NX ?= npx nx
+PROFILE ?= demo
 
 .DEFAULT_GOAL := help
 
@@ -104,6 +105,14 @@ observability-up: ## Start Prometheus and Grafana, scraping the ADS and Cerbos (
 .PHONY: observability-down
 observability-down: ## Stop the observability profile's services
 	$(COMPOSE) --profile observability down --remove-orphans
+
+.PHONY: loadtest-seed
+loadtest-seed: ## Seed the load-test population (issue #24); PROFILE=demo|load, default demo
+	bash scripts/loadtest-seed.sh $(PROFILE)
+
+.PHONY: loadtest-down
+loadtest-down: ## Stop the loadtest profile's services
+	$(COMPOSE) --profile loadtest down --remove-orphans
 
 .PHONY: seed
 seed: ## Write the demo role matrix into the authorization database

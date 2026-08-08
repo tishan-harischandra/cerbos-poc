@@ -13,6 +13,9 @@ use (
 ./libs/cataloggen
 ./libs/cerbosclient
 ./libs/idpdirectory
+./libs/keycloakbulkload
+./libs/keycloakbulkload/cmd/loadseed
+./libs/loadmodel
 ./libs/outbox
 ./libs/permissioncontext
 ./libs/permissionevents
