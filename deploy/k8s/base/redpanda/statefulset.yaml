@@ -1,0 +1,56 @@
+# Same single-node, dev-mode configuration as docker-compose's redpanda
+# service: this is the outbox-to-invalidation transport (§10), never the
+# source of truth, so a real multi-node cluster and KEDA scaling are both
+# unnecessary here.
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: redpanda
+spec:
+  serviceName: redpanda
+  replicas: 1
+  selector:
+    matchLabels:
+      app: redpanda
+  template:
+    metadata:
+      labels:
+        app: redpanda
+    spec:
+      containers:
+        - name: redpanda
+          image: docker.io/redpandadata/redpanda:v24.2.7
+          args:
+            - redpanda
+            - start
+            - --smp=1
+            - --memory=512M
+            - --overprovisioned
+            - --node-id=0
+            - --kafka-addr=PLAINTEXT://0.0.0.0:9092
+            - --advertise-kafka-addr=PLAINTEXT://redpanda:9092
+            - --check=false
+            - --set
+            - enable_usage_stats=false
+          ports:
+            - name: kafka
+              containerPort: 9092
+          readinessProbe:
+            exec:
+              command: ["rpk", "cluster", "health", "--exit-when-healthy"]
+            initialDelaySeconds: 5
+            periodSeconds: 5
+            failureThreshold: 30
+          livenessProbe:
+            exec:
+              command: ["rpk", "cluster", "health", "--exit-when-healthy"]
+            initialDelaySeconds: 15
+            periodSeconds: 10
+            failureThreshold: 6
+          resources:
+            requests:
+              cpu: 250m
+              memory: 512Mi
+            limits:
+              cpu: "1"
+              memory: 1Gi

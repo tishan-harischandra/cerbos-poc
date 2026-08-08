@@ -1,0 +1,32 @@
+# Shared configuration every Go service (ads, admin-service,
+# resource-service) needs: the §7.1 IdP adapter selection, its admin
+# credential, and the assignmentstore Postgres DSN. Centralised here so an
+# overlay only has to patch one place to point every service at a
+# different IdP realm or database, instead of three copies drifting apart.
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+configMapGenerator:
+  - name: idp-config
+    literals:
+      - IDP_TYPE=KEYCLOAK
+      - IDP_BASE_URL=http://keycloak:8080
+      - IDP_ADDR=keycloak:8080
+      - IDP_REALM=cerbos-poc
+      - IDP_TENANT_ID=tenant-a
+      - IDP_TENANT_MAPPING_MODE=CLAIM
+      - IDP_ROLE_SOURCE=CLIENT
+      - IDP_CLIENT_ID=patient-app
+      - IDP_SERVICE_CLIENT_ID=authorization-admin-service
+      - IDP_ISSUER=http://localhost:8081/realms/cerbos-poc
+secretGenerator:
+  - name: idp-admin-credentials
+    files:
+      - idp-admin-credentials=../../../secrets/idp-admin-credentials
+  # The dev-only fixture credential compose defaults every DSN to
+  # (POSTGRES_PASSWORD=change-me). A real deployment overlay would source
+  # this from a cluster secret manager instead of a literal here.
+  - name: postgres-dsn
+    literals:
+      - ASSIGNMENTSTORE_POSTGRES_DSN=postgres://cerbos_poc:change-me@postgres:5432/cerbos_poc?sslmode=disable
+generatorOptions:
+  disableNameSuffixHash: true

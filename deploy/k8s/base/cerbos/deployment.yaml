@@ -1,0 +1,71 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: cerbos
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: cerbos
+  template:
+    metadata:
+      labels:
+        app: cerbos
+    spec:
+      # The committed policy tree and Cerbos config have no ConfigMap-sized
+      # equivalent (see deploy/cerbos/Dockerfile); an initContainer built
+      # from that assets image copies them into emptyDir volumes the main
+      # container mounts read-only, standing in for compose's host bind
+      # mount.
+      initContainers:
+        - name: assets
+          image: cerbos-poc/cerbos-assets:dev
+          command:
+            - /bin/sh
+            - -c
+            - "cp -r /assets/policies/* /policies/ && cp /assets/config.yaml /conf/config.yaml"
+          volumeMounts:
+            - name: policies
+              mountPath: /policies
+            - name: config
+              mountPath: /conf
+      containers:
+        - name: cerbos
+          image: ghcr.io/cerbos/cerbos:0.46.0
+          args: ["server", "--config=/conf/config.yaml"]
+          ports:
+            - name: grpc
+              containerPort: 3593
+            - name: http
+              containerPort: 3592
+          volumeMounts:
+            - name: policies
+              mountPath: /policies
+              readOnly: true
+            - name: config
+              mountPath: /conf
+              readOnly: true
+          readinessProbe:
+            exec:
+              command: ["/cerbos", "healthcheck", "--config=/conf/config.yaml"]
+            initialDelaySeconds: 5
+            periodSeconds: 5
+            failureThreshold: 20
+          livenessProbe:
+            exec:
+              command: ["/cerbos", "healthcheck", "--config=/conf/config.yaml"]
+            initialDelaySeconds: 15
+            periodSeconds: 10
+            failureThreshold: 6
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: "1"
+              memory: 512Mi
+      volumes:
+        - name: policies
+          emptyDir: {}
+        - name: config
+          emptyDir: {}

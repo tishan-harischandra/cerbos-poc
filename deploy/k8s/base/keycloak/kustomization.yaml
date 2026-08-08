@@ -1,0 +1,15 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - deployment.yaml
+  - service.yaml
+configMapGenerator:
+  - name: keycloak-realms
+    files:
+      - realm-cerbos-poc.json=../../../keycloak/realm-cerbos-poc.json
+      - realm-other-issuer.json=../../../keycloak/realm-other-issuer.json
+secretGenerator:
+  - name: keycloak-credentials
+    literals:
+      - KC_BOOTSTRAP_ADMIN_USERNAME=admin
+      - KC_BOOTSTRAP_ADMIN_PASSWORD=change-me

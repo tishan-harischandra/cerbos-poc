@@ -1,0 +1,97 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: admin-service
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: admin-service
+  template:
+    metadata:
+      labels:
+        app: admin-service
+    spec:
+      # See deploy/k8s/base/ads/deployment.yaml's comment: this copies the
+      # committed authorization catalog (resources) and capability catalog
+      # (ui-capabilities) the same way, since admin-service reads both
+      # (§9.1's impact preview and capability impact endpoints).
+      initContainers:
+        - name: assets
+          image: cerbos-poc/cerbos-assets:dev
+          command:
+            - /bin/sh
+            - -c
+            - |
+              cp -r /assets/catalog/resources/* /authorization-catalog/
+              cp -r /assets/catalog/ui-capabilities/* /capability-catalog/
+          volumeMounts:
+            - name: authorization-catalog
+              mountPath: /authorization-catalog
+            - name: capability-catalog
+              mountPath: /capability-catalog
+      containers:
+        - name: admin-service
+          image: cerbos-poc/admin-service:dev
+          envFrom:
+            - configMapRef:
+                name: admin-service-config
+            - configMapRef:
+                name: idp-config
+            - secretRef:
+                name: postgres-dsn
+          env:
+            - name: IDP_CREDENTIALS_SECRET_REF
+              value: /run/secrets/idp-admin-credentials
+          volumeMounts:
+            - name: authorization-catalog
+              mountPath: /authorization-catalog
+              readOnly: true
+            - name: capability-catalog
+              mountPath: /capability-catalog
+              readOnly: true
+            - name: idp-admin-credentials
+              mountPath: /run/secrets/idp-admin-credentials
+              subPath: idp-admin-credentials
+              readOnly: true
+            - name: policy-release-archives
+              mountPath: /var/lib/policy-controller/archives
+              readOnly: true
+          ports:
+            - name: http
+              containerPort: 8081
+          readinessProbe:
+            httpGet:
+              path: /readyz
+              port: http
+            initialDelaySeconds: 5
+            periodSeconds: 5
+            failureThreshold: 20
+          livenessProbe:
+            httpGet:
+              path: /readyz
+              port: http
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            failureThreshold: 6
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
+      volumes:
+        - name: authorization-catalog
+          emptyDir: {}
+        - name: capability-catalog
+          emptyDir: {}
+        - name: idp-admin-credentials
+          secret:
+            secretName: idp-admin-credentials
+        # Empty until the (out-of-scope-for-this-slice) policy-controller
+        # ever runs; admin-service's revision module already handles that
+        # by reporting no current revision rather than erroring (see
+        # docker-compose.yml's admin-service comment).
+        - name: policy-release-archives
+          emptyDir: {}

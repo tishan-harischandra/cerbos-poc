@@ -1,0 +1,14 @@
+apiVersion: keda.sh/v1alpha1
+kind: ScaledObject
+metadata:
+  name: admin-service
+spec:
+  scaleTargetRef:
+    name: admin-service
+  minReplicaCount: 2
+  maxReplicaCount: 4
+  triggers:
+    - type: cpu
+      metricType: Utilization
+      metadata:
+        value: "75"

@@ -1,0 +1,130 @@
+# A real cluster: higher replica floors, image tags pinned to a released
+# version rather than `dev`. Replace REGISTRY/TAG below (or re-run
+# `kustomize edit set image`) before applying.
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: cerbos-poc-prod
+resources:
+  - ../../base
+images:
+  - name: cerbos-poc/cerbos-assets
+    newName: REGISTRY/cerbos-poc/cerbos-assets
+    newTag: TAG
+  - name: cerbos-poc/ads
+    newName: REGISTRY/cerbos-poc/ads
+    newTag: TAG
+  - name: cerbos-poc/admin-service
+    newName: REGISTRY/cerbos-poc/admin-service
+    newTag: TAG
+  - name: cerbos-poc/resource-service
+    newName: REGISTRY/cerbos-poc/resource-service
+    newTag: TAG
+  - name: cerbos-poc/admin-console
+    newName: REGISTRY/cerbos-poc/admin-console
+    newTag: TAG
+  - name: cerbos-poc/business-ui
+    newName: REGISTRY/cerbos-poc/business-ui
+    newTag: TAG
+patches:
+  - target:
+      kind: ScaledObject
+      name: cerbos
+    patch: |
+      - op: replace
+        path: /spec/minReplicaCount
+        value: 3
+      - op: replace
+        path: /spec/maxReplicaCount
+        value: 8
+  - target:
+      kind: ScaledObject
+      name: ads
+    patch: |
+      - op: replace
+        path: /spec/minReplicaCount
+        value: 3
+      - op: replace
+        path: /spec/maxReplicaCount
+        value: 12
+  - target:
+      kind: ScaledObject
+      name: admin-service
+    patch: |
+      - op: replace
+        path: /spec/minReplicaCount
+        value: 3
+      - op: replace
+        path: /spec/maxReplicaCount
+        value: 8
+  - target:
+      kind: ScaledObject
+      name: resource-service
+    patch: |
+      - op: replace
+        path: /spec/minReplicaCount
+        value: 3
+      - op: replace
+        path: /spec/maxReplicaCount
+        value: 12
+  - target:
+      kind: ScaledObject
+      name: admin-console
+    patch: |
+      - op: replace
+        path: /spec/minReplicaCount
+        value: 3
+      - op: replace
+        path: /spec/maxReplicaCount
+        value: 6
+  - target:
+      kind: ScaledObject
+      name: business-ui
+    patch: |
+      - op: replace
+        path: /spec/minReplicaCount
+        value: 3
+      - op: replace
+        path: /spec/maxReplicaCount
+        value: 6
+  - target:
+      kind: Deployment
+      name: cerbos
+    patch: |
+      - op: replace
+        path: /spec/replicas
+        value: 3
+  - target:
+      kind: Deployment
+      name: ads
+    patch: |
+      - op: replace
+        path: /spec/replicas
+        value: 3
+  - target:
+      kind: Deployment
+      name: admin-service
+    patch: |
+      - op: replace
+        path: /spec/replicas
+        value: 3
+  - target:
+      kind: Deployment
+      name: resource-service
+    patch: |
+      - op: replace
+        path: /spec/replicas
+        value: 3
+  - target:
+      kind: Deployment
+      name: admin-console
+    patch: |
+      - op: replace
+        path: /spec/replicas
+        value: 3
+  - target:
+      kind: Deployment
+      name: business-ui
+    patch: |
+      - op: replace
+        path: /spec/replicas
+        value: 3

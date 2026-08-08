@@ -1,0 +1,123 @@
+# Local dev cluster (kind/minikube): low replica floors, image tags built
+# and loaded locally rather than pulled from a registry.
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: cerbos-poc-dev
+resources:
+  - ../../base
+images:
+  - name: cerbos-poc/cerbos-assets
+    newTag: dev
+  - name: cerbos-poc/ads
+    newTag: dev
+  - name: cerbos-poc/admin-service
+    newTag: dev
+  - name: cerbos-poc/resource-service
+    newTag: dev
+  - name: cerbos-poc/admin-console
+    newTag: dev
+  - name: cerbos-poc/business-ui
+    newTag: dev
+patches:
+  - target:
+      kind: ScaledObject
+      name: cerbos
+    patch: |
+      - op: replace
+        path: /spec/minReplicaCount
+        value: 1
+      - op: replace
+        path: /spec/maxReplicaCount
+        value: 2
+  - target:
+      kind: ScaledObject
+      name: ads
+    patch: |
+      - op: replace
+        path: /spec/minReplicaCount
+        value: 1
+      - op: replace
+        path: /spec/maxReplicaCount
+        value: 2
+  - target:
+      kind: ScaledObject
+      name: admin-service
+    patch: |
+      - op: replace
+        path: /spec/minReplicaCount
+        value: 1
+      - op: replace
+        path: /spec/maxReplicaCount
+        value: 2
+  - target:
+      kind: ScaledObject
+      name: resource-service
+    patch: |
+      - op: replace
+        path: /spec/minReplicaCount
+        value: 1
+      - op: replace
+        path: /spec/maxReplicaCount
+        value: 2
+  - target:
+      kind: ScaledObject
+      name: admin-console
+    patch: |
+      - op: replace
+        path: /spec/minReplicaCount
+        value: 1
+      - op: replace
+        path: /spec/maxReplicaCount
+        value: 2
+  - target:
+      kind: ScaledObject
+      name: business-ui
+    patch: |
+      - op: replace
+        path: /spec/minReplicaCount
+        value: 1
+      - op: replace
+        path: /spec/maxReplicaCount
+        value: 2
+  - target:
+      kind: Deployment
+      name: cerbos
+    patch: |
+      - op: replace
+        path: /spec/replicas
+        value: 1
+  - target:
+      kind: Deployment
+      name: ads
+    patch: |
+      - op: replace
+        path: /spec/replicas
+        value: 1
+  - target:
+      kind: Deployment
+      name: admin-service
+    patch: |
+      - op: replace
+        path: /spec/replicas
+        value: 1
+  - target:
+      kind: Deployment
+      name: resource-service
+    patch: |
+      - op: replace
+        path: /spec/replicas
+        value: 1
+  - target:
+      kind: Deployment
+      name: admin-console
+    patch: |
+      - op: replace
+        path: /spec/replicas
+        value: 1
+  - target:
+      kind: Deployment
+      name: business-ui
+    patch: |
+      - op: replace
+        path: /spec/replicas
+        value: 1

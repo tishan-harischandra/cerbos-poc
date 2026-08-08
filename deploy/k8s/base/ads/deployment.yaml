@@ -1,0 +1,79 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ads
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: ads
+  template:
+    metadata:
+      labels:
+        app: ads
+    spec:
+      # The capability snapshot endpoint (§12.3) reads the same committed
+      # capability catalog Cerbos reads its policies from; see
+      # deploy/cerbos/Dockerfile for why this is an initContainer copy
+      # rather than a ConfigMap mount.
+      initContainers:
+        - name: assets
+          image: cerbos-poc/cerbos-assets:dev
+          command:
+            - /bin/sh
+            - -c
+            - "cp -r /assets/catalog/ui-capabilities/* /capability-catalog/"
+          volumeMounts:
+            - name: capability-catalog
+              mountPath: /capability-catalog
+      containers:
+        - name: ads
+          image: cerbos-poc/ads:dev
+          envFrom:
+            - configMapRef:
+                name: ads-config
+            - configMapRef:
+                name: idp-config
+            - secretRef:
+                name: postgres-dsn
+          env:
+            - name: IDP_CREDENTIALS_SECRET_REF
+              value: /run/secrets/idp-admin-credentials
+          volumeMounts:
+            - name: capability-catalog
+              mountPath: /capability-catalog
+              readOnly: true
+            - name: idp-admin-credentials
+              mountPath: /run/secrets/idp-admin-credentials
+              subPath: idp-admin-credentials
+              readOnly: true
+          ports:
+            - name: http
+              containerPort: 8080
+          readinessProbe:
+            httpGet:
+              path: /readyz
+              port: http
+            initialDelaySeconds: 5
+            periodSeconds: 5
+            failureThreshold: 20
+          livenessProbe:
+            httpGet:
+              path: /readyz
+              port: http
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            failureThreshold: 6
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
+      volumes:
+        - name: capability-catalog
+          emptyDir: {}
+        - name: idp-admin-credentials
+          secret:
+            secretName: idp-admin-credentials
