@@ -116,9 +116,35 @@ for _ in $(seq 1 60); do
   fi
   sleep 1
 done
-trap - EXIT
 if [[ "${ready}" -ne 1 ]]; then
+  trap - EXIT
   echo "scripts/chaos/cluster-up.sh: the decision path never came up (last HTTP ${code:-none})" >&2
+  exit 1
+fi
+
+# The decision path answering only proves Cerbos has some policy set loaded,
+# not that gitea-seed.sh's root policy tag has made it through the
+# controller's own pipeline (clone, compile, atomic install, activate
+# across the fleet) yet - that first tick starts only once the rollout
+# restart above finishes, and 05-policy-rollout-failure.sh's very first
+# assertion is that a release is already active, so a cluster declared
+# "ready" before that tick lands fails the scenario for a race, not a bug.
+echo "==> Waiting for the policy controller's first release to activate"
+releases_url="http://127.0.0.1:${ADMIN_CONSOLE_PORT}/api/admin/authz/policy-releases"
+admin_token="$(token_for user-admin)"
+activated=0
+for _ in $(seq 1 60); do
+  current="$(curl -sS --max-time 5 -H "Authorization: Bearer ${admin_token}" "${releases_url}" \
+    | jq -r '.current.revision' 2>/dev/null)"
+  if [[ -n "${current}" && "${current}" != "null" ]]; then
+    activated=1
+    break
+  fi
+  sleep 2
+done
+trap - EXIT
+if [[ "${activated}" -ne 1 ]]; then
+  echo "scripts/chaos/cluster-up.sh: no policy release ever activated (last: ${current:-none})" >&2
   exit 1
 fi
 

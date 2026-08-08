@@ -12,6 +12,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/tishan-harischandra/cerbos-poc/libs/assignmentstore"
 )
@@ -21,12 +22,33 @@ type Store struct {
 	pool *pgxpool.Pool
 }
 
+// beforeAcquireTimeout bounds the liveness ping every pooled connection is
+// given before it is handed to a caller. A connection whose peer vanished
+// without a clean close - a killed PostgreSQL pod being the case that
+// matters here - looks perfectly healthy to the pool's own bookkeeping
+// until something actually reads or writes on it, and by default that
+// first real query is the one left blocking on a dead half-open socket
+// for however long the kernel takes to notice, not however long the
+// caller is willing to wait (confirmed against a live cluster, issue #26:
+// a Postgres restart left exactly this kind of connection behind, and the
+// next caller to acquire it hung well past its own request timeout).
+const beforeAcquireTimeout = 2 * time.Second
+
 // Open connects to PostgreSQL. The DSN is a libpq connection string or URL.
 func Open(ctx context.Context, dsn string) (*Store, error) {
 	if dsn == "" {
 		return nil, errors.New("postgresstore: no DSN configured")
 	}
-	pool, err := pgxpool.New(ctx, dsn)
+	cfg, err := pgxpool.ParseConfig(dsn)
+	if err != nil {
+		return nil, fmt.Errorf("postgresstore: parsing the DSN: %w", err)
+	}
+	cfg.BeforeAcquire = func(ctx context.Context, conn *pgx.Conn) bool {
+		pingCtx, cancel := context.WithTimeout(ctx, beforeAcquireTimeout)
+		defer cancel()
+		return conn.Ping(pingCtx) == nil
+	}
+	pool, err := pgxpool.NewWithConfig(ctx, cfg)
 	if err != nil {
 		return nil, fmt.Errorf("postgresstore: connecting: %w", err)
 	}

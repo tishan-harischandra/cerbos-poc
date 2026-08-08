@@ -1,0 +1,18 @@
+{
+  "name": "policy-controller",
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "projectType": "application",
+  "targets": {
+    "build": {
+      "options": {
+        "main": "cmd/policy-controller/main.go",
+        "outputPath": "../../dist/apps/policy-controller/policy-controller"
+      }
+    },
+    "serve": {
+      "options": {
+        "main": "cmd/policy-controller/main.go"
+      }
+    }
+  }
+}
