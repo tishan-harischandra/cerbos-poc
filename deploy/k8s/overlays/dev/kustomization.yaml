@@ -121,3 +121,17 @@ patches:
       - op: replace
         path: /spec/replicas
         value: 1
+  # See apps/admin-console/nginx.conf.template's comment: nginx's own
+  # resolver cannot resolve the bare compose-style service names the base
+  # ConfigMap defaults to against Kubernetes' CoreDNS.
+  - target:
+      kind: Deployment
+      name: admin-console
+    patch: |
+      - op: add
+        path: /spec/template/spec/containers/0/env
+        value:
+          - name: ADS_UPSTREAM
+            value: ads.cerbos-poc-dev.svc.cluster.local:8080
+          - name: ADMIN_SERVICE_UPSTREAM
+            value: admin-service.cerbos-poc-dev.svc.cluster.local:8081

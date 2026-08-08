@@ -102,6 +102,42 @@ check "prod overlay raises every workload's replica floor above dev's" \
   "true" \
   "$("${KUSTOMIZE}" build --load-restrictor LoadRestrictionsNone deploy/k8s/overlays/prod | grep -c 'replicas: 3' | awk '{print ($1 >= 6)}' | sed 's/1/true/;s/0/false/')"
 
+# dev-chaos (issue #26): the dev overlay plus the policy-release component,
+# the exact topology scripts/chaos deploys into kind so the Gitea-outage and
+# partial-root-rollout scenarios have something real to exercise.
+chaos_rendered=""
+for attempt in 1 2; do
+  if chaos_rendered="$("${KUSTOMIZE}" build --load-restrictor LoadRestrictionsNone "deploy/k8s/overlays/dev-chaos" 2>/tmp/kustomize-dev-chaos.err)"; then
+    break
+  fi
+  chaos_rendered=""
+done
+if [[ -z "${chaos_rendered}" ]]; then
+  echo "k8s-manifests-test: kustomize build dev-chaos produced no output after retrying" >&2
+  cat /tmp/kustomize-dev-chaos.err >&2
+  failed=$((failed + 1))
+else
+  for svc in gitea cerbos-managed policy-controller; do
+    check "dev-chaos: ${svc} workload is present" \
+      "true" \
+      "$(echo "${chaos_rendered}" | grep -cE "^  name: ${svc}$" | awk '{print ($1 > 0)}' | sed 's/1/true/;s/0/false/')"
+  done
+
+  chaos_namespace_count="$(echo "${chaos_rendered}" | grep -c "namespace: cerbos-poc-dev")"
+  check "dev-chaos: namespace is cerbos-poc-dev" \
+    "true" \
+    "$([[ "${chaos_namespace_count}" -gt 0 ]] && echo true || echo false)"
+
+  chaos_conform_output="$(echo "${chaos_rendered}" | "${KUBECONFORM}" -strict -summary -skip ScaledObject 2>&1)"
+  chaos_conform_status=$?
+  check "dev-chaos: every non-CRD resource validates against the Kubernetes API schema" \
+    "0" \
+    "${chaos_conform_status}"
+  if [[ "${chaos_conform_status}" -ne 0 ]]; then
+    echo "${chaos_conform_output}"
+  fi
+fi
+
 echo
 echo "${passed} passed, ${failed} failed"
 [[ "${failed}" -eq 0 ]]

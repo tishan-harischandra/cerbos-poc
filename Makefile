@@ -164,3 +164,7 @@ graph: ## Open the single Go plus Angular dependency graph
 .PHONY: k8s-validate
 k8s-validate: ## Render both deploy/k8s overlays and validate every resource against the Kubernetes API schema
 	bash scripts/tests/k8s-manifests-test.sh
+
+.PHONY: chaos
+chaos: ## Run the §18 chaos scenario suite against a real kind cluster (issue #26)
+	bash scripts/chaos/run.sh

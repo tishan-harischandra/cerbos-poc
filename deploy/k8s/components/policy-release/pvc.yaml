@@ -1,0 +1,16 @@
+# admin-service (deploy/k8s/base/admin-service) and policy-controller both
+# need to read the same archive directory compose gives them as one named
+# volume. Two separate Deployments cannot share an emptyDir, so this is a
+# real (if small) ReadWriteOnce PVC instead, with admin-service's pod
+# affinity-pinned alongside policy-controller's so a same-node RWO mount
+# works on kind's default local-path provisioner.
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: policy-release-archives
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 64Mi

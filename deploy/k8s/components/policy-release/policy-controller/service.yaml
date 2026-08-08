@@ -1,0 +1,26 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: cerbos-managed
+spec:
+  selector:
+    app: policy-controller
+  ports:
+    - name: grpc
+      port: 3593
+      targetPort: 3593
+    - name: http
+      port: 3592
+      targetPort: 3592
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: policy-controller
+spec:
+  selector:
+    app: policy-controller
+  ports:
+    - name: http
+      port: 8082
+      targetPort: 8082

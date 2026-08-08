@@ -28,6 +28,10 @@ COPY apps/admin-console/nginx.conf.template /etc/nginx/templates/default.conf.te
 
 # Makes the image publish NGINX_LOCAL_RESOLVERS, which the template needs.
 ENV NGINX_ENTRYPOINT_LOCAL_RESOLVERS=1
+# The compose service names; see nginx.conf.template's comment on why every
+# deploy/k8s overlay overrides both.
+ENV ADS_UPSTREAM=ads:8080
+ENV ADMIN_SERVICE_UPSTREAM=admin-service:8081
 COPY --from=build /workspace/dist/apps/admin-console/browser /usr/share/nginx/html
 
 # Renders assets/env.template.js into assets/env.js at container start (see
