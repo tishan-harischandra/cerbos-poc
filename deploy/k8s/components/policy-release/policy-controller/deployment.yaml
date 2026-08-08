@@ -1,0 +1,114 @@
+# cerbos-managed and policy-controller share one pod, not two Deployments,
+# so the policy-release-store and policy-release-archives volumes (compose's
+# named volumes, see docker-compose.yml's policy-release services) can be
+# plain emptyDirs instead of a ReadWriteMany PVC that kind's default
+# local-path-provisioner cannot satisfy across nodes.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: policy-controller
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: policy-controller
+  template:
+    metadata:
+      labels:
+        app: policy-controller
+    spec:
+      initContainers:
+        # Mirrors docker-compose.yml's policy-release-store-init: the disk
+        # store fails to start unless storage.disk.directory already exists,
+        # and the atomic install (libs/policyrelease/install.go) renames a
+        # staging directory as a sibling of /policies/current, so that has
+        # to be a subdirectory of the shared volume, not its mount point.
+        - name: policy-release-store-init
+          image: docker.io/library/alpine:3.20
+          command: ["sh", "-c", "mkdir -p /policies/current"]
+          volumeMounts:
+            - name: policy-release-store
+              mountPath: /policies
+        - name: cerbos-managed-config
+          image: cerbos-poc/cerbos-assets:dev
+          command: ["/bin/sh", "-c", "cp /assets/config-managed.yaml /conf/config.yaml"]
+          volumeMounts:
+            - name: cerbos-managed-config
+              mountPath: /conf
+      containers:
+        - name: cerbos-managed
+          image: ghcr.io/cerbos/cerbos:0.46.0
+          args: ["server", "--config=/conf/config.yaml"]
+          ports:
+            - name: grpc
+              containerPort: 3593
+            - name: http
+              containerPort: 3592
+          volumeMounts:
+            - name: cerbos-managed-config
+              mountPath: /conf
+              readOnly: true
+            - name: policy-release-store
+              mountPath: /policies
+          readinessProbe:
+            exec:
+              command: ["/cerbos", "healthcheck", "--config=/conf/config.yaml"]
+            initialDelaySeconds: 5
+            periodSeconds: 5
+            failureThreshold: 20
+          livenessProbe:
+            exec:
+              command: ["/cerbos", "healthcheck", "--config=/conf/config.yaml"]
+            initialDelaySeconds: 15
+            periodSeconds: 10
+            failureThreshold: 6
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: "1"
+              memory: 512Mi
+        - name: policy-controller
+          image: cerbos-poc/policy-controller:dev
+          envFrom:
+            - configMapRef:
+                name: policy-controller-config
+            - secretRef:
+                name: policy-controller-gitea-token
+          volumeMounts:
+            - name: policy-release-store
+              mountPath: /policies
+            - name: policy-release-archives
+              mountPath: /var/lib/policy-controller/archives
+          ports:
+            - name: http
+              containerPort: 8082
+          readinessProbe:
+            httpGet:
+              path: /readyz
+              port: http
+            initialDelaySeconds: 5
+            periodSeconds: 5
+            failureThreshold: 20
+          livenessProbe:
+            httpGet:
+              path: /readyz
+              port: http
+            initialDelaySeconds: 15
+            periodSeconds: 10
+            failureThreshold: 6
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
+      volumes:
+        - name: cerbos-managed-config
+          emptyDir: {}
+        - name: policy-release-store
+          emptyDir: {}
+        - name: policy-release-archives
+          emptyDir: {}

@@ -1,0 +1,15 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - deployment.yaml
+  - service.yaml
+configMapGenerator:
+  - name: gitea-config
+    literals:
+      - GITEA__security__INSTALL_LOCK=true
+      - GITEA__server__DOMAIN=gitea
+      - GITEA__server__ROOT_URL=http://gitea:3000/
+      - GITEA__database__DB_TYPE=sqlite3
+      - GITEA__actions__ENABLED=false
+generatorOptions:
+  disableNameSuffixHash: true

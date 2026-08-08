@@ -1,0 +1,11 @@
+# Issue #21's Gitea + cerbos-managed + policy-controller pipeline, ported to
+# Kubernetes for issue #26's chaos scenarios only (the "Gitea outage" and
+# "partial root rollout" rows of the §18 table). deploy/k8s/base intentionally
+# leaves this out of the walking-skeleton base (see its own kustomization.yaml
+# comment); this is a Component, layered onto the dev overlay only by
+# deploy/k8s/overlays/dev-chaos, never onto base or prod.
+apiVersion: kustomize.config.k8s.io/v1alpha1
+kind: Component
+resources:
+  - gitea
+  - policy-controller

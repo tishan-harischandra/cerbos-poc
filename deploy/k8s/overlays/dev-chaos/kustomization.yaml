@@ -1,0 +1,15 @@
+# The dev overlay plus the policy-release component (issue #26): this is
+# the exact topology scripts/chaos deploys into kind, since two of the §18
+# failure-table rows (Gitea outage, partial root rollout) need Gitea and the
+# policy controller running, and those stay out of the plain dev overlay
+# (see deploy/k8s/base/kustomization.yaml).
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: cerbos-poc-dev
+resources:
+  - ../dev
+components:
+  - ../../components/policy-release
+images:
+  - name: cerbos-poc/policy-controller
+    newTag: dev
