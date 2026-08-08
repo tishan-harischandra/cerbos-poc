@@ -137,7 +137,14 @@ def main() -> int:
     if failures:
         return 1
 
+    # One-shot init containers run to completion and are never health polled;
+    # dependents gate on `condition: service_completed_successfully` instead,
+    # so a healthcheck on them would be dead configuration, not a contract.
+    ONE_SHOT_INIT_SERVICES = {"policy-release-store-init"}
+
     for name, service in services.items():
+        if name in ONE_SHOT_INIT_SERVICES:
+            continue
         check(f"service '{name}' declares a healthcheck", "healthcheck" in service)
 
     check(
