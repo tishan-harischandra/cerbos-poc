@@ -4,6 +4,10 @@ export PATH := $(CURDIR)/scripts/bin:$(PATH)
 COMPOSE ?= docker compose
 NX ?= npx nx
 PROFILE ?= demo
+# `make loadtest` defaults to the full §15 population, unlike loadtest-seed's
+# own demo default, because the whole point of this target is the 1,000-VU
+# measurement; pass LOADTEST_PROFILE=demo to exercise the harness itself.
+LOADTEST_PROFILE ?= load
 
 .DEFAULT_GOAL := help
 
@@ -72,6 +76,9 @@ ci: ## Run exactly what CI runs, so a green local run means a green pipeline
 	$(MAKE) policy-test
 	python3 scripts/tests/compose-contract.py
 	bash scripts/tests/nx-affected-isolation.sh
+	bash scripts/tests/loadtest-preflight-test.sh
+	bash scripts/tests/loadtest-k6-config-test.sh
+	bash scripts/tests/loadtest-run-test.sh
 
 .PHONY: migrate
 migrate: ## Apply the authorization schema to PostgreSQL
@@ -114,6 +121,13 @@ loadtest-seed: ## Seed the load-test population (issue #24); PROFILE=demo|load, 
 loadtest-down: ## Stop the loadtest profile's services only, leaving the rest of the stack up
 	$(COMPOSE) --profile loadtest stop keycloak-db keycloak-loadtest
 	$(COMPOSE) --profile loadtest rm -f keycloak-db keycloak-loadtest
+
+.PHONY: loadtest
+loadtest: ## Full §15.3 k6 run at 1,000 VUs from a clean state (issue #25); LOADTEST_PROFILE=demo for a small smoke run
+	bash scripts/loadtest-preflight.sh
+	$(MAKE) up
+	$(MAKE) loadtest-seed PROFILE=$(LOADTEST_PROFILE)
+	bash scripts/loadtest-run.sh
 
 .PHONY: seed
 seed: ## Write the demo role matrix into the authorization database

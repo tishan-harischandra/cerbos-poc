@@ -126,6 +126,26 @@ The Nx graph spans both languages, but the projects stay independent: a change
 under `apps/admin-console` never marks the Go service as affected.
 `scripts/tests/nx-affected-isolation.sh` asserts exactly that, and CI runs it.
 
+## Load testing
+
+`make loadtest` runs the §15.3 k6 suite (`deploy/loadtest/k6`) at 1,000
+concurrent virtual users against a freshly seeded, full-scale (600,000-user)
+population: `scripts/loadtest-preflight.sh` refuses on an under-resourced
+host, `make up` brings the stack to a clean state, `loadtest-seed` bulk-loads
+the population, and `scripts/loadtest-run.sh` runs the suite and writes
+results to `dist/loadtest-results/<timestamp>-<git-sha>/`. The §15.3
+objectives (warm decision latency, permission convergence, fail-closed) are
+k6 `thresholds`, so a breach exits non-zero.
+
+```bash
+make loadtest                       # the full 1,000-VU run
+make loadtest LOADTEST_PROFILE=demo # exercise the harness against the small demo population
+```
+
+**This suite is marked HITL** (issue #25): the threshold values encode
+§15.3's suggested targets, but they will likely need renegotiating against
+the first real measurements taken on real hardware.
+
 ## Architectural constraints
 
 Permission precedence — mandatory deny beats user revoke beats user grant beats
