@@ -8,6 +8,7 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+	"time"
 
 	"github.com/tishan-harischandra/cerbos-poc/apps/admin-service/internal/adsclient"
 	"github.com/tishan-harischandra/cerbos-poc/apps/admin-service/internal/platformstatus"
@@ -200,6 +201,48 @@ func TestIdPDiagnostics_ReportsTheSelectedProviderAndOKConnectivity(t *testing.T
 	}
 	if body.Provider != "KEYCLOAK" || body.Connectivity != "ok" {
 		t.Fatalf("body = %+v, want provider KEYCLOAK, connectivity ok", body)
+	}
+}
+
+type hangingADS struct{}
+
+func (hangingADS) Convergence(ctx context.Context, _ string) (adsclient.ConvergenceResponse, error) {
+	<-ctx.Done()
+	return adsclient.ConvergenceResponse{}, ctx.Err()
+}
+
+func (hangingADS) DirectoryHealth(ctx context.Context, _ string) error {
+	<-ctx.Done()
+	return ctx.Err()
+}
+
+// A downstream outage - the exact condition this endpoint exists to report -
+// must never hang the request indefinitely. The check has to fail on its own
+// short deadline and report "degraded" rather than block on however long the
+// caller happens to wait (issue #26's node-drain and IdP-outage scenarios
+// depend on this responding well within their own client timeouts).
+func TestIdPDiagnostics_FailsFastWhenTheADSNeverResponds(t *testing.T) {
+	handler := &platformstatus.Handler{ADS: hangingADS{}, IdPType: "KEYCLOAK"}
+
+	started := time.Now()
+	rec := httptest.NewRecorder()
+	handler.IdPDiagnostics(rec, get("/admin/idp/diagnostics", adminOf("tenant-a")))
+	elapsed := time.Since(started)
+
+	if elapsed > 5*time.Second {
+		t.Fatalf("IdPDiagnostics took %s, want it to fail closed well under 5s", elapsed)
+	}
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, want %d: %s", rec.Code, http.StatusOK, rec.Body)
+	}
+	var body struct {
+		Connectivity string `json:"connectivity"`
+	}
+	if err := json.Unmarshal(rec.Body.Bytes(), &body); err != nil {
+		t.Fatalf("response is not JSON: %v", err)
+	}
+	if body.Connectivity != "degraded" {
+		t.Fatalf("connectivity = %q, want degraded", body.Connectivity)
 	}
 }
 

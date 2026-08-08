@@ -9,12 +9,21 @@ import (
 	"context"
 	"encoding/json"
 	"net/http"
+	"time"
 
 	"github.com/tishan-harischandra/cerbos-poc/apps/admin-service/internal/adsclient"
 	"github.com/tishan-harischandra/cerbos-poc/apps/admin-service/internal/authority"
 	"github.com/tishan-harischandra/cerbos-poc/apps/admin-service/internal/tokenauth"
 	"github.com/tishan-harischandra/cerbos-poc/libs/policyrelease"
 )
+
+// idPHealthCheckTimeout bounds the live connectivity check IdPDiagnostics
+// makes against the ADS's identity directory proxy. Without a deadline of
+// its own, an IdP outage - the exact condition this check exists to
+// report - would hang the request for as long as the outbound connection
+// takes to fail at the TCP level, which can far exceed any caller's
+// timeout instead of reporting "degraded" promptly.
+const idPHealthCheckTimeout = 3 * time.Second
 
 // PolicyStore is the slice of policyrelease.Store this handler reads.
 type PolicyStore interface {
@@ -126,8 +135,11 @@ func (h *Handler) IdPDiagnostics(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	ctx, cancel := context.WithTimeout(r.Context(), idPHealthCheckTimeout)
+	defer cancel()
+
 	connectivity := "ok"
-	if err := h.ADS.DirectoryHealth(r.Context(), identity.RawToken); err != nil {
+	if err := h.ADS.DirectoryHealth(ctx, identity.RawToken); err != nil {
 		connectivity = "degraded"
 	}
 
