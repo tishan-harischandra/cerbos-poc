@@ -9,6 +9,7 @@ tmp/
 .agentloop/
 .code-review-graph/
 __screenshots__/
+libs/keycloakbulkload/cmd/loadseed/loadseed
 
 .angular
 
