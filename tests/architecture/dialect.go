@@ -14,6 +14,17 @@ import (
 var dialectAdapterDirs = []string{
 	"libs/assignmentstore/postgresstore",
 	"libs/assignmentstore/oraclestore",
+	// Leader election uses a PostgreSQL advisory lock directly: it is not
+	// part of the assignmentstore port's dual-dialect contract, and an
+	// advisory lock has no portable equivalent to abstract behind a port.
+	"apps/policy-controller/internal/leader",
+	// The load-test seeding harness writes straight into Keycloak's own
+	// database, whose schema Keycloak owns and which this prototype only
+	// ever runs on PostgreSQL (see keycloak-db in docker-compose.yml). It
+	// is out of the assignmentstore port's dual-dialect scope for the same
+	// reason Keycloak's schema itself is: nothing here claims Oracle
+	// portability for Keycloak's own tables.
+	"libs/keycloakbulkload",
 }
 
 // dialectMarkers are constructs that only one engine understands. Each is
