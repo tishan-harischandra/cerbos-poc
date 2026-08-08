@@ -111,8 +111,9 @@ loadtest-seed: ## Seed the load-test population (issue #24); PROFILE=demo|load, 
 	bash scripts/loadtest-seed.sh $(PROFILE)
 
 .PHONY: loadtest-down
-loadtest-down: ## Stop the loadtest profile's services
-	$(COMPOSE) --profile loadtest down --remove-orphans
+loadtest-down: ## Stop the loadtest profile's services only, leaving the rest of the stack up
+	$(COMPOSE) --profile loadtest stop keycloak-db keycloak-loadtest
+	$(COMPOSE) --profile loadtest rm -f keycloak-db keycloak-loadtest
 
 .PHONY: seed
 seed: ## Write the demo role matrix into the authorization database
