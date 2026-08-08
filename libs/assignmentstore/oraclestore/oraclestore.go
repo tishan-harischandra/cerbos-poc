@@ -433,10 +433,12 @@ func (s *Store) AppendAuditEvent(ctx context.Context, event assignmentstore.Audi
 
 // AuditEvent reads one audit record.
 //
-// role_external_id, target_user_id and resource_action_keys are nullable,
-// and Oracle cannot tell an empty string from NULL, so all three come back
-// as the empty string rather than as a distinction callers would have to
-// handle differently per engine.
+// hospital_id, before_json, after_json, role_external_id, target_user_id,
+// resource_action_keys and correlation_id are all nullable, and Oracle
+// cannot tell an empty string from NULL (a write of "" is read back as
+// NULL), so all seven come back as the empty string rather than as a
+// distinction callers would have to handle differently per engine, or a
+// Scan error when the column is genuinely NULL (issue #46/#48).
 func (s *Store) AuditEvent(ctx context.Context, eventID string) (assignmentstore.AuditEvent, bool, error) {
 	const query = `
 		SELECT actor_id, operation, target_type, before_json, after_json,
@@ -445,23 +447,27 @@ func (s *Store) AuditEvent(ctx context.Context, eventID string) (assignmentstore
 		FROM permission_audit_event WHERE event_id = :1`
 
 	event := assignmentstore.AuditEvent{EventID: eventID}
-	var roleExternalID, targetUserID, resourceActionKeys sql.NullString
+	var hospitalID, beforeJSON, afterJSON, roleExternalID, targetUserID, resourceActionKeys, correlationID sql.NullString
 	// The JSON columns are CLOBs. go-ora returns them as string when scanned
 	// into one, so no LOB handling leaks out of this package.
 	err := s.db.QueryRowContext(ctx, query, eventID).Scan(
 		&event.ActorID, &event.Operation, &event.TargetType,
-		&event.BeforeJSON, &event.AfterJSON, &event.TenantID,
-		&event.HospitalID, &roleExternalID, &targetUserID,
-		&resourceActionKeys, &event.CorrelationID, &event.CreatedAt)
+		&beforeJSON, &afterJSON, &event.TenantID,
+		&hospitalID, &roleExternalID, &targetUserID,
+		&resourceActionKeys, &correlationID, &event.CreatedAt)
 	if errors.Is(err, sql.ErrNoRows) {
 		return assignmentstore.AuditEvent{}, false, nil
 	}
 	if err != nil {
 		return assignmentstore.AuditEvent{}, false, fmt.Errorf("oraclestore: reading an audit event: %w", err)
 	}
+	event.HospitalID = hospitalID.String
+	event.BeforeJSON = beforeJSON.String
+	event.AfterJSON = afterJSON.String
 	event.RoleExternalID = roleExternalID.String
 	event.TargetUserID = targetUserID.String
 	event.ResourceActionKeys = resourceActionKeys.String
+	event.CorrelationID = correlationID.String
 	return event, true, nil
 }
 
@@ -544,16 +550,20 @@ func (s *Store) SearchAuditEvents(ctx context.Context, query assignmentstore.Aud
 	var page []assignmentstore.AuditEvent
 	for rows.Next() {
 		var event assignmentstore.AuditEvent
-		var roleExternalID, targetUserID, resourceActionKeys sql.NullString
+		var hospitalID, beforeJSON, afterJSON, roleExternalID, targetUserID, resourceActionKeys, correlationID sql.NullString
 		if err := rows.Scan(&event.EventID, &event.ActorID, &event.Operation, &event.TargetType,
-			&event.BeforeJSON, &event.AfterJSON, &event.TenantID, &event.HospitalID,
+			&beforeJSON, &afterJSON, &event.TenantID, &hospitalID,
 			&roleExternalID, &targetUserID, &resourceActionKeys,
-			&event.CorrelationID, &event.CreatedAt); err != nil {
+			&correlationID, &event.CreatedAt); err != nil {
 			return nil, 0, fmt.Errorf("oraclestore: scanning an audit event: %w", err)
 		}
+		event.HospitalID = hospitalID.String
+		event.BeforeJSON = beforeJSON.String
+		event.AfterJSON = afterJSON.String
 		event.RoleExternalID = roleExternalID.String
 		event.TargetUserID = targetUserID.String
 		event.ResourceActionKeys = resourceActionKeys.String
+		event.CorrelationID = correlationID.String
 		page = append(page, event)
 	}
 	if err := rows.Err(); err != nil {
@@ -639,9 +649,20 @@ func (s *Store) UnpublishedOutboxEvents(ctx context.Context, limit int) ([]assig
 }
 
 // MarkOutboxEventPublished records that an outbox row was published.
+//
+// go-ora binds a positional argument to the :N placeholder it *encounters
+// first while scanning the statement text left to right*, not to the
+// placeholder whose literal digit matches the argument's position (see
+// go-ora's Stmt.useNamedParameters/parseQueryParametersNames). So every
+// statement in this file must write its :N placeholders in strictly
+// increasing textual order, matching the Go argument list order exactly -
+// `:2 ... :1` here previously bound eventID (a string) to published_at (a
+// TIMESTAMP WITH TIME ZONE column) and publishedAt to event_id, which
+// Oracle rejected with ORA-01858 (issue #48).
+const markOutboxEventPublishedStatement = `UPDATE outbox_event SET published_at = :1 WHERE event_id = :2`
+
 func (s *Store) MarkOutboxEventPublished(ctx context.Context, eventID string, publishedAt time.Time) error {
-	const statement = `UPDATE outbox_event SET published_at = :2 WHERE event_id = :1`
-	if _, err := s.db.ExecContext(ctx, statement, eventID, publishedAt); err != nil {
+	if _, err := s.db.ExecContext(ctx, markOutboxEventPublishedStatement, publishedAt, eventID); err != nil {
 		return fmt.Errorf("oraclestore: marking an outbox event published: %w", err)
 	}
 	return nil
@@ -727,9 +748,13 @@ func (s *Store) SaveRoleMatrix(ctx context.Context, write assignmentstore.RoleMa
 		return 0, fmt.Errorf("oraclestore: appending the outbox event: %w", err)
 	}
 
+	// :N placeholders bind by textual occurrence order here, not by digit
+	// (see MarkOutboxEventPublished's comment above), so the WHERE clause's
+	// tenant_id comes last to match the (newRevision, CreatedAt, TenantID)
+	// argument order.
 	if _, err := tx.ExecContext(ctx, `
-		UPDATE permission_revision SET revision = :2, changed_at = :3 WHERE tenant_id = :1`,
-		write.TenantID, newRevision, write.Audit.CreatedAt); err != nil {
+		UPDATE permission_revision SET revision = :1, changed_at = :2 WHERE tenant_id = :3`,
+		newRevision, write.Audit.CreatedAt, write.TenantID); err != nil {
 		return 0, fmt.Errorf("oraclestore: advancing the permission revision: %w", err)
 	}
 
@@ -835,9 +860,11 @@ func (s *Store) SaveUserOverrideWrite(ctx context.Context, write assignmentstore
 		return 0, fmt.Errorf("oraclestore: appending the outbox event: %w", err)
 	}
 
+	// See SaveRoleMatrix's identical statement above for why tenant_id is
+	// bound last.
 	if _, err := tx.ExecContext(ctx, `
-		UPDATE permission_revision SET revision = :2, changed_at = :3 WHERE tenant_id = :1`,
-		key.TenantID, newRevision, write.Audit.CreatedAt); err != nil {
+		UPDATE permission_revision SET revision = :1, changed_at = :2 WHERE tenant_id = :3`,
+		newRevision, write.Audit.CreatedAt, key.TenantID); err != nil {
 		return 0, fmt.Errorf("oraclestore: advancing the permission revision: %w", err)
 	}
 
