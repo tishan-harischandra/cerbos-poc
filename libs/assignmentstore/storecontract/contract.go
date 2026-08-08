@@ -1295,7 +1295,7 @@ func assertSaveRoleMatrixStaleRevision(t *testing.T, store assignmentstore.Store
 		Permissions: []assignmentstore.RolePermissionInput{
 			{ResourceKey: "patient_record", ActionKey: "list", Enabled: true, ValidFrom: created},
 		},
-		Audit:  assignmentstore.AuditEvent{EventID: "audit-stale-1", Operation: "ROLE_MATRIX_SAVE", CreatedAt: created},
+		Audit:  assignmentstore.AuditEvent{EventID: "audit-stale-1", ActorID: "admin-1", Operation: "ROLE_MATRIX_SAVE", TargetType: "role_permission", CreatedAt: created},
 		Outbox: assignmentstore.OutboxEvent{EventID: "outbox-stale-1", AggregateKey: "tenant-a:role-nurse", EventType: "permission.changed", Payload: `{}`, CreatedAt: created},
 	}
 	if _, err := store.SaveRoleMatrix(ctx, first); err != nil {
@@ -1311,7 +1311,7 @@ func assertSaveRoleMatrixStaleRevision(t *testing.T, store assignmentstore.Store
 		Permissions: []assignmentstore.RolePermissionInput{
 			{ResourceKey: "patient_record", ActionKey: "delete", Enabled: true, ValidFrom: created},
 		},
-		Audit:  assignmentstore.AuditEvent{EventID: "audit-stale-2", Operation: "ROLE_MATRIX_SAVE", CreatedAt: created},
+		Audit:  assignmentstore.AuditEvent{EventID: "audit-stale-2", ActorID: "admin-1", Operation: "ROLE_MATRIX_SAVE", TargetType: "role_permission", CreatedAt: created},
 		Outbox: assignmentstore.OutboxEvent{EventID: "outbox-stale-2", AggregateKey: "tenant-a:role-nurse", EventType: "permission.changed", Payload: `{}`, CreatedAt: created},
 	}
 	if _, err := store.SaveRoleMatrix(ctx, stale); !errors.Is(err, assignmentstore.ErrRevisionConflict) {
@@ -1365,7 +1365,7 @@ func assertSaveRoleMatrixConcurrentWrites(t *testing.T, store assignmentstore.St
 				{ResourceKey: "patient_record", ActionKey: "read", Enabled: true, ValidFrom: created},
 			},
 			Audit: assignmentstore.AuditEvent{
-				EventID: "audit-concurrent-" + eventSuffix, Operation: "ROLE_MATRIX_SAVE", CreatedAt: created,
+				EventID: "audit-concurrent-" + eventSuffix, ActorID: "admin-1", Operation: "ROLE_MATRIX_SAVE", TargetType: "role_permission", CreatedAt: created,
 			},
 			Outbox: assignmentstore.OutboxEvent{
 				EventID: "outbox-concurrent-" + eventSuffix, AggregateKey: "tenant-a:role-porter",
@@ -1439,7 +1439,7 @@ func assertSaveRoleMatrixRollsBackOnFailure(t *testing.T, store assignmentstore.
 		Permissions: []assignmentstore.RolePermissionInput{
 			{ResourceKey: "patient_record", ActionKey: "update", Enabled: true, ValidFrom: created},
 		},
-		Audit: assignmentstore.AuditEvent{EventID: "audit-rollback-1", Operation: "ROLE_MATRIX_SAVE", CreatedAt: created},
+		Audit: assignmentstore.AuditEvent{EventID: "audit-rollback-1", ActorID: "admin-1", Operation: "ROLE_MATRIX_SAVE", TargetType: "role_permission", CreatedAt: created},
 		// The same event id as the row seeded above: the unique key forces
 		// this insert to fail after the permission and audit writes above
 		// it in the transaction have already run.
@@ -1488,7 +1488,7 @@ func assertSaveRoleMatrixAuditHistoryIsAppendOnly(t *testing.T, store assignment
 		Permissions: []assignmentstore.RolePermissionInput{
 			{ResourceKey: "patient_record", ActionKey: "update", Enabled: true, ValidFrom: created},
 		},
-		Audit:  assignmentstore.AuditEvent{EventID: "audit-history-1", Operation: "ROLE_MATRIX_SAVE", BeforeJSON: `{}`, AfterJSON: `{"enabled":true}`, CreatedAt: created},
+		Audit:  assignmentstore.AuditEvent{EventID: "audit-history-1", ActorID: "admin-1", Operation: "ROLE_MATRIX_SAVE", TargetType: "role_permission", BeforeJSON: `{}`, AfterJSON: `{"enabled":true}`, CreatedAt: created},
 		Outbox: assignmentstore.OutboxEvent{EventID: "outbox-history-1", AggregateKey: "tenant-a:role-doctor", EventType: "permission.changed", Payload: `{}`, CreatedAt: created},
 	})
 	if err != nil {
@@ -1500,7 +1500,7 @@ func assertSaveRoleMatrixAuditHistoryIsAppendOnly(t *testing.T, store assignment
 		Permissions: []assignmentstore.RolePermissionInput{
 			{ResourceKey: "patient_record", ActionKey: "update", Enabled: false, ValidFrom: created},
 		},
-		Audit:  assignmentstore.AuditEvent{EventID: "audit-history-2", Operation: "ROLE_MATRIX_SAVE", BeforeJSON: `{"enabled":true}`, AfterJSON: `{"enabled":false}`, CreatedAt: created},
+		Audit:  assignmentstore.AuditEvent{EventID: "audit-history-2", ActorID: "admin-1", Operation: "ROLE_MATRIX_SAVE", TargetType: "role_permission", BeforeJSON: `{"enabled":true}`, AfterJSON: `{"enabled":false}`, CreatedAt: created},
 		Outbox: assignmentstore.OutboxEvent{EventID: "outbox-history-2", AggregateKey: "tenant-a:role-doctor", EventType: "permission.changed", Payload: `{}`, CreatedAt: created},
 	}); err != nil {
 		t.Fatalf("the second save: %v", err)
@@ -1672,7 +1672,7 @@ func assertSaveUserOverrideWriteStaleRevision(t *testing.T, store assignmentstor
 	first := assignmentstore.UserOverrideWrite{
 		Key: key, Effect: assignmentstore.EffectGrant, Reason: "temporary cover",
 		ValidFrom: created, ExpectedRevision: 0,
-		Audit:  assignmentstore.AuditEvent{EventID: "audit-override-stale-1", Operation: "USER_OVERRIDE_SAVE", CreatedAt: created},
+		Audit:  assignmentstore.AuditEvent{EventID: "audit-override-stale-1", ActorID: "admin-1", Operation: "USER_OVERRIDE_SAVE", TargetType: "user_permission_override", CreatedAt: created},
 		Outbox: assignmentstore.OutboxEvent{EventID: "outbox-override-stale-1", AggregateKey: "tenant-a:user-2", EventType: "permission.changed", Payload: `{}`, CreatedAt: created},
 	}
 	if _, err := store.SaveUserOverrideWrite(ctx, first); err != nil {
@@ -1684,7 +1684,7 @@ func assertSaveUserOverrideWriteStaleRevision(t *testing.T, store assignmentstor
 	stale := assignmentstore.UserOverrideWrite{
 		Key: key, Effect: assignmentstore.EffectRevoke, Reason: "changed my mind",
 		ValidFrom: created, ExpectedRevision: 0,
-		Audit:  assignmentstore.AuditEvent{EventID: "audit-override-stale-2", Operation: "USER_OVERRIDE_SAVE", CreatedAt: created},
+		Audit:  assignmentstore.AuditEvent{EventID: "audit-override-stale-2", ActorID: "admin-1", Operation: "USER_OVERRIDE_SAVE", TargetType: "user_permission_override", CreatedAt: created},
 		Outbox: assignmentstore.OutboxEvent{EventID: "outbox-override-stale-2", AggregateKey: "tenant-a:user-2", EventType: "permission.changed", Payload: `{}`, CreatedAt: created},
 	}
 	if _, err := store.SaveUserOverrideWrite(ctx, stale); !errors.Is(err, assignmentstore.ErrRevisionConflict) {
@@ -1728,7 +1728,7 @@ func assertSaveUserOverrideWriteInheritClearsTheRow(t *testing.T, store assignme
 	grant := assignmentstore.UserOverrideWrite{
 		Key: key, Effect: assignmentstore.EffectGrant, Reason: "exceptional access",
 		ValidFrom: created, ExpectedRevision: 0,
-		Audit:  assignmentstore.AuditEvent{EventID: "audit-override-inherit-1", Operation: "USER_OVERRIDE_SAVE", CreatedAt: created},
+		Audit:  assignmentstore.AuditEvent{EventID: "audit-override-inherit-1", ActorID: "admin-1", Operation: "USER_OVERRIDE_SAVE", TargetType: "user_permission_override", CreatedAt: created},
 		Outbox: assignmentstore.OutboxEvent{EventID: "outbox-override-inherit-1", AggregateKey: "tenant-a:user-3", EventType: "permission.changed", Payload: `{}`, CreatedAt: created},
 	}
 	if _, err := store.SaveUserOverrideWrite(ctx, grant); err != nil {
@@ -1737,7 +1737,7 @@ func assertSaveUserOverrideWriteInheritClearsTheRow(t *testing.T, store assignme
 
 	inherit := assignmentstore.UserOverrideWrite{
 		Key: key, ExpectedRevision: 1,
-		Audit:  assignmentstore.AuditEvent{EventID: "audit-override-inherit-2", Operation: "USER_OVERRIDE_SAVE", CreatedAt: created},
+		Audit:  assignmentstore.AuditEvent{EventID: "audit-override-inherit-2", ActorID: "admin-1", Operation: "USER_OVERRIDE_SAVE", TargetType: "user_permission_override", CreatedAt: created},
 		Outbox: assignmentstore.OutboxEvent{EventID: "outbox-override-inherit-2", AggregateKey: "tenant-a:user-3", EventType: "permission.changed", Payload: `{}`, CreatedAt: created},
 	}
 	newRevision, err := store.SaveUserOverrideWrite(ctx, inherit)
@@ -1943,7 +1943,7 @@ func assertSaveRoleMatrixAuditCarriesSearchDimensions(t *testing.T, store assign
 			{ResourceKey: "patient_record", ActionKey: "update", Enabled: true, ValidFrom: created},
 		},
 		Audit: assignmentstore.AuditEvent{
-			EventID: "audit-dimensions-role-1", Operation: "ROLE_MATRIX_SAVE",
+			EventID: "audit-dimensions-role-1", ActorID: "admin-1", Operation: "ROLE_MATRIX_SAVE", TargetType: "role_permission",
 			// A caller-supplied RoleExternalID or ResourceActionKeys must be
 			// ignored: the write's own fields are authoritative.
 			RoleExternalID: "some-other-role", CreatedAt: created,
@@ -1992,7 +1992,7 @@ func assertSaveUserOverrideWriteAuditCarriesSearchDimensions(t *testing.T, store
 		Effect: assignmentstore.EffectRevoke, Reason: "under investigation",
 		ValidFrom: created, ExpectedRevision: 0,
 		Audit: assignmentstore.AuditEvent{
-			EventID: "audit-dimensions-override-1", Operation: "USER_OVERRIDE_SAVE",
+			EventID: "audit-dimensions-override-1", ActorID: "admin-1", Operation: "USER_OVERRIDE_SAVE", TargetType: "user_permission_override",
 			// A caller-supplied TargetUserID must be ignored the same way.
 			TargetUserID: "some-other-user", CreatedAt: created,
 		},
