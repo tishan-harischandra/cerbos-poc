@@ -198,6 +198,121 @@ func TestAStalledLeaderStopsRenewingAndThenStandsDown(t *testing.T) {
 	awaitRun(t, done)
 }
 
+// A renewal that fails because the backend was unreachable is not the same
+// answer as a rival holding the lease. The renew interval is a third of the
+// ttl precisely so two renewals can fail before leadership is in danger; a
+// leader that stood down on the first one would hand the election away on
+// every brief database blip, and the interval would be promising a tolerance
+// nothing delivered.
+func TestALeaderRidesOutARenewalFailureShorterThanItsLease(t *testing.T) {
+	holder := &fakeHolder{acquires: true, renews: true}
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	leaderContexts := make(chan context.Context, 1)
+	done := run(ctx, holder, func(leaderCtx context.Context) {
+		leaderContexts <- leaderCtx
+		<-leaderCtx.Done()
+	})
+
+	var leaderCtx context.Context
+	select {
+	case leaderCtx = <-leaderContexts:
+	case <-time.After(patience):
+		t.Fatal("the caller was never elected")
+	}
+
+	// The backend goes away for a few renewals, then comes back - well
+	// inside the lease it already holds.
+	holder.setRenewErr(errors.New("connection refused"))
+	time.Sleep(4 * tick)
+	select {
+	case <-leaderCtx.Done():
+		t.Fatalf("leadership ended on a transient renewal failure, %s into a %s lease: %v",
+			4*tick, 20*tick, context.Cause(leaderCtx))
+	default:
+	}
+
+	holder.setRenewErr(nil)
+	time.Sleep(4 * tick)
+	select {
+	case <-leaderCtx.Done():
+		t.Fatal("leadership ended after the backend came back and renewals succeeded again")
+	default:
+	}
+
+	cancel()
+	awaitRun(t, done)
+}
+
+// But it cannot ride it out forever. Once the backend has been unreachable for
+// the whole lease, the lease has expired wherever it lives and a rival is
+// entitled to it, so continuing to work would be the split-brain the ttl
+// exists to bound.
+func TestALeaderStandsDownOnceRenewalsHaveFailedForTheWholeLease(t *testing.T) {
+	holder := &fakeHolder{acquires: true, renews: true}
+	holder.setRenewErr(errors.New("connection refused"))
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	leaderContexts := make(chan context.Context, 4)
+	done := run(ctx, holder, func(leaderCtx context.Context) {
+		leaderContexts <- leaderCtx
+		<-leaderCtx.Done()
+	})
+
+	var leaderCtx context.Context
+	select {
+	case leaderCtx = <-leaderContexts:
+	case <-time.After(patience):
+		t.Fatal("the caller was never elected")
+	}
+
+	select {
+	case <-leaderCtx.Done():
+	case <-time.After(patience):
+		t.Fatal("a leader that could not renew for the whole lease kept working")
+	}
+	if cause := context.Cause(leaderCtx); !errors.Is(cause, leaderlock.ErrLeadershipLost) {
+		t.Errorf("cause = %v, want ErrLeadershipLost", cause)
+	}
+
+	cancel()
+	awaitRun(t, done)
+}
+
+// A rival holding the lease is a verdict, not an outage, so it takes effect at
+// once rather than waiting out the lease.
+func TestARivalTakingTheLeaseDeposesTheLeaderImmediately(t *testing.T) {
+	holder := &fakeHolder{acquires: true, renews: true}
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	leaderContexts := make(chan context.Context, 4)
+	done := run(ctx, holder, func(leaderCtx context.Context) {
+		leaderContexts <- leaderCtx
+		<-leaderCtx.Done()
+	})
+
+	var leaderCtx context.Context
+	select {
+	case leaderCtx = <-leaderContexts:
+	case <-time.After(patience):
+		t.Fatal("the caller was never elected")
+	}
+
+	holder.setRenews(false)
+	deadline := time.After(10 * tick)
+	select {
+	case <-leaderCtx.Done():
+	case <-deadline:
+		t.Fatalf("a deposed leader kept working for %s, want it to stand down at the next renewal", 10*tick)
+	}
+
+	cancel()
+	awaitRun(t, done)
+}
+
 // A backend that is briefly unreachable is not a verdict about leadership.
 // Reporting the error and asking again is what rides out a database failover;
 // giving up would leave the election unheld until the process restarts.
@@ -291,6 +406,7 @@ type fakeHolder struct {
 	acquires   bool
 	renews     bool
 	acquireErr error
+	renewErr   error
 
 	acquired int
 	renewed  int
@@ -311,6 +427,9 @@ func (f *fakeHolder) Renew(context.Context) (bool, error) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	f.renewed++
+	if f.renewErr != nil {
+		return false, f.renewErr
+	}
 	return f.renews, nil
 }
 
@@ -322,7 +441,8 @@ func (f *fakeHolder) Release(context.Context) error {
 }
 
 func (f *fakeHolder) setAcquires(v bool) { f.mu.Lock(); f.acquires = v; f.mu.Unlock() }
-func (f *fakeHolder) setRenews(v bool)   { f.mu.Lock(); f.renews = v; f.mu.Unlock() }
+func (f *fakeHolder) setRenews(v bool)      { f.mu.Lock(); f.renews = v; f.mu.Unlock() }
+func (f *fakeHolder) setRenewErr(err error) { f.mu.Lock(); f.renewErr = err; f.mu.Unlock() }
 
 func (f *fakeHolder) acquireCalls() int { f.mu.Lock(); defer f.mu.Unlock(); return f.acquired }
 func (f *fakeHolder) renewCalls() int   { f.mu.Lock(); defer f.mu.Unlock(); return f.renewed }

@@ -126,6 +126,12 @@ func hold(ctx context.Context, cfg Config, holder Holder, onElected func(context
 	// does expire in the backend and a rival really does take it.
 	var stallUntil <-chan time.Time
 	pause := cfg.PauseRenewal
+
+	// When this instance last knew the lease was its own. A renewal that
+	// fails because the backend was unreachable is not an answer about
+	// leadership, so it is measured against this rather than acted on:
+	// the lease is still held until it actually expires.
+	heldSince := time.Now()
 	for {
 		select {
 		case <-ctx.Done():
@@ -158,15 +164,31 @@ func hold(ctx context.Context, cfg Config, holder Holder, onElected func(context
 			renewCtx, cancel := context.WithTimeout(ctx, cfg.RenewInterval)
 			held, err := holder.Renew(renewCtx)
 			cancel()
+
 			if err != nil {
 				report(cfg, fmt.Errorf("lease: renewing leadership: %w", err))
-			}
-			if held {
+				// "I could not ask" is not "somebody else holds
+				// it". The renew interval is a fraction of the
+				// ttl so that a couple of attempts can fail
+				// without costing the election; standing down
+				// on the first would hand the election away on
+				// every brief blip. But only until the lease
+				// would really have expired - past that, a
+				// rival is entitled to it and carrying on would
+				// be the split-brain the ttl exists to bound.
+				if cfg.TTL <= 0 || time.Since(heldSince) < cfg.TTL {
+					continue
+				}
+			} else if held {
+				heldSince = time.Now()
 				continue
 			}
-			// The lease is gone. The caller's work must stop before a
-			// rival's starts, and it has to be able to tell this from
-			// an ordinary shutdown.
+
+			// The lease is gone, either because a rival answered
+			// for it or because it expired while the backend was
+			// unreachable. The caller's work must stop before a
+			// rival's starts, and it has to be able to tell this
+			// from an ordinary shutdown.
 			endLeadership(leaderlock.ErrLeadershipLost)
 			<-working
 			return
