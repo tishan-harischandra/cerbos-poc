@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/tishan-harischandra/cerbos-poc/libs/leaderlock"
+	"github.com/tishan-harischandra/cerbos-poc/libs/leaderlock/databaselock"
 	"github.com/tishan-harischandra/cerbos-poc/libs/leaderlock/pgadvisory"
 	"github.com/tishan-harischandra/cerbos-poc/libs/leaderlock/single"
 )
@@ -26,6 +27,11 @@ const (
 	// only type with no split-brain window, and the only one that cannot
 	// run against Oracle.
 	TypePGAdvisory Type = "PG_ADVISORY"
+	// TypeDatabase holds a lease row in the authorization database,
+	// expiring on the database's own clock. The portable choice: it is
+	// the only database-backed type that runs on Oracle as well as
+	// PostgreSQL, and it pays for that with a lease's split-brain window.
+	TypeDatabase Type = "DATABASE"
 	// TypeSingle elects every caller and coordinates with nothing. For a
 	// deployment scaled to one replica, and for tests.
 	TypeSingle Type = "SINGLE"
@@ -139,6 +145,14 @@ func New(cfg Config) (leaderlock.Elector, error) {
 			CheckInterval: cfg.RenewInterval,
 			RetryInterval: cfg.RetryInterval,
 		})
+	case TypeDatabase:
+		return databaselock.New(databaselock.Config{
+			DSN:           cfg.DSN,
+			Identity:      cfg.Identity,
+			TTL:           cfg.TTL,
+			RenewInterval: cfg.RenewInterval,
+			RetryInterval: cfg.RetryInterval,
+		})
 	case TypeSingle:
 		return single.New(), nil
 	default:
@@ -158,7 +172,7 @@ func known(t Type) bool {
 
 // Types are every mechanism this build supports, in the order they are
 // reported to an operator who got the value wrong.
-var Types = []Type{TypePGAdvisory, TypeSingle}
+var Types = []Type{TypePGAdvisory, TypeDatabase, TypeSingle}
 
 func supportedTypes() string {
 	names := make([]string, 0, len(Types))
