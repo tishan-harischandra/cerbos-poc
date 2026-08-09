@@ -45,15 +45,18 @@ make clean   # remove containers, volumes, local images and build caches
 
 ## Exposed URLs
 
-Only the Admin Console is published to the host. Everything else is reachable
-only from inside the compose network, which is what keeps the PDP private.
+Only the Administration Service is published to the host. It serves the Admin
+Console and proxies the console's API calls (ADR-008), so everything else -
+the PDP, the ADS, the database - is reachable only from inside the compose
+network (§16.1).
 
 | Service | Host URL | In-network address | Published? |
 | --- | --- | --- | --- |
-| Admin Console | <http://localhost:4200> | `admin-console:80` | yes (`ADMIN_CONSOLE_PORT`) |
-| ADS health | <http://localhost:4200/api/ads/healthz> | `ads:8080/healthz` | via the console proxy only |
-| ADS readiness | <http://localhost:4200/api/ads/readyz> | `ads:8080/readyz` | via the console proxy only |
-| ADS decisions | `POST /api/ads/internal/authz/check` | `ads:8080/internal/authz/check` | via the console proxy only |
+| Admin Console | <http://localhost:4200> | `admin-service:8081` | yes (`ADMIN_CONSOLE_PORT`) |
+| Administration API | <http://localhost:4200/api/admin/...> | `admin-service:8081/admin/...` | same port as the console |
+| ADS health | <http://localhost:4200/api/ads/healthz> | `ads:8080/healthz` | proxied by admin-service only |
+| ADS readiness | <http://localhost:4200/api/ads/readyz> | `ads:8080/readyz` | proxied by admin-service only |
+| ADS decisions | `POST /api/ads/internal/authz/check` | `ads:8080/internal/authz/check` | proxied by admin-service only |
 | Cerbos PDP (gRPC) | not reachable | `cerbos:3593` | no |
 | Cerbos PDP (HTTP) | not reachable | `cerbos:3592` | no |
 | PostgreSQL | not reachable | `postgres:5432` | no |
@@ -97,7 +100,8 @@ no override here.
 
 ```
 apps/ads              Go service: health, readiness and the decision endpoint
-apps/admin-console    Angular app: live platform status
+apps/admin-console    Angular app: live platform status (built into the
+                      admin-service image, which serves it - ADR-008)
 libs/permissioncontext  Assembles permissionContext data; never a verdict
 libs/cerbosclient     Long-lived gRPC channel to the PDP
 deploy/cerbos         Cerbos config, the served policy bundle and the ADR-003 control
@@ -151,8 +155,8 @@ the first real measurements taken on real hardware.
 
 `deploy/k8s` is a `kustomize` layout for running the same core walking-skeleton
 services docker-compose brings up by default — `postgres`, `cerbos`,
-`keycloak`, `redpanda`, `ads`, `admin-service`, `resource-service`,
-`admin-console` and `business-ui` — on a real cluster instead. The `oracle`,
+`keycloak`, `redpanda`, `ads`, `admin-service` (which serves the Admin
+Console), `resource-service` and `business-ui` — on a real cluster instead. The `oracle`,
 `loadtest`, `policy-release` and `observability` compose profiles are out of
 scope for this layout (see issue #55).
 
@@ -183,11 +187,10 @@ docker build -f deploy/cerbos/Dockerfile -t cerbos-poc/cerbos-assets:dev .
 docker build -f apps/ads/Dockerfile -t cerbos-poc/ads:dev .
 docker build -f apps/admin-service/Dockerfile -t cerbos-poc/admin-service:dev .
 docker build -f apps/resource-service/Dockerfile -t cerbos-poc/resource-service:dev .
-docker build -f apps/admin-console/Dockerfile -t cerbos-poc/admin-console:dev .
 docker build -f apps/business-ui/Dockerfile -t cerbos-poc/business-ui:dev .
 kind load docker-image cerbos-poc/cerbos-assets:dev cerbos-poc/ads:dev \
   cerbos-poc/admin-service:dev cerbos-poc/resource-service:dev \
-  cerbos-poc/admin-console:dev cerbos-poc/business-ui:dev
+  cerbos-poc/business-ui:dev
 kubectl apply -k deploy/k8s/overlays/dev
 ```
 
@@ -200,7 +203,7 @@ same pattern as `scripts/go.sh`/`scripts/k6.sh`).
 **Remaining manual steps before a real cluster deploy:** a KEDA operator
 installed cluster-wide; the `prod` overlay's `REGISTRY`/`TAG` image
 placeholders replaced (or set with `kustomize edit set image`); an Ingress or
-LoadBalancer Service in front of `admin-console`/`business-ui` (compose's
+LoadBalancer Service in front of `admin-service`/`business-ui` (compose's
 host port publishing has no direct equivalent here and isn't defined by this
 layout); and the dev-only fixture credentials in `deploy/k8s/base/common` and
 `deploy/k8s/base/postgres` replaced with real secrets from a cluster secret

@@ -19,9 +19,6 @@ images:
   - name: cerbos-poc/resource-service
     newName: REGISTRY/cerbos-poc/resource-service
     newTag: TAG
-  - name: cerbos-poc/admin-console
-    newName: REGISTRY/cerbos-poc/admin-console
-    newTag: TAG
   - name: cerbos-poc/business-ui
     newName: REGISTRY/cerbos-poc/business-ui
     newTag: TAG
@@ -53,9 +50,11 @@ patches:
       - op: replace
         path: /spec/minReplicaCount
         value: 3
+      # Raised with the console folded in (ADR-008): this deployment now
+      # absorbs the ceiling the console's own ScaledObject used to carry.
       - op: replace
         path: /spec/maxReplicaCount
-        value: 8
+        value: 12
   - target:
       kind: ScaledObject
       name: resource-service
@@ -66,16 +65,6 @@ patches:
       - op: replace
         path: /spec/maxReplicaCount
         value: 12
-  - target:
-      kind: ScaledObject
-      name: admin-console
-    patch: |
-      - op: replace
-        path: /spec/minReplicaCount
-        value: 3
-      - op: replace
-        path: /spec/maxReplicaCount
-        value: 6
   - target:
       kind: ScaledObject
       name: business-ui
@@ -116,29 +105,8 @@ patches:
         value: 3
   - target:
       kind: Deployment
-      name: admin-console
-    patch: |
-      - op: replace
-        path: /spec/replicas
-        value: 3
-  - target:
-      kind: Deployment
       name: business-ui
     patch: |
       - op: replace
         path: /spec/replicas
         value: 3
-  # See apps/admin-console/nginx.conf.template's comment: nginx's own
-  # resolver cannot resolve the bare compose-style service names the base
-  # ConfigMap defaults to against Kubernetes' CoreDNS.
-  - target:
-      kind: Deployment
-      name: admin-console
-    patch: |
-      - op: add
-        path: /spec/template/spec/containers/0/env
-        value:
-          - name: ADS_UPSTREAM
-            value: ads.cerbos-poc-prod.svc.cluster.local:8080
-          - name: ADMIN_SERVICE_UPSTREAM
-            value: admin-service.cerbos-poc-prod.svc.cluster.local:8081

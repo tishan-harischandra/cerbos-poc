@@ -118,10 +118,14 @@ def check_identity_provider(services: dict) -> None:
           "IDP_CREDENTIALS_SECRET_REF" in environment
           and not any(key.endswith("CLIENT_SECRET") for key in environment))
 
-    console_environment = services.get("admin-console", {}).get("environment") or {}
+    # The Administration Service is the browser-facing surface now (ADR-008):
+    # it serves the console, so its own environment is what a compromise of
+    # that surface would expose. The IdP secret still arrives by reference.
+    browser_facing = services.get("admin-service", {}).get("environment") or {}
     check("no identity provider credential reaches the browser-facing service",
-          not any("SECRET" in key.upper() or "PASSWORD" in key.upper()
-                  for key in console_environment))
+          not any(("SECRET" in key.upper() or "PASSWORD" in key.upper())
+                  and not key.endswith("_SECRET_REF")
+                  for key in browser_facing))
 
 
 def main() -> int:
@@ -132,7 +136,7 @@ def main() -> int:
     compose = yaml.safe_load(COMPOSE_FILE.read_text())
     services = compose.get("services", {})
 
-    for name in ("postgres", "cerbos", "ads", "admin-console"):
+    for name in ("postgres", "cerbos", "ads", "admin-service"):
         check(f"service '{name}' is defined", name in services)
     if failures:
         return 1
@@ -163,15 +167,25 @@ def main() -> int:
             ads_deps.get(dependency, {}).get("condition") == "service_healthy",
         )
 
-    console_deps = services["admin-console"].get("depends_on", {})
+    console_deps = services["admin-service"].get("depends_on", {})
     check(
-        "admin-console waits for a healthy 'ads'",
+        "the service serving the console waits for a healthy 'ads'",
         console_deps.get("ads", {}).get("condition") == "service_healthy",
     )
 
+    # ADR-008: the console has no service of its own, and the one that serves
+    # it is the only published door into the control plane.
+    check(
+        "the admin console has no separate service",
+        "admin-console" not in services,
+    )
     check(
         "the admin console is published to the host",
-        bool(services["admin-console"].get("ports")),
+        bool(services["admin-service"].get("ports")),
+    )
+    check(
+        "the administration service is told how to log a human in",
+        "OIDC_ISSUER" in (services["admin-service"].get("environment") or {}),
     )
     check(
         "postgres data lives on a named volume so 'make clean' can remove it",
@@ -201,7 +215,7 @@ def main() -> int:
                 "oracle" not in (service.get("depends_on") or {}),
             )
 
-    for name in ("ads", "admin-console"):
+    for name in ("ads", "admin-service"):
         build = services[name].get("build")
         check(f"service '{name}' is built from a Dockerfile in this repo", bool(build))
 

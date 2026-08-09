@@ -16,8 +16,13 @@ check() {
   fi
 }
 
-body="$(curl -fsS "${BASE}/index.html" 2>/dev/null)"
+# The console's own entry point rather than /index.html: a Go file server
+# redirects the explicit file name to the directory, so asking for it would
+# assert on a 301 instead of on the page.
+body="$(curl -fsS "${BASE}/" 2>/dev/null)"
 check "the admin console is served on ${BASE}" "$?"
+grep -q '<app-root>' <<<"${body}"
+check "the page served is the console's application shell" "$?"
 
 health="$(curl -fsS "${BASE}/api/ads/healthz" 2>/dev/null)"
 check "the ADS health endpoint answers through the console proxy" "$?"
@@ -50,23 +55,50 @@ check "the Cerbos PDP is not published to the host" "$?"
 [[ -z "$(docker compose ps --status running --services 2>/dev/null | grep -x oracle)" ]]
 check "oracle is not running in the default stack" "$?"
 
-# nginx resolves a literal proxy_pass hostname once at startup, so without a
-# resolver the console proxies to a stale address the moment the ADS container is
-# recreated, and every decision request comes back 502. Assert the rendered
-# config still resolves at request time.
-# Ask compose for the container rather than guessing its name: Docker Compose
-# names it cerbos-poc-admin-console-1 and podman-compose cerbos-poc_admin-console_1.
-console="$(docker compose ps -q admin-console 2>/dev/null | head -1)"
-rendered=""
-if [[ -n "${console}" ]]; then
-  rendered="$(docker exec "${console}" nginx -T 2>/dev/null)"
-fi
-[[ -n "${rendered}" ]]
-check "the console's nginx config can be read" "$?"
-grep -q 'resolver ' <<<"${rendered}"
-check "the console proxy configures a DNS resolver" "$?"
-grep -qE 'proxy_pass \$' <<<"${rendered}"
-check "the console proxy resolves the ADS at request time, surviving a rebuild" "$?"
+# ADR-008: the console is served by admin-service, so there is no console
+# container to inspect. What replaced the nginx assertions is the behaviour
+# they were standing in for, asked of the running stack directly.
+
+# A deep link is the case a static file server gets wrong: the path is a route
+# the browser's own router knows and no file exists for it.
+deep_link_status="$(curl -s -o /dev/null -w '%{http_code}' "${BASE}/user-overrides/tenant-a" 2>/dev/null)"
+[[ "${deep_link_status}" == "200" ]]
+check "a console deep link is answered by the application shell" "$?"
+
+# The runtime environment used to be rendered by an entrypoint script; it is
+# now served from the service's own configuration, and the console cannot log
+# anyone in without it.
+env_js="$(curl -fsS "${BASE}/assets/env.js" 2>/dev/null)"
+check "the console's runtime environment is served" "$?"
+grep -q 'oidcIssuer' <<<"${env_js}"
+check "the runtime environment names the issuer to log in against" "$?"
+
+# The issue #26 regression, asked of a live stack: every administration route
+# is registered under /admin, and the console calls it under /api/admin. A 404
+# here means the prefix did not survive the rewrite. 401 is the right answer -
+# the route matched and the token check ran.
+admin_status="$(curl -s -o /dev/null -w '%{http_code}' "${BASE}/api/admin/authz/resources" 2>/dev/null)"
+[[ "${admin_status}" != "404" ]]
+check "the console's admin API calls reach a registered route" "$?"
+[[ "${admin_status}" == "401" ]]
+check "an unauthenticated admin API call is refused rather than served" "$?"
+
+# A missing asset must not be answered by the shell: a bundle whose javascript
+# 404s is obvious, one that returns HTML with a 200 is a blank page.
+missing_status="$(curl -s -o /dev/null -w '%{http_code}' "${BASE}/main-does-not-exist.js" 2>/dev/null)"
+[[ "${missing_status}" == "404" ]]
+check "a missing console asset is a 404 rather than the shell" "$?"
+
+# The nginx proxy resolved its upstream once at startup, so recreating the ADS
+# left it proxying to an address nobody answered on. The Go resolver looks the
+# name up per request, so the console survives a rebuild of the ADS.
+docker compose up --detach --force-recreate ads >/dev/null 2>&1
+for _ in $(seq 1 30); do
+  curl -fsS --max-time 2 "${BASE}/api/ads/healthz" >/dev/null 2>&1 && break
+  sleep 1
+done
+curl -fsS --max-time 5 "${BASE}/api/ads/healthz" >/dev/null 2>&1
+check "the ADS proxy still resolves after the ADS is recreated" "$?"
 
 if (( failures > 0 )); then
   echo

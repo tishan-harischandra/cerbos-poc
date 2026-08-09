@@ -44,7 +44,6 @@ declare -A images=(
   [cerbos-poc/ads:dev]="apps/ads/Dockerfile"
   [cerbos-poc/admin-service:dev]="apps/admin-service/Dockerfile"
   [cerbos-poc/resource-service:dev]="apps/resource-service/Dockerfile"
-  [cerbos-poc/admin-console:dev]="apps/admin-console/Dockerfile"
   [cerbos-poc/business-ui:dev]="apps/business-ui/Dockerfile"
   [cerbos-poc/policy-controller:dev]="apps/policy-controller/Dockerfile"
 )
@@ -73,7 +72,6 @@ for kind_name in \
   deployment/ads \
   deployment/admin-service \
   deployment/resource-service \
-  deployment/admin-console \
   deployment/business-ui \
   deployment/gitea \
   deployment/policy-controller; do

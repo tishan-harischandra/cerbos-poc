@@ -8,8 +8,11 @@
     <link rel="icon" type="image/x-icon" href="favicon.ico" />
   </head>
   <body>
-    <!-- Rendered by docker-entrypoint.d/30-render-env-js.sh at container
-         start; see assets/env.template.js for why. -->
+    <!-- Served by the Administration Service from its own configuration
+         (ADR-008). This bundle is built long before anyone knows which
+         Keycloak an installation logs in against, and a static build has no
+         templating step of its own, so the answer arrives as this script.
+         Absent under `nx serve`, where oidc-config.ts's defaults apply. -->
     <script src="assets/env.js"></script>
     <app-root></app-root>
   </body>

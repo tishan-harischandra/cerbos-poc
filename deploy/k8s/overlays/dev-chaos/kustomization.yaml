@@ -57,7 +57,7 @@ patches:
   # pod, on the assumption that only cerbos and ads are ever at risk of
   # eviction (issue #26, §18: "Drain a node running Cerbos or ADS pods").
   # Without this pin, the scheduler is free to co-locate postgres, redpanda,
-  # keycloak, gitea or admin-console on that same worker, and draining it
+  # keycloak or gitea on that same worker, and draining it
   # evicts them too - taking down the persistent port-forwards every
   # scenario after 08 depends on (confirmed against a live cluster: the run
   # that motivated this pin broke the keycloak port-forward mid-suite,
@@ -120,9 +120,28 @@ patches:
           - key: node-role.kubernetes.io/control-plane
             operator: Exists
             effect: NoSchedule
+  # admin-service carries the console now (ADR-008), so it inherits the pin
+  # the console had. policy-controller is pinned with it because the
+  # policy-release component requires the two on one node for the
+  # ReadWriteOnce archive volume - pinning only one would leave the other
+  # unschedulable.
   - target:
       kind: Deployment
-      name: admin-console
+      name: admin-service
+    patch: |
+      - op: add
+        path: /spec/template/spec/nodeSelector
+        value:
+          node-role.kubernetes.io/control-plane: ""
+      - op: add
+        path: /spec/template/spec/tolerations
+        value:
+          - key: node-role.kubernetes.io/control-plane
+            operator: Exists
+            effect: NoSchedule
+  - target:
+      kind: Deployment
+      name: policy-controller
     patch: |
       - op: add
         path: /spec/template/spec/nodeSelector

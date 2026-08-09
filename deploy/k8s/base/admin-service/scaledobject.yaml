@@ -5,8 +5,14 @@ metadata:
 spec:
   scaleTargetRef:
     name: admin-service
+  # This deployment now carries the Admin Console as well as the
+  # administration API (ADR-008), so its ceiling absorbs what the console's
+  # own ScaledObject used to. Its floor is unchanged: the console's traffic
+  # is a handful of administrators, not a population, and the two surfaces
+  # were already sized for the same audience - the reason merging them cost
+  # no independent scaling.
   minReplicaCount: 2
-  maxReplicaCount: 4
+  maxReplicaCount: 6
   triggers:
     - type: cpu
       metricType: Utilization

@@ -25,6 +25,30 @@ COPY libs/ /src/libs/
 COPY apps/admin-service/ /src/apps/admin-service/
 RUN CGO_ENABLED=0 go build -trimpath -ldflags="-s -w" -o /out/admin-service ./cmd/admin-service
 
+# The Admin Console's bundle ships inside this image, because this service
+# serves it (ADR-008). The stage is copied from apps/admin-console's former
+# Dockerfile, which this replaces.
+FROM docker.io/library/node:24-alpine AS console
+
+# The Nx Go plugin computes the project graph and needs a Go toolchain on PATH.
+# Taking it from the official image keeps the host free of a Go install.
+COPY --from=docker.io/library/golang:1.25-alpine /usr/local/go /usr/local/go
+ENV PATH="/usr/local/go/bin:${PATH}"
+
+WORKDIR /workspace
+COPY package.json package-lock.json ./
+RUN npm ci --no-audit --no-fund
+
+COPY nx.json tsconfig.base.json eslint.config.mjs go.work ./
+# Every module go.work names must exist or the Nx Go plugin cannot compute the
+# project graph, even though this stage only builds the Angular app.
+COPY apps/ads/go.mod apps/ads/go.sum ./apps/ads/
+COPY libs/cerbosclient/go.mod libs/cerbosclient/go.sum ./libs/cerbosclient/
+COPY libs/permissioncontext/go.mod ./libs/permissioncontext/
+COPY tests/architecture/go.mod ./tests/architecture/
+COPY apps/admin-console/ ./apps/admin-console/
+RUN npx nx build admin-console --configuration=production
+
 FROM docker.io/library/alpine:3.20 AS runtime
 
 RUN apk add --no-cache ca-certificates wget \
@@ -32,6 +56,8 @@ RUN apk add --no-cache ca-certificates wget \
 USER admin-service
 
 COPY --from=build /out/admin-service /usr/local/bin/admin-service
+# ADMIN_CONSOLE_DIR defaults to this path.
+COPY --from=console /workspace/dist/apps/admin-console/browser /admin-console
 
 EXPOSE 8081
 ENTRYPOINT ["/usr/local/bin/admin-service"]
