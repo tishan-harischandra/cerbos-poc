@@ -15,6 +15,19 @@ import (
 // path never delivers it at all.
 const DefaultReconcileInterval = 2 * time.Second
 
+// DefaultPerTenantTimeout bounds a single tenant's Store.PermissionRevision
+// call within one reconciliation pass when ReconcilerConfig.PerTenantTimeout
+// is left zero.
+//
+// ReconcileOnce runs on one goroutine and checks every known tenant in
+// sequence with no timeout of its own, so a single slow or stuck call - a
+// PostgreSQL restart leaving the pool's idle connections stale is the case
+// that matters here (issue #26's chaos suite) - would otherwise stall every
+// tenant behind it and every future tick until that one call finally
+// returns, silently pausing convergence for the whole replica rather than
+// just missing one pass for one tenant.
+const DefaultPerTenantTimeout = 5 * time.Second
+
 // RevisionSource is the authoritative revision this reconciler compares the
 // cache against - PostgreSQL, via assignmentstore.Store, directly. It never
 // goes through the cache itself: comparing a cache against itself could
@@ -38,6 +51,9 @@ type ReconcilerConfig struct {
 	// Interval bounds how often a reconciliation pass runs. Zero means
 	// DefaultReconcileInterval.
 	Interval time.Duration
+	// PerTenantTimeout bounds a single tenant's Store.PermissionRevision
+	// call within one pass. Zero means DefaultPerTenantTimeout.
+	PerTenantTimeout time.Duration
 	// OnDrift, if set, is called whenever a pass finds and repairs a
 	// mismatch, naming the tenant and the two revisions that disagreed.
 	OnDrift func(tenantID string, cached, actual int64)
@@ -61,6 +77,9 @@ func NewReconciler(cfg ReconcilerConfig) *Reconciler {
 	if cfg.Interval <= 0 {
 		cfg.Interval = DefaultReconcileInterval
 	}
+	if cfg.PerTenantTimeout <= 0 {
+		cfg.PerTenantTimeout = DefaultPerTenantTimeout
+	}
 	return &Reconciler{cfg: cfg}
 }
 
@@ -70,7 +89,7 @@ func NewReconciler(cfg ReconcilerConfig) *Reconciler {
 // misses on its first read, not through this pass.
 func (r *Reconciler) ReconcileOnce(ctx context.Context) {
 	for _, tenantID := range r.cfg.Cache.KnownTenants() {
-		actual, found, err := r.cfg.Store.PermissionRevision(ctx, tenantID)
+		actual, found, err := r.checkTenant(ctx, tenantID)
 		if err != nil {
 			if r.cfg.OnError != nil {
 				r.cfg.OnError(err)
@@ -93,6 +112,14 @@ func (r *Reconciler) ReconcileOnce(ctx context.Context) {
 			r.cfg.OnDrift(tenantID, cachedRevision, actualRevision)
 		}
 	}
+}
+
+// checkTenant reads one tenant's actual revision, bounded by
+// PerTenantTimeout so this one call can never stall the whole pass.
+func (r *Reconciler) checkTenant(ctx context.Context, tenantID string) (assignmentstore.PermissionRevision, bool, error) {
+	tenantCtx, cancel := context.WithTimeout(ctx, r.cfg.PerTenantTimeout)
+	defer cancel()
+	return r.cfg.Store.PermissionRevision(tenantCtx, tenantID)
 }
 
 // Run calls ReconcileOnce immediately, then on every tick of Interval, until
