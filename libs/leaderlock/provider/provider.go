@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/tishan-harischandra/cerbos-poc/libs/leaderlock"
+	"github.com/tishan-harischandra/cerbos-poc/libs/leaderlock/pgadvisory"
 	"github.com/tishan-harischandra/cerbos-poc/libs/leaderlock/single"
 )
 
@@ -21,6 +22,10 @@ import (
 type Type string
 
 const (
+	// TypePGAdvisory holds a PostgreSQL session-scoped advisory lock. The
+	// only type with no split-brain window, and the only one that cannot
+	// run against Oracle.
+	TypePGAdvisory Type = "PG_ADVISORY"
 	// TypeSingle elects every caller and coordinates with nothing. For a
 	// deployment scaled to one replica, and for tests.
 	TypeSingle Type = "SINGLE"
@@ -43,6 +48,18 @@ const (
 	EnvRenewInterval = "LEADER_ELECTION_RENEW_INTERVAL"
 	// EnvRetryInterval is how often a follower re-contends.
 	EnvRetryInterval = "LEADER_ELECTION_RETRY_INTERVAL"
+	// EnvDSN is the database the election runs on, for the types that use
+	// one. It falls back to the authorization database's own DSN, because
+	// an election on a second database would be a second thing to keep
+	// available.
+	EnvDSN = "LEADER_ELECTION_DSN"
+)
+
+// The authorization database DSNs the election falls back to, so a compose
+// file or a manifest configures one database rather than two.
+const (
+	envPostgresDSN = "ASSIGNMENTSTORE_POSTGRES_DSN"
+	envOracleDSN   = "ASSIGNMENTSTORE_ORACLE_DSN"
 )
 
 // DefaultTTL is how long a lease lives without renewal. It is long enough to
@@ -65,6 +82,10 @@ type Config struct {
 	RenewInterval time.Duration
 	// RetryInterval is how often a follower re-contends.
 	RetryInterval time.Duration
+
+	// DSN is the database the election runs on, for the database-backed
+	// types.
+	DSN string
 }
 
 // LookupFunc mirrors os.LookupEnv so configuration stays testable.
@@ -90,6 +111,7 @@ func FromEnv(lookup LookupFunc) (Config, error) {
 		TTL:           durationOr(lookup, EnvTTL, DefaultTTL),
 		RenewInterval: durationOr(lookup, EnvRenewInterval, 0),
 		RetryInterval: durationOr(lookup, EnvRetryInterval, DefaultRetryInterval),
+		DSN:           valueOr(lookup, EnvDSN, valueOr(lookup, envPostgresDSN, valueOr(lookup, envOracleDSN, ""))),
 	}
 	if !known(cfg.Type) {
 		return Config{}, fmt.Errorf("%w: %s=%q; supported types are %s",
@@ -111,6 +133,12 @@ func FromEnv(lookup LookupFunc) (Config, error) {
 // New builds the one elector this installation uses.
 func New(cfg Config) (leaderlock.Elector, error) {
 	switch cfg.Type {
+	case TypePGAdvisory:
+		return pgadvisory.New(pgadvisory.Config{
+			DSN:           cfg.DSN,
+			CheckInterval: cfg.RenewInterval,
+			RetryInterval: cfg.RetryInterval,
+		})
 	case TypeSingle:
 		return single.New(), nil
 	default:
@@ -130,7 +158,7 @@ func known(t Type) bool {
 
 // Types are every mechanism this build supports, in the order they are
 // reported to an operator who got the value wrong.
-var Types = []Type{TypeSingle}
+var Types = []Type{TypePGAdvisory, TypeSingle}
 
 func supportedTypes() string {
 	names := make([]string, 0, len(Types))

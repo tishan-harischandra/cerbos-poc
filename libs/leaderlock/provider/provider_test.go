@@ -50,6 +50,49 @@ func TestTheElectorIsSelectedByEnvironmentAlone(t *testing.T) {
 	}
 }
 
+// The database-backed types need somewhere to run the election, and an
+// installation that already configured the authorization database should not
+// have to say so twice.
+func TestADatabaseBackedElectionFallsBackToTheAuthorizationDatabase(t *testing.T) {
+	cfg, err := provider.FromEnv(lookup(map[string]string{
+		provider.EnvType:               "PG_ADVISORY",
+		"ASSIGNMENTSTORE_POSTGRES_DSN": "postgres://authz@postgres:5432/authz",
+	}))
+	if err != nil {
+		t.Fatalf("FromEnv(PG_ADVISORY): %v", err)
+	}
+	if cfg.DSN != "postgres://authz@postgres:5432/authz" {
+		t.Errorf("DSN = %q, want the authorization database's own DSN", cfg.DSN)
+	}
+	if _, err := provider.New(cfg); err != nil {
+		t.Errorf("New(PG_ADVISORY): %v", err)
+	}
+}
+
+func TestADatabaseBackedElectionWithNoDatabaseIsRefused(t *testing.T) {
+	cfg, err := provider.FromEnv(lookup(map[string]string{provider.EnvType: "PG_ADVISORY"}))
+	if err != nil {
+		t.Fatalf("FromEnv(PG_ADVISORY): %v", err)
+	}
+	if _, err := provider.New(cfg); err == nil {
+		t.Error("New built a database-backed elector with nowhere to connect")
+	}
+}
+
+// A renewal that is not comfortably inside the ttl loses the lease it was
+// meant to keep, and the failure looks like random leadership churn rather
+// than a misconfiguration.
+func TestARenewalSlowerThanTheTTLIsRefused(t *testing.T) {
+	_, err := provider.FromEnv(lookup(map[string]string{
+		provider.EnvType:          "SINGLE",
+		provider.EnvTTL:           "5s",
+		provider.EnvRenewInterval: "10s",
+	}))
+	if err == nil {
+		t.Fatal("FromEnv accepted a renewal interval longer than the lease it renews")
+	}
+}
+
 func lookup(values map[string]string) provider.LookupFunc {
 	return func(key string) (string, bool) {
 		value, ok := values[key]
