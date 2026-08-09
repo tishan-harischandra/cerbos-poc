@@ -24,7 +24,9 @@ import (
 	"github.com/tishan-harischandra/cerbos-poc/apps/admin-service/internal/useroverride"
 	"github.com/tishan-harischandra/cerbos-poc/libs/assignmentstore/postgresstore"
 	"github.com/tishan-harischandra/cerbos-poc/libs/capabilitycatalog"
-	"github.com/tishan-harischandra/cerbos-poc/libs/idpdirectory/provider"
+	idpprovider "github.com/tishan-harischandra/cerbos-poc/libs/idpdirectory/provider"
+	"github.com/tishan-harischandra/cerbos-poc/libs/leaderlock"
+	electionprovider "github.com/tishan-harischandra/cerbos-poc/libs/leaderlock/provider"
 	"github.com/tishan-harischandra/cerbos-poc/libs/outbox"
 	"github.com/tishan-harischandra/cerbos-poc/libs/outbox/kafkapublisher"
 	"github.com/tishan-harischandra/cerbos-poc/libs/policyrelease"
@@ -61,14 +63,35 @@ func main() {
 
 	// The identity provider is selected here and nowhere else (§7.1), the
 	// same as every other service that verifies a token.
-	idpConfig, err := provider.FromEnv(os.LookupEnv)
+	idpConfig, err := idpprovider.FromEnv(os.LookupEnv)
 	if err != nil {
 		logger.Error("could not read the identity provider configuration", slog.Any("error", err))
 		os.Exit(1)
 	}
-	verifier, err := provider.NewVerifier(idpConfig)
+	verifier, err := idpprovider.NewVerifier(idpConfig)
 	if err != nil {
 		logger.Error("could not prepare token verification", slog.Any("error", err))
+		os.Exit(1)
+	}
+
+	// The outbox publisher is a singleton across replicas, so this service
+	// needs an elector for the same reason the policy controller does.
+	// There is no default type: an unset LEADER_ELECTION_TYPE would mean
+	// every replica publishing every row.
+	electionConfig, err := electionprovider.FromEnv(os.LookupEnv)
+	if err != nil {
+		logger.Error("could not read the leader election configuration", slog.Any("error", err))
+		os.Exit(1)
+	}
+	// Without this the one failure that matters is silent: the election is
+	// unheld, so nothing drains the outbox, while /readyz keeps answering
+	// and every write still commits.
+	electionConfig.OnError = func(err error) {
+		logger.Error("outbox publisher election attempt failed", slog.Any("error", err))
+	}
+	elector, err := electionprovider.New(electionConfig)
+	if err != nil {
+		logger.Error("could not prepare leader election", slog.Any("error", err))
 		os.Exit(1)
 	}
 
@@ -129,7 +152,20 @@ func main() {
 			logger.Error("outbox publisher error", slog.Any("error", err))
 		},
 	})
-	go outboxLoop.Run(ctx)
+	// Only the leader drains. Every replica reading the same batch is
+	// inside the at-least-once contract and the invalidation consumer is
+	// idempotent, so this is not a correctness fix - it is the difference
+	// between publishing each event once and publishing it once per
+	// replica, which the prod overlay scales to eight.
+	//
+	// The loop itself knows nothing about any of this: it is the work
+	// passed to onElected, and it already returns on ctx.Done, so losing
+	// the election stops it mid-drain.
+	go func() {
+		if err := elector.Run(ctx, leaderlock.ElectionOutboxPublisher, outboxLoop.Run); err != nil {
+			logger.Error("the outbox publisher election stopped", slog.Any("error", err))
+		}
+	}()
 
 	go func() {
 		<-ctx.Done()
@@ -145,6 +181,7 @@ func main() {
 		slog.String("postgres", cfg.PostgresAddr),
 		slog.String("idpType", string(idpConfig.Type)),
 		slog.String("idpIssuer", idpConfig.Issuer),
+		slog.String("leaderElection", string(electionConfig.Type)),
 	)
 
 	if err := httpServer.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {

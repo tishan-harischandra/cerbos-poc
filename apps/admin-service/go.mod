@@ -6,6 +6,7 @@ require (
 	github.com/tishan-harischandra/cerbos-poc/libs/assignmentstore v0.0.0
 	github.com/tishan-harischandra/cerbos-poc/libs/capabilitycatalog v0.0.0
 	github.com/tishan-harischandra/cerbos-poc/libs/idpdirectory v0.0.0
+	github.com/tishan-harischandra/cerbos-poc/libs/leaderlock v0.0.0
 	github.com/tishan-harischandra/cerbos-poc/libs/outbox v0.0.0-00010101000000-000000000000
 	github.com/tishan-harischandra/cerbos-poc/libs/permissionevents v0.0.0
 	github.com/tishan-harischandra/cerbos-poc/libs/tokenverifier v0.0.0
@@ -52,6 +53,7 @@ require (
 	github.com/pmezard/go-difflib v1.0.1-0.20181226105442-5d4384ee4fb2 // indirect
 	github.com/rs/xid v1.6.0 // indirect
 	github.com/segmentio/asm v1.2.1 // indirect
+	github.com/sijms/go-ora/v2 v2.9.0 // indirect
 	github.com/sourcegraph/conc v0.3.0 // indirect
 	github.com/stretchr/testify v1.11.1 // indirect
 	github.com/valyala/fastjson v1.6.10 // indirect
@@ -100,6 +102,8 @@ replace github.com/tishan-harischandra/cerbos-poc/libs/cataloggen => ../../libs/
 replace github.com/tishan-harischandra/cerbos-poc/libs/canonicalid => ../../libs/canonicalid
 
 replace github.com/tishan-harischandra/cerbos-poc/libs/idpdirectory => ../../libs/idpdirectory
+
+replace github.com/tishan-harischandra/cerbos-poc/libs/leaderlock => ../../libs/leaderlock
 
 replace github.com/tishan-harischandra/cerbos-poc/libs/outbox => ../../libs/outbox
 

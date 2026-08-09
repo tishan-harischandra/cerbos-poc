@@ -206,6 +206,55 @@ layout); and the dev-only fixture credentials in `deploy/k8s/base/common` and
 `deploy/k8s/base/postgres` replaced with real secrets from a cluster secret
 manager.
 
+## Leader election
+
+Two workloads must have exactly one active instance: the policy release
+pipeline (`policy-controller`) and the outbox publisher (inside
+`admin-service`). Which mechanism decides that is an operational choice, so
+services depend only on the `libs/leaderlock` port and an operator selects an
+adapter with `LEADER_ELECTION_TYPE` (ADR-009). No service is rebuilt to change
+it, and an architecture test fails the build if one names an adapter directly.
+
+**There is deliberately no default.** An unset `LEADER_ELECTION_TYPE` refuses
+to start. Every other setting here has a sensible fallback; this one cannot,
+because the only "safe" guess — coordinate with nothing — silently elects every
+replica, which is exactly the failure the port exists to prevent.
+
+| `LEADER_ELECTION_TYPE` | Mechanism | Guarantee | Choose it when |
+|---|---|---|---|
+| `PG_ADVISORY` | `pg_try_advisory_lock` on a dedicated session | **Mutual exclusion.** No ttl, no renewal, no split-brain window | You run PostgreSQL and want the strongest guarantee available here. The compose default |
+| `DATABASE` | A `leader_lock` lease row, expiring on the database clock | Lease: split-brain window | You run Oracle, or want no second dependency. The only database-backed type that runs on both engines |
+| `K8S_LEASE` | A `coordination.k8s.io/v1` Lease | Lease: split-brain window | You run on Kubernetes. The `deploy/k8s` default: the control plane already keeps it available, and `kubectl get lease` shows who leads |
+| `REDIS` | `SET NX PX` with compare-and-extend renewal | Lease, and weaker across a Redis failover | You already run Redis and would rather keep election traffic off the database |
+| `SINGLE` | Always leader, no coordination | **None** | One replica, or a test. Selecting it with more than one replica means every replica does the singleton work |
+
+**A lease is not mutual exclusion.** Four of the five adapters can let a paused
+or partitioned leader overlap briefly with its successor. Both current
+consumers are safe under that: outbox delivery is already at-least-once with an
+idempotent consumer, and the release pipeline installs atomically. A future
+consumer that needs true exclusion cannot get it by switching adapters, because
+the port only ever promises its weakest member. There are no fencing tokens —
+ADR-009 records why an epoch nothing downstream can validate is worse than
+saying so plainly.
+
+One shared contract suite (`libs/leaderlock/leaderlockcontract`) defines what an
+election means, and every adapter passes it, so the "pick a backend" promise
+rests on the backends genuinely agreeing:
+
+```bash
+scripts/tests/leaderlock-contract.sh dual   # DATABASE on PostgreSQL and Oracle
+scripts/tests/leaderlock-contract.sh redis  # needs the redis compose profile
+```
+
+`SINGLE` and `K8S_LEASE` need no infrastructure — `K8S_LEASE` runs its whole
+contract against a fake API server — so `go test ./libs/leaderlock/...` already
+covers them offline.
+
+Redis is optional the way Oracle is: a `redis` compose profile, and a
+`deploy/k8s/components/redis` kustomize component. The `dev-redis` overlay
+applies it, and the manifest test asserts that swapping the mechanism leaves
+every service image untouched.
+
 ## Architectural constraints
 
 Permission precedence — mandatory deny beats user revoke beats user grant beats

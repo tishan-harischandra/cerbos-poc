@@ -1,0 +1,26 @@
+# Optional Redis, and the switch to LEADER_ELECTION_TYPE=REDIS that makes it
+# worth deploying (ADR-009).
+#
+# It is a Component for the same reason the oracle compose profile is a
+# profile: nothing in this platform needs Redis, and the base should not run
+# a service the default configuration never talks to. Layer it onto an
+# overlay to prove the seam - the services are not rebuilt, and no manifest
+# below this file mentions Redis at all.
+apiVersion: kustomize.config.k8s.io/v1alpha1
+kind: Component
+resources:
+  - deployment.yaml
+  - service.yaml
+configMapGenerator:
+  # Replaces the base's leader-election-config wholesale, so an overlay
+  # cannot end up with K8S_LEASE from the base and a Redis address from here.
+  - name: leader-election-config
+    behavior: replace
+    literals:
+      - LEADER_ELECTION_TYPE=REDIS
+      - LEADER_ELECTION_REDIS_ADDR=redis:6379
+      - LEADER_ELECTION_TTL=15s
+      - LEADER_ELECTION_RENEW_INTERVAL=5s
+      - LEADER_ELECTION_RETRY_INTERVAL=2s
+generatorOptions:
+  disableNameSuffixHash: true

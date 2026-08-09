@@ -8,22 +8,38 @@ import (
 	"strings"
 )
 
-// ConcreteAdapterPackages are the identity provider implementations. Importing
-// one binds a consumer to a product: the type it returns, the errors it reports
-// and the configuration it needs all become part of that consumer's contract,
-// and the "swap the provider by changing IDP_TYPE" promise quietly stops being
-// true.
+// ConcreteAdapterPackages are the vendor implementations behind this
+// repository's provider-neutral ports. Importing one binds a consumer to a
+// product: the type it returns, the errors it reports and the configuration it
+// needs all become part of that consumer's contract, and the "swap the provider
+// by changing one environment variable" promise quietly stops being true.
 var ConcreteAdapterPackages = []string{
+	// The identity directory adapters, selected by IDP_TYPE.
 	"github.com/tishan-harischandra/cerbos-poc/libs/idpdirectory/keycloak",
 	"github.com/tishan-harischandra/cerbos-poc/libs/idpdirectory/wso2",
+	// The leader election adapters, selected by LEADER_ELECTION_TYPE
+	// (ADR-009). A service that named one could not be moved between the
+	// compose and Kubernetes deployments without a code change, which is
+	// the whole reason the port exists.
+	"github.com/tishan-harischandra/cerbos-poc/libs/leaderlock/pgadvisory",
+	"github.com/tishan-harischandra/cerbos-poc/libs/leaderlock/databaselock",
+	"github.com/tishan-harischandra/cerbos-poc/libs/leaderlock/k8slease",
+	"github.com/tishan-harischandra/cerbos-poc/libs/leaderlock/redislock",
+	"github.com/tishan-harischandra/cerbos-poc/libs/leaderlock/single",
 }
 
-// CompositionRoots are the only places allowed to name an adapter: the provider
-// factory that selects one, and each adapter's own package.
+// CompositionRoots are the only places allowed to name an adapter: each
+// provider factory that selects one, and each adapter's own package.
 var CompositionRoots = []string{
 	"libs/idpdirectory/provider/",
 	"libs/idpdirectory/keycloak/",
 	"libs/idpdirectory/wso2/",
+	"libs/leaderlock/provider/",
+	"libs/leaderlock/pgadvisory/",
+	"libs/leaderlock/databaselock/",
+	"libs/leaderlock/k8slease/",
+	"libs/leaderlock/redislock/",
+	"libs/leaderlock/single/",
 }
 
 // ScanAdapterImports reports every import of a concrete adapter from a file
@@ -53,8 +69,8 @@ func ScanAdapterImports(filename, relativePath, src string) ([]Finding, error) {
 				File:   filename,
 				Line:   fset.Position(imported.Pos()).Line,
 				Symbol: path,
-				Message: "only the provider factory may name a concrete identity provider " +
-					"adapter; depend on idpdirectory.IdentityDirectory instead",
+				Message: "only the provider factory may name a concrete adapter; depend on the port " +
+					"instead (idpdirectory.IdentityDirectory, leaderlock.Elector)",
 			})
 		}
 	}

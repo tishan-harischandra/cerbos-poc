@@ -1,0 +1,47 @@
+databaseChangeLog:
+  - changeSet:
+      id: 011-leader-lock
+      author: cerbos-poc
+      comment: >-
+        The lease table behind LEADER_ELECTION_TYPE=DATABASE (ADR-009). One row
+        per named election, holding whoever currently leads it and when that
+        claim stops being believed. expires_at is written from the database's
+        own clock and compared against it, never against an application clock:
+        two replicas whose clocks disagree would otherwise both consider the
+        lease theirs, and the drift would be invisible until it caused two
+        leaders.
+      changes:
+        - createTable:
+            tableName: leader_lock
+            columns:
+              # 253 characters is the longest election name the port
+              # accepts, which is what a Kubernetes object name allows.
+              - column:
+                  name: election_name
+                  type: VARCHAR(253)
+                  constraints:
+                    primaryKey: true
+                    primaryKeyName: pk_leader_lock
+                    nullable: false
+              # The instance that holds the lease: a pod name under
+              # Kubernetes, a container id under compose. It is what an
+              # operator reads to find out who is leading, and what a
+              # renewal matches on so one replica cannot renew another's
+              # lease.
+              - column:
+                  name: holder
+                  type: VARCHAR(253)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: expires_at
+                  type: TIMESTAMP WITH TIME ZONE
+                  constraints:
+                    nullable: false
+              # Purely diagnostic: it answers "is this election
+              # turning over constantly?" without needing a log.
+              - column:
+                  name: acquired_at
+                  type: TIMESTAMP WITH TIME ZONE
+                  constraints:
+                    nullable: false

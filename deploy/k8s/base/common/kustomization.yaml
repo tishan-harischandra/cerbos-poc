@@ -18,6 +18,20 @@ configMapGenerator:
       - IDP_CLIENT_ID=patient-app
       - IDP_SERVICE_CLIENT_ID=authorization-admin-service
       - IDP_ISSUER=http://localhost:8081/realms/cerbos-poc
+  # Which mechanism elects the singleton workloads (ADR-009). K8S_LEASE is
+  # the natural choice here: the control plane already keeps Leases
+  # available, an operator can read the election with kubectl, and the
+  # database is left out of a decision that has nothing to do with data.
+  # There is deliberately no default in the code - an unset value refuses to
+  # start, because the failure it would otherwise cause is silent.
+  - name: leader-election-config
+    literals:
+      - LEADER_ELECTION_TYPE=K8S_LEASE
+      - LEADER_ELECTION_TTL=15s
+      # A third of the ttl, so two consecutive renewals can fail before
+      # leadership is genuinely at risk.
+      - LEADER_ELECTION_RENEW_INTERVAL=5s
+      - LEADER_ELECTION_RETRY_INTERVAL=2s
 secretGenerator:
   - name: idp-admin-credentials
     files:

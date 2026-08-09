@@ -14,10 +14,15 @@ import (
 var dialectAdapterDirs = []string{
 	"libs/assignmentstore/postgresstore",
 	"libs/assignmentstore/oraclestore",
-	// Leader election uses a PostgreSQL advisory lock directly: it is not
-	// part of the assignmentstore port's dual-dialect contract, and an
-	// advisory lock has no portable equivalent to abstract behind a port.
-	"apps/policy-controller/internal/leader",
+	// The leader election adapters are driver adapters of exactly the same
+	// kind, behind their own port (ADR-009). PG_ADVISORY has no portable
+	// equivalent to abstract - an advisory lock is a PostgreSQL feature -
+	// and DATABASE is the dual-dialect one, so it carries both dialects on
+	// purpose, the way postgresstore and oraclestore each carry theirs.
+	// Nothing outside these two directories may name a dialect, which is
+	// what keeps a service from learning how the cluster coordinates.
+	"libs/leaderlock/pgadvisory",
+	"libs/leaderlock/databaselock",
 	// The load-test seeding harness writes straight into Keycloak's own
 	// database, whose schema Keycloak owns and which this prototype only
 	// ever runs on PostgreSQL (see keycloak-db in docker-compose.yml). It

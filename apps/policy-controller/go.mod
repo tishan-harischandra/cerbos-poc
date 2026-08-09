@@ -3,7 +3,7 @@ module github.com/tishan-harischandra/cerbos-poc/apps/policy-controller
 go 1.25.11
 
 require (
-	github.com/jackc/pgx/v5 v5.10.0
+	github.com/tishan-harischandra/cerbos-poc/libs/leaderlock v0.0.0
 	github.com/tishan-harischandra/cerbos-poc/libs/policyrelease v0.0.0
 )
 
@@ -36,6 +36,8 @@ require (
 	github.com/hashicorp/go-retryablehttp v0.7.8 // indirect
 	github.com/jackc/pgpassfile v1.0.0 // indirect
 	github.com/jackc/pgservicefile v0.0.0-20240606120523-5a60cdf6a761 // indirect
+	github.com/jackc/pgx/v5 v5.10.0 // indirect
+	github.com/jackc/puddle/v2 v2.2.2 // indirect
 	github.com/jdx/go-netrc v1.0.0 // indirect
 	github.com/klauspost/cpuid/v2 v2.3.0 // indirect
 	github.com/lestrrat-go/blackmagic v1.0.4 // indirect
@@ -51,6 +53,7 @@ require (
 	github.com/rogpeppe/go-internal v1.15.0 // indirect
 	github.com/rs/xid v1.6.0 // indirect
 	github.com/segmentio/asm v1.2.1 // indirect
+	github.com/sijms/go-ora/v2 v2.9.0 // indirect
 	github.com/sourcegraph/conc v0.3.0 // indirect
 	github.com/stretchr/testify v1.11.1 // indirect
 	github.com/valyala/fastjson v1.6.10 // indirect
@@ -65,6 +68,7 @@ require (
 	golang.org/x/exp v0.0.0-20260508232706-74f9aab9d74a // indirect
 	golang.org/x/mod v0.38.0 // indirect
 	golang.org/x/net v0.55.0 // indirect
+	golang.org/x/sync v0.21.0 // indirect
 	golang.org/x/sys v0.46.0 // indirect
 	golang.org/x/text v0.38.0 // indirect
 	google.golang.org/genproto/googleapis/api v0.0.0-20260622175928-b703f567277d // indirect
@@ -76,3 +80,5 @@ require (
 )
 
 replace github.com/tishan-harischandra/cerbos-poc/libs/policyrelease => ../../libs/policyrelease
+
+replace github.com/tishan-harischandra/cerbos-poc/libs/leaderlock => ../../libs/leaderlock

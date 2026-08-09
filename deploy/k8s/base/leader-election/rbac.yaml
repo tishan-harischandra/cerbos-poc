@@ -1,0 +1,33 @@
+# The permissions LEADER_ELECTION_TYPE=K8S_LEASE needs, and nothing else.
+#
+# The elector is not a controller: it reads, creates and updates one Lease per
+# election in its own namespace. It never lists or watches, never deletes, and
+# never touches another namespace - a Role rather than a ClusterRole, so the
+# blast radius of this credential is one namespace's coordination objects.
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: leader-elector
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: leader-elector
+rules:
+  - apiGroups: ["coordination.k8s.io"]
+    resources: ["leases"]
+    # create is needed for the first contender of a fresh installation, which
+    # finds no Lease at all; get and update are the whole of the steady state.
+    verbs: ["get", "create", "update"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: leader-elector
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: leader-elector
+subjects:
+  - kind: ServiceAccount
+    name: leader-elector
