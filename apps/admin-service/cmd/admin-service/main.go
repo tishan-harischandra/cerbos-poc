@@ -83,6 +83,12 @@ func main() {
 		logger.Error("could not read the leader election configuration", slog.Any("error", err))
 		os.Exit(1)
 	}
+	// Without this the one failure that matters is silent: the election is
+	// unheld, so nothing drains the outbox, while /readyz keeps answering
+	// and every write still commits.
+	electionConfig.OnError = func(err error) {
+		logger.Error("outbox publisher election attempt failed", slog.Any("error", err))
+	}
 	elector, err := electionprovider.New(electionConfig)
 	if err != nil {
 		logger.Error("could not prepare leader election", slog.Any("error", err))

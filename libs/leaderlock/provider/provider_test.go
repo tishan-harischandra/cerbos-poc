@@ -1,9 +1,11 @@
 package provider_test
 
 import (
+	"context"
 	"errors"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/tishan-harischandra/cerbos-poc/libs/leaderlock"
 	"github.com/tishan-harischandra/cerbos-poc/libs/leaderlock/provider"
@@ -91,6 +93,59 @@ func TestARenewalSlowerThanTheTTLIsRefused(t *testing.T) {
 	if err == nil {
 		t.Fatal("FromEnv accepted a renewal interval longer than the lease it renews")
 	}
+}
+
+// A backend the elector cannot reach is the failure an operator most needs to
+// see: the election is unheld, the singleton work is not running, and every
+// service still reports itself healthy because its HTTP surface is fine. The
+// adapters report it, so the factory has to give a caller somewhere to send
+// it - otherwise the one interesting event is swallowed by the seam.
+func TestBackendFailuresReachTheCaller(t *testing.T) {
+	cfg, err := provider.FromEnv(lookup(map[string]string{
+		provider.EnvType: "PG_ADVISORY",
+		// Nothing listens here, so the first contention attempt fails
+		// without waiting on anything.
+		"ASSIGNMENTSTORE_POSTGRES_DSN": "postgres://nobody@127.0.0.1:1/nothing?sslmode=disable",
+		provider.EnvRetryInterval:      "10ms",
+		provider.EnvRenewInterval:      "10ms",
+		provider.EnvTTL:                "1s",
+	}))
+	if err != nil {
+		t.Fatalf("FromEnv: %v", err)
+	}
+
+	reported := make(chan error, 1)
+	cfg.OnError = func(err error) {
+		select {
+		case reported <- err:
+		default:
+		}
+	}
+
+	elector, err := provider.New(cfg)
+	if err != nil {
+		t.Fatalf("New: %v", err)
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		_ = elector.Run(ctx, leaderlock.ElectionOutboxPublisher, func(context.Context) {})
+	}()
+
+	select {
+	case err := <-reported:
+		if !errors.Is(err, leaderlock.ErrBackendUnavailable) {
+			t.Errorf("reported %v, want it to be recognisable as ErrBackendUnavailable", err)
+		}
+	case <-ctx.Done():
+		t.Fatal("an elector that could not reach its backend reported nothing")
+	}
+
+	cancel()
+	<-done
 }
 
 func lookup(values map[string]string) provider.LookupFunc {

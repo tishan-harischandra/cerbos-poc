@@ -66,6 +66,12 @@ func main() {
 		logger.Error("could not read the leader election configuration", slog.Any("error", err))
 		os.Exit(1)
 	}
+	// A coordination backend this instance cannot reach is invisible
+	// otherwise: /readyz keeps answering, and the only symptom is that no
+	// release is ever processed.
+	electionConfig.OnError = func(err error) {
+		logger.Error("leader election attempt failed", slog.Any("error", err))
+	}
 	elector, err := provider.New(electionConfig)
 	if err != nil {
 		logger.Error("could not prepare leader election", slog.Any("error", err))

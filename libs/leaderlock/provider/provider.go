@@ -117,6 +117,15 @@ type Config struct {
 	RedisAddress  string
 	RedisUsername string
 	RedisPassword string
+
+	// OnError receives every failure to reach the coordination backend.
+	//
+	// It is not read from the environment; a caller sets it after FromEnv,
+	// because it is a logger rather than configuration. A caller that
+	// leaves it nil gets silence on the one failure that is otherwise
+	// invisible: the election is unheld and the singleton work is not
+	// running, while every health endpoint still answers perfectly.
+	OnError func(error)
 }
 
 // LookupFunc mirrors os.LookupEnv so configuration stays testable.
@@ -173,6 +182,7 @@ func New(cfg Config) (leaderlock.Elector, error) {
 			DSN:           cfg.DSN,
 			CheckInterval: cfg.RenewInterval,
 			RetryInterval: cfg.RetryInterval,
+			OnError:       cfg.OnError,
 		})
 	case TypeDatabase:
 		return databaselock.New(databaselock.Config{
@@ -181,6 +191,7 @@ func New(cfg Config) (leaderlock.Elector, error) {
 			TTL:           cfg.TTL,
 			RenewInterval: cfg.RenewInterval,
 			RetryInterval: cfg.RetryInterval,
+			OnError:       cfg.OnError,
 		})
 	case TypeK8sLease:
 		return k8slease.New(k8slease.Config{
@@ -189,6 +200,7 @@ func New(cfg Config) (leaderlock.Elector, error) {
 			TTL:           cfg.TTL,
 			RenewInterval: cfg.RenewInterval,
 			RetryInterval: cfg.RetryInterval,
+			OnError:       cfg.OnError,
 		})
 	case TypeRedis:
 		return redislock.New(redislock.Config{
@@ -199,6 +211,7 @@ func New(cfg Config) (leaderlock.Elector, error) {
 			TTL:           cfg.TTL,
 			RenewInterval: cfg.RenewInterval,
 			RetryInterval: cfg.RetryInterval,
+			OnError:       cfg.OnError,
 		})
 	case TypeSingle:
 		return single.New(), nil

@@ -440,7 +440,7 @@ func (f *fakeHolder) Release(context.Context) error {
 	return nil
 }
 
-func (f *fakeHolder) setAcquires(v bool) { f.mu.Lock(); f.acquires = v; f.mu.Unlock() }
+func (f *fakeHolder) setAcquires(v bool)    { f.mu.Lock(); f.acquires = v; f.mu.Unlock() }
 func (f *fakeHolder) setRenews(v bool)      { f.mu.Lock(); f.renews = v; f.mu.Unlock() }
 func (f *fakeHolder) setRenewErr(err error) { f.mu.Lock(); f.renewErr = err; f.mu.Unlock() }
 
