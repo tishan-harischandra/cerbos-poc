@@ -26,13 +26,14 @@ import (
 type Contender struct {
 	Elector leaderlock.Elector
 
-	// Vanish makes this contender stop renewing its lease and stop
-	// releasing it, reproducing a leader whose process was paused or
-	// killed rather than one that shut down politely. A lease adapter
-	// must supply it: without it there is no way to prove the lease
-	// actually expires. Leave it nil only when the adapter has no lease
-	// to expire.
-	Vanish func()
+	// Stall makes this contender stop renewing for longer than its lease
+	// lives and then resume, reproducing a leader whose process was paused
+	// or whose network dropped and which then came back.
+	//
+	// A lease adapter must supply it: without it there is no way to prove
+	// the lease actually expires, only that a polite release works. Leave
+	// it nil only when the adapter has no lease to expire.
+	Stall func()
 }
 
 // Contract describes one adapter to the suite.
@@ -64,8 +65,8 @@ func Run(t *testing.T, c Contract) {
 		t.Fatal("the contract needs a way to build a contender")
 	}
 	if c.TTL > 0 && !c.AlwaysLeader {
-		if probe := c.NewContender(t); probe.Vanish == nil {
-			t.Fatal("a lease-based adapter must supply Vanish, or its lease expiry is never proven")
+		if probe := c.NewContender(t); probe.Stall == nil {
+			t.Fatal("a lease-based adapter must supply Stall, or its lease expiry is never proven")
 		}
 	}
 
@@ -87,7 +88,7 @@ func Run(t *testing.T, c Contract) {
 		}
 		runRenewalOutlivesTheTTL(t, c)
 	})
-	t.Run("a leader that stops renewing loses the election to its rival", func(t *testing.T) {
+	t.Run("a leader that stalls past its lease loses the election to its rival", func(t *testing.T) {
 		if c.AlwaysLeader || c.TTL == 0 {
 			t.Skip("this adapter has no lease to expire; a vanished holder is detected by its session ending")
 		}
@@ -207,9 +208,11 @@ func runRenewalOutlivesTheTTL(t *testing.T, c Contract) {
 	awaitRun(t, run)
 }
 
-// The failure a lease exists to survive: a leader stops renewing without
-// releasing anything. Its lease must expire, its rival must take over, and the
-// deposed leader's work must be cancelled with a cause that says why.
+// The failure a lease exists to survive: a leader goes quiet for longer than
+// its lease without releasing anything. The lease must expire, the rival must
+// take over, and when the stalled leader speaks again its work must be
+// cancelled with a cause that says why - not carried on as though the pause
+// had never happened.
 func runLostLeadershipPassesToTheRival(t *testing.T, c Contract) {
 	ctx, cancel := context.WithTimeout(context.Background(), Timeout)
 	defer cancel()
@@ -240,7 +243,7 @@ func runLostLeadershipPassesToTheRival(t *testing.T, c Contract) {
 		t.Fatal("neither contender was elected")
 	}
 
-	leader.contender.Vanish()
+	leader.contender.Stall()
 
 	select {
 	case <-leaderCtx.Done():

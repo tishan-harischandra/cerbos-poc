@@ -15,6 +15,7 @@ import (
 
 	"github.com/tishan-harischandra/cerbos-poc/libs/leaderlock"
 	"github.com/tishan-harischandra/cerbos-poc/libs/leaderlock/databaselock"
+	"github.com/tishan-harischandra/cerbos-poc/libs/leaderlock/k8slease"
 	"github.com/tishan-harischandra/cerbos-poc/libs/leaderlock/pgadvisory"
 	"github.com/tishan-harischandra/cerbos-poc/libs/leaderlock/single"
 )
@@ -32,6 +33,10 @@ const (
 	// the only database-backed type that runs on Oracle as well as
 	// PostgreSQL, and it pays for that with a lease's split-brain window.
 	TypeDatabase Type = "DATABASE"
+	// TypeK8sLease holds a coordination.k8s.io/v1 Lease. The natural
+	// choice on Kubernetes: the control plane already keeps it available,
+	// and the election becomes an object an operator can read.
+	TypeK8sLease Type = "K8S_LEASE"
 	// TypeSingle elects every caller and coordinates with nothing. For a
 	// deployment scaled to one replica, and for tests.
 	TypeSingle Type = "SINGLE"
@@ -54,6 +59,9 @@ const (
 	EnvRenewInterval = "LEADER_ELECTION_RENEW_INTERVAL"
 	// EnvRetryInterval is how often a follower re-contends.
 	EnvRetryInterval = "LEADER_ELECTION_RETRY_INTERVAL"
+	// EnvNamespace holds the Lease under K8S_LEASE. Empty means the pod's
+	// own namespace, which is what an in-cluster deployment wants.
+	EnvNamespace = "LEADER_ELECTION_NAMESPACE"
 	// EnvDSN is the database the election runs on, for the types that use
 	// one. It falls back to the authorization database's own DSN, because
 	// an election on a second database would be a second thing to keep
@@ -92,6 +100,8 @@ type Config struct {
 	// DSN is the database the election runs on, for the database-backed
 	// types.
 	DSN string
+	// Namespace holds the Lease under K8S_LEASE.
+	Namespace string
 }
 
 // LookupFunc mirrors os.LookupEnv so configuration stays testable.
@@ -118,6 +128,7 @@ func FromEnv(lookup LookupFunc) (Config, error) {
 		RenewInterval: durationOr(lookup, EnvRenewInterval, 0),
 		RetryInterval: durationOr(lookup, EnvRetryInterval, DefaultRetryInterval),
 		DSN:           valueOr(lookup, EnvDSN, valueOr(lookup, envPostgresDSN, valueOr(lookup, envOracleDSN, ""))),
+		Namespace:     valueOr(lookup, EnvNamespace, ""),
 	}
 	if !known(cfg.Type) {
 		return Config{}, fmt.Errorf("%w: %s=%q; supported types are %s",
@@ -153,6 +164,14 @@ func New(cfg Config) (leaderlock.Elector, error) {
 			RenewInterval: cfg.RenewInterval,
 			RetryInterval: cfg.RetryInterval,
 		})
+	case TypeK8sLease:
+		return k8slease.New(k8slease.Config{
+			Namespace:     cfg.Namespace,
+			Identity:      cfg.Identity,
+			TTL:           cfg.TTL,
+			RenewInterval: cfg.RenewInterval,
+			RetryInterval: cfg.RetryInterval,
+		})
 	case TypeSingle:
 		return single.New(), nil
 	default:
@@ -172,7 +191,7 @@ func known(t Type) bool {
 
 // Types are every mechanism this build supports, in the order they are
 // reported to an operator who got the value wrong.
-var Types = []Type{TypePGAdvisory, TypeDatabase, TypeSingle}
+var Types = []Type{TypePGAdvisory, TypeDatabase, TypeK8sLease, TypeSingle}
 
 func supportedTypes() string {
 	names := make([]string, 0, len(Types))

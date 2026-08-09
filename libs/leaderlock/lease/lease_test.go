@@ -139,40 +139,63 @@ func TestAShuttingDownLeaderReleasesTheLease(t *testing.T) {
 	}
 }
 
-// The seam a contract test needs: a leader whose process was paused or killed
-// stops renewing and never releases. Without it there is no way to prove a
-// lease actually expires, only that a polite release works.
-func TestAPausedLeaderStopsRenewingAndNeverReleases(t *testing.T) {
+// The seam a contract test needs, and the failure a lease exists to survive:
+// a leader stalls past its own lease - a paused process, a dropped network -
+// and comes back to find the election has moved on. It must stay silent long
+// enough for the lease to really expire, and it must stand down rather than
+// carry on as though nothing happened.
+func TestAStalledLeaderStopsRenewingAndThenStandsDown(t *testing.T) {
 	holder := &fakeHolder{acquires: true, renews: true}
-	pause := make(chan struct{})
+	stall := make(chan struct{})
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	elected := make(chan struct{})
+	leaderContexts := make(chan context.Context, 4)
 	done := runWith(ctx, lease.Config{
 		TTL:           20 * tick,
 		RenewInterval: tick,
 		RetryInterval: tick,
-		PauseRenewal:  pause,
+		PauseRenewal:  stall,
 	}, holder, func(leaderCtx context.Context) {
-		close(elected)
+		leaderContexts <- leaderCtx
 		<-leaderCtx.Done()
 	})
-	awaitClosed(t, elected, "the caller was never elected")
 
-	close(pause)
-	time.Sleep(20 * tick)
-	renewsWhenPaused := holder.renewCalls()
-	time.Sleep(20 * tick)
-	if holder.renewCalls() != renewsWhenPaused {
-		t.Errorf("a paused leader renewed %d more times", holder.renewCalls()-renewsWhenPaused)
+	var leaderCtx context.Context
+	select {
+	case leaderCtx = <-leaderContexts:
+	case <-time.After(patience):
+		t.Fatal("the caller was never elected")
+	}
+
+	// While the leader is stalled the backend must hear nothing from it,
+	// or its lease would be extended by the very outage being simulated.
+	close(stall)
+	time.Sleep(5 * tick)
+	renewsWhenStalled := holder.renewCalls()
+	time.Sleep(10 * tick)
+	if holder.renewCalls() != renewsWhenStalled {
+		t.Errorf("a stalled leader renewed %d more times, want it to stay silent while its lease expires",
+			holder.renewCalls()-renewsWhenStalled)
+	}
+
+	// By the time it speaks again, a rival owns the lease.
+	holder.setRenews(false)
+	holder.setAcquires(false)
+	select {
+	case <-leaderCtx.Done():
+	case <-time.After(patience):
+		t.Fatal("a leader that stalled past its lease came back and kept leading")
+	}
+	if cause := context.Cause(leaderCtx); !errors.Is(cause, leaderlock.ErrLeadershipLost) {
+		t.Errorf("cause = %v, want ErrLeadershipLost", cause)
+	}
+	if holder.releaseCalls() != 0 {
+		t.Errorf("a deposed leader released the lease %d times, want it to leave a rival's lease alone", holder.releaseCalls())
 	}
 
 	cancel()
 	awaitRun(t, done)
-	if holder.releaseCalls() != 0 {
-		t.Errorf("a paused leader released its lease %d times, want it to vanish without releasing", holder.releaseCalls())
-	}
 }
 
 // A backend that is briefly unreachable is not a verdict about leadership.

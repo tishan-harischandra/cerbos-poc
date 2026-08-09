@@ -50,11 +50,16 @@ type Config struct {
 	// RetryInterval is how often a follower re-contends.
 	RetryInterval time.Duration
 
-	// PauseRenewal, once it fires, stops this instance renewing and stops
-	// it releasing, reproducing a leader whose process was paused or
-	// killed. It exists for the contract suite: without it a test can
-	// only prove a polite release works, never that the lease expires.
-	// Production leaves it nil.
+	// PauseRenewal, once it fires, stalls this instance: it stops renewing
+	// for longer than the lease lives, and then resumes.
+	//
+	// That is a leader whose process was paused, or whose network dropped,
+	// and which then came back - the failure a lease exists to survive. It
+	// is modelled as a stall rather than a death on purpose: a leader that
+	// never wakes up cannot observe anything, so there would be nothing to
+	// assert about it, while a leader that wakes up must discover the
+	// election has moved on and stand down. It exists for the contract
+	// suite; production leaves it nil.
 	PauseRenewal <-chan struct{}
 
 	// OnError, if set, receives every backend failure. A failure never
@@ -117,8 +122,11 @@ func hold(ctx context.Context, cfg Config, holder Holder, onElected func(context
 	renewals := time.NewTicker(cfg.RenewInterval)
 	defer renewals.Stop()
 
-	paused := false
-	for !paused {
+	// While a stall is in progress no renewal is sent, so the lease really
+	// does expire in the backend and a rival really does take it.
+	var stallUntil <-chan time.Time
+	pause := cfg.PauseRenewal
+	for {
 		select {
 		case <-ctx.Done():
 			endLeadership(ctx.Err())
@@ -133,13 +141,20 @@ func hold(ctx context.Context, cfg Config, holder Holder, onElected func(context
 			cancel()
 			return
 
-		case <-cfg.PauseRenewal:
-			// A paused leader keeps its work running and simply stops
-			// touching the backend, which is what a killed process
-			// looks like from the outside.
-			paused = true
+		case <-pause:
+			// Stop touching the backend for longer than the lease
+			// lives. Clearing the channel keeps a closed one from
+			// re-firing on every pass through the select.
+			pause = nil
+			stallUntil = time.After(stallFor(cfg))
+
+		case <-stallUntil:
+			stallUntil = nil
 
 		case <-renewals.C:
+			if stallUntil != nil {
+				continue
+			}
 			renewCtx, cancel := context.WithTimeout(ctx, cfg.RenewInterval)
 			held, err := holder.Renew(renewCtx)
 			cancel()
@@ -157,12 +172,17 @@ func hold(ctx context.Context, cfg Config, holder Holder, onElected func(context
 			return
 		}
 	}
+}
 
-	// Paused: hold the caller's work open until shutdown, renewing
-	// nothing and releasing nothing.
-	<-ctx.Done()
-	endLeadership(ctx.Err())
-	<-working
+// stallFor is how long a stalled leader stays silent: past the whole lease,
+// plus a renewal interval, so the lease has certainly expired by the time it
+// speaks again.
+func stallFor(cfg Config) time.Duration {
+	stall := cfg.TTL + cfg.RenewInterval
+	if cfg.TTL <= 0 {
+		stall = 4 * cfg.RenewInterval
+	}
+	return stall
 }
 
 // releaseTimeout bounds the handover on shutdown. It is short: a service is

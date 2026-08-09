@@ -130,7 +130,7 @@ func runContract(t *testing.T, dsn string) {
 			t.Cleanup(func() { _ = elector.Close() })
 			return leaderlockcontract.Contender{
 				Elector: elector,
-				Vanish:  sync.OnceFunc(func() { close(pause) }),
+				Stall:   sync.OnceFunc(func() { close(pause) }),
 			}
 		},
 		TTL: leaseTTL,
