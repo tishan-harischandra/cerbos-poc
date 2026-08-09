@@ -73,6 +73,16 @@ wait_for_rollout() {
 # ${CHAOS_PORT_FORWARD_PIDS_FILE} so stop_port_forwards can clean them up.
 CHAOS_PORT_FORWARD_PIDS_FILE="${repo_root}/.chaos-port-forward-pids"
 
+# start_one_port_forward <target> <local_port> <remote_port>
+# Backgrounds a single kubectl port-forward tunnel and records its PID in
+# CHAOS_PORT_FORWARD_PIDS_FILE so stop_port_forwards cleans it up too.
+start_one_port_forward() {
+  local target="$1" local_port="$2" remote_port="$3"
+  kubectl_chaos port-forward "${target}" "${local_port}:${remote_port}" \
+    >>"${repo_root}/.chaos-port-forward.log" 2>&1 &
+  echo "$!" >> "${CHAOS_PORT_FORWARD_PIDS_FILE}"
+}
+
 start_port_forwards() {
   : > "${CHAOS_PORT_FORWARD_PIDS_FILE}"
   local spec
@@ -83,12 +93,25 @@ start_port_forwards() {
     "svc/gitea:${CHAOS_GITEA_PORT}:3000"; do
     local target="${spec%%:*}" rest="${spec#*:}"
     local local_port="${rest%%:*}" remote_port="${rest#*:}"
-    kubectl_chaos port-forward "${target}" "${local_port}:${remote_port}" \
-      >>"${repo_root}/.chaos-port-forward.log" 2>&1 &
-    echo "$!" >> "${CHAOS_PORT_FORWARD_PIDS_FILE}"
+    start_one_port_forward "${target}" "${local_port}" "${remote_port}"
   done
   # Give kubectl a moment to establish the tunnels before the first caller
   # tries to use one.
+  sleep 3
+}
+
+# restart_port_forward <target> <local_port> <remote_port>
+# kubectl port-forward against a Service resolves to one specific pod at
+# the moment the tunnel opens and never follows a pod replacement. Any
+# scenario that deletes or replaces the pod behind one of
+# start_port_forwards' tunnels (scaling a deployment to 0 and back, for
+# example) leaves that tunnel forwarding to a pod that no longer exists,
+# breaking every later scenario that reuses it. Call this right after such
+# a scenario restores the deployment.
+restart_port_forward() {
+  local target="$1" local_port="$2" remote_port="$3"
+  pkill -f "port-forward ${target} ${local_port}:${remote_port}" 2>/dev/null || true
+  start_one_port_forward "${target}" "${local_port}" "${remote_port}"
   sleep 3
 }
 
