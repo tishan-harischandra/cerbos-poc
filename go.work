@@ -15,6 +15,7 @@ use (
 ./libs/idpdirectory
 ./libs/keycloakbulkload
 ./libs/keycloakbulkload/cmd/loadseed
+./libs/leaderlock
 ./libs/loadmodel
 ./libs/outbox
 ./libs/permissioncontext
