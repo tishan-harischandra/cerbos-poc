@@ -26,6 +26,12 @@ export GO_NETWORK="${GO_NETWORK:-${COMPOSE_PROJECT_NAME:-cerbos-poc}_default}"
 postgres_dsn="postgres://${POSTGRES_USER:-cerbos_poc}:${POSTGRES_PASSWORD:-change-me}@${POSTGRES_HOST:-postgres}:${POSTGRES_PORT:-5432}/${POSTGRES_DB:-cerbos_poc}?sslmode=disable"
 oracle_dsn="oracle://${ORACLE_USER:-cerbos_poc}:${ORACLE_PASSWORD:-change-me}@${ORACLE_HOST:-oracle}:${ORACLE_PORT:-1521}/${ORACLE_SERVICE:-FREEPDB1}"
 
+# The mode is the only thing that may choose an engine. Sourcing .env above
+# gives the DSNs their parts, but a DSN that arrived from .env whole would
+# silently widen the run - the trap that made the leader election contract
+# spend 100 seconds in CI reaching for a Redis nobody had started.
+unset ASSIGNMENTSTORE_POSTGRES_DSN ASSIGNMENTSTORE_ORACLE_DSN
+
 case "${mode}" in
   postgres)
     export ASSIGNMENTSTORE_POSTGRES_DSN="${postgres_dsn}"

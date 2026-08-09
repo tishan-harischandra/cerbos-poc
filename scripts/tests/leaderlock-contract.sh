@@ -33,6 +33,18 @@ postgres_dsn="postgres://${POSTGRES_USER:-cerbos_poc}:${POSTGRES_PASSWORD:-chang
 oracle_dsn="oracle://${ORACLE_USER:-cerbos_poc}:${ORACLE_PASSWORD:-change-me}@${ORACLE_HOST:-oracle}:${ORACLE_PORT:-1521}/${ORACLE_SERVICE:-FREEPDB1}"
 redis_addr="${LEADER_ELECTION_REDIS_ADDR:-redis:6379}"
 
+# The mode decides which backends the suite is pointed at, and nothing else
+# may. Sourcing .env above is what gives the addresses their values, but it
+# also exports the very variables the tests read to decide whether to run, so
+# a mode that deliberately left one out still inherited it.
+#
+# That is not hypothetical: .env.example carries LEADER_ELECTION_REDIS_ADDR
+# for the redis profile, so `dual` - which starts PostgreSQL and Oracle and no
+# Redis - ran the Redis contract anyway and spent 100 seconds timing out
+# against nothing. Unsetting here makes the case below the only thing that can
+# turn a backend on.
+unset ASSIGNMENTSTORE_POSTGRES_DSN ASSIGNMENTSTORE_ORACLE_DSN LEADER_ELECTION_REDIS_ADDR
+
 case "${mode}" in
   postgres)
     export ASSIGNMENTSTORE_POSTGRES_DSN="${postgres_dsn}"
