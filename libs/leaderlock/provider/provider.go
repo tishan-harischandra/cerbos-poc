@@ -17,6 +17,7 @@ import (
 	"github.com/tishan-harischandra/cerbos-poc/libs/leaderlock/databaselock"
 	"github.com/tishan-harischandra/cerbos-poc/libs/leaderlock/k8slease"
 	"github.com/tishan-harischandra/cerbos-poc/libs/leaderlock/pgadvisory"
+	"github.com/tishan-harischandra/cerbos-poc/libs/leaderlock/redislock"
 	"github.com/tishan-harischandra/cerbos-poc/libs/leaderlock/single"
 )
 
@@ -37,6 +38,10 @@ const (
 	// choice on Kubernetes: the control plane already keeps it available,
 	// and the election becomes an object an operator can read.
 	TypeK8sLease Type = "K8S_LEASE"
+	// TypeRedis holds a Redis key with SET NX PX. For an installation that
+	// already runs Redis and would rather keep election traffic off its
+	// database.
+	TypeRedis Type = "REDIS"
 	// TypeSingle elects every caller and coordinates with nothing. For a
 	// deployment scaled to one replica, and for tests.
 	TypeSingle Type = "SINGLE"
@@ -67,6 +72,11 @@ const (
 	// an election on a second database would be a second thing to keep
 	// available.
 	EnvDSN = "LEADER_ELECTION_DSN"
+	// EnvRedisAddress is host:port for REDIS.
+	EnvRedisAddress = "LEADER_ELECTION_REDIS_ADDR"
+	// EnvRedisUsername and EnvRedisPassword authenticate to Redis.
+	EnvRedisUsername = "LEADER_ELECTION_REDIS_USERNAME"
+	EnvRedisPassword = "LEADER_ELECTION_REDIS_PASSWORD" //nolint:gosec // the name of a variable, not a credential
 )
 
 // The authorization database DSNs the election falls back to, so a compose
@@ -102,6 +112,11 @@ type Config struct {
 	DSN string
 	// Namespace holds the Lease under K8S_LEASE.
 	Namespace string
+
+	// RedisAddress, RedisUsername and RedisPassword configure REDIS.
+	RedisAddress  string
+	RedisUsername string
+	RedisPassword string
 }
 
 // LookupFunc mirrors os.LookupEnv so configuration stays testable.
@@ -129,6 +144,9 @@ func FromEnv(lookup LookupFunc) (Config, error) {
 		RetryInterval: durationOr(lookup, EnvRetryInterval, DefaultRetryInterval),
 		DSN:           valueOr(lookup, EnvDSN, valueOr(lookup, envPostgresDSN, valueOr(lookup, envOracleDSN, ""))),
 		Namespace:     valueOr(lookup, EnvNamespace, ""),
+		RedisAddress:  valueOr(lookup, EnvRedisAddress, ""),
+		RedisUsername: valueOr(lookup, EnvRedisUsername, ""),
+		RedisPassword: valueOr(lookup, EnvRedisPassword, ""),
 	}
 	if !known(cfg.Type) {
 		return Config{}, fmt.Errorf("%w: %s=%q; supported types are %s",
@@ -172,6 +190,16 @@ func New(cfg Config) (leaderlock.Elector, error) {
 			RenewInterval: cfg.RenewInterval,
 			RetryInterval: cfg.RetryInterval,
 		})
+	case TypeRedis:
+		return redislock.New(redislock.Config{
+			Address:       cfg.RedisAddress,
+			Username:      cfg.RedisUsername,
+			Password:      cfg.RedisPassword,
+			Identity:      cfg.Identity,
+			TTL:           cfg.TTL,
+			RenewInterval: cfg.RenewInterval,
+			RetryInterval: cfg.RetryInterval,
+		})
 	case TypeSingle:
 		return single.New(), nil
 	default:
@@ -191,7 +219,7 @@ func known(t Type) bool {
 
 // Types are every mechanism this build supports, in the order they are
 // reported to an operator who got the value wrong.
-var Types = []Type{TypePGAdvisory, TypeDatabase, TypeK8sLease, TypeSingle}
+var Types = []Type{TypePGAdvisory, TypeDatabase, TypeK8sLease, TypeRedis, TypeSingle}
 
 func supportedTypes() string {
 	names := make([]string, 0, len(Types))
