@@ -17,6 +17,11 @@ spec:
       labels:
         app: policy-controller
     spec:
+      # Under K8S_LEASE the election is a Lease object this ServiceAccount is
+      # allowed to hold (ADR-009). The single replica below does not make
+      # this redundant: a rolling update runs two pods at once, and without
+      # an election both would run the release pipeline.
+      serviceAccountName: leader-elector
       initContainers:
         # Mirrors docker-compose.yml's policy-release-store-init: the disk
         # store fails to start unless storage.disk.directory already exists,
@@ -74,8 +79,17 @@ spec:
           envFrom:
             - configMapRef:
                 name: policy-controller-config
+            - configMapRef:
+                name: leader-election-config
+            - secretRef:
+                name: postgres-dsn
             - secretRef:
                 name: policy-controller-gitea-token
+          env:
+            - name: LEADER_ELECTION_IDENTITY
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
           volumeMounts:
             - name: policy-release-store
               mountPath: /policies

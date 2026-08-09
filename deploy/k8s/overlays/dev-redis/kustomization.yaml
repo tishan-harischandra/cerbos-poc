@@ -1,0 +1,14 @@
+# The dev overlay with the coordination backend swapped to Redis (ADR-009).
+#
+# It exists to make the seam demonstrable rather than merely claimed: this
+# file and the component it names are the entire difference between running
+# the election on Kubernetes Leases and running it on Redis. No service is
+# rebuilt, no image changes, and nothing under deploy/k8s/base mentions Redis
+# at all.
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: cerbos-poc-dev
+resources:
+  - ../dev
+components:
+  - ../../components/redis

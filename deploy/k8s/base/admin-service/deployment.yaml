@@ -12,6 +12,9 @@ spec:
       labels:
         app: admin-service
     spec:
+      # Only the leader drains the outbox (ADR-009), and under K8S_LEASE the
+      # election is a Lease object this ServiceAccount is allowed to hold.
+      serviceAccountName: leader-elector
       # See deploy/k8s/base/ads/deployment.yaml's comment: this copies the
       # committed authorization catalog (resources) and capability catalog
       # (ui-capabilities) the same way, since admin-service reads both
@@ -38,11 +41,19 @@ spec:
                 name: admin-service-config
             - configMapRef:
                 name: idp-config
+            - configMapRef:
+                name: leader-election-config
             - secretRef:
                 name: postgres-dsn
           env:
             - name: IDP_CREDENTIALS_SECRET_REF
               value: /run/secrets/idp-admin-credentials
+            # The pod name, so `kubectl get lease` names the replica that
+            # holds the election rather than an opaque identifier.
+            - name: LEADER_ELECTION_IDENTITY
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
           volumeMounts:
             - name: authorization-catalog
               mountPath: /authorization-catalog

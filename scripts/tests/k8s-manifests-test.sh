@@ -20,6 +20,23 @@ fi
 passed=0
 failed=0
 
+# contains reports whether a rendering holds a string.
+#
+# It reads from a herestring rather than `echo ... | grep -q` on purpose.
+# `grep -q` exits the moment it matches, which closes the pipe under `echo`
+# and kills it with SIGPIPE; with `pipefail` set, that turns a successful
+# match into a failed pipeline whenever grep happens to win the race. The
+# result is a check that passes or fails depending on timing - which is
+# exactly what was observed here before this helper existed.
+contains() {
+  local haystack="$1" needle="$2"
+  if grep -q -- "${needle}" <<<"${haystack}"; then
+    echo true
+  else
+    echo false
+  fi
+}
+
 check() {
   local name="$1" expected="$2" actual="$3"
   if [[ "${expected}" == "${actual}" ]]; then
@@ -69,7 +86,7 @@ for overlay in dev prod; do
   for svc in ${scalable_services}; do
     check "${overlay}: ${svc} has a KEDA ScaledObject" \
       "true" \
-      "$(echo "${rendered}" | grep -B2 "^  name: ${svc}$" | grep -q "kind: ScaledObject" && echo true || echo false)"
+      "$(contains "$(grep -B2 "^  name: ${svc}$" <<<"${rendered}")" "kind: ScaledObject")"
   done
 
   namespace_count="$(echo "${rendered}" | grep -c "namespace: cerbos-poc-${overlay}")"
@@ -80,6 +97,24 @@ for overlay in dev prod; do
     echo "${rendered}" > "/tmp/k8s-manifests-test-${overlay}-debug.yaml"
     echo "  (debug: wrote rendered output missing the namespace to /tmp/k8s-manifests-test-${overlay}-debug.yaml)" >&2
   fi
+
+  # ADR-009: every workload that runs a singleton has to say which
+  # mechanism elects it. The code refuses to start without this, so a
+  # manifest that omits it is a deployment that crashloops - which is safe,
+  # but is a failure worth catching here rather than in a cluster.
+  check "${overlay}: admin-service is told how the election is run" \
+    "true" \
+    "$(contains "${rendered}" "LEADER_ELECTION_TYPE")"
+
+  # And the mechanism it is told to use has to be one the elector can
+  # actually reach: under K8S_LEASE that means a ServiceAccount bound to a
+  # Role over coordination.k8s.io Leases, or every renewal is a 403.
+  check "${overlay}: the elector may hold a Lease" \
+    "true" \
+    "$(contains "${rendered}" "coordination.k8s.io")"
+  check "${overlay}: admin-service runs as the elector service account" \
+    "true" \
+    "$(contains "${rendered}" "serviceAccountName: leader-elector")"
 
   # kubeconform has no bundled schema for KEDA's ScaledObject CRD, so it is
   # skipped explicitly rather than silently passing on an unresolvable
@@ -135,6 +170,54 @@ else
     "${chaos_conform_status}"
   if [[ "${chaos_conform_status}" -ne 0 ]]; then
     echo "${chaos_conform_output}"
+  fi
+fi
+
+# dev-redis (ADR-009): the same dev overlay with the coordination backend
+# swapped. The claim being tested is that changing the mechanism is a
+# deployment-time choice, so the interesting assertion is not that Redis
+# appears - it is that the workloads are byte-identical apart from the
+# election configuration they are handed.
+redis_rendered=""
+for attempt in 1 2; do
+  if redis_rendered="$("${KUSTOMIZE}" build --load-restrictor LoadRestrictionsNone "deploy/k8s/overlays/dev-redis" 2>/tmp/kustomize-dev-redis.err)"; then
+    break
+  fi
+  redis_rendered=""
+done
+if [[ -z "${redis_rendered}" ]]; then
+  echo "k8s-manifests-test: kustomize build dev-redis produced no output after retrying" >&2
+  cat /tmp/kustomize-dev-redis.err >&2
+  failed=$((failed + 1))
+else
+  check "dev-redis: redis workload is present" \
+    "true" \
+    "$(echo "${redis_rendered}" | grep -cE "^  name: redis$" | awk '{print ($1 > 0)}' | sed 's/1/true/;s/0/false/')"
+
+  check "dev-redis: the election runs on Redis" \
+    "true" \
+    "$(contains "${redis_rendered}" "LEADER_ELECTION_TYPE: REDIS")"
+
+  # The component replaces the ConfigMap rather than merging into it, so a
+  # deployment cannot end up holding both answers at once.
+  check "dev-redis: no workload is still told to use Kubernetes Leases" \
+    "false" \
+    "$(contains "${redis_rendered}" "LEADER_ELECTION_TYPE: K8S_LEASE")"
+
+  # The seam is only real if the services themselves did not change.
+  dev_workloads="$("${KUSTOMIZE}" build --load-restrictor LoadRestrictionsNone deploy/k8s/overlays/dev | grep -E "^  *image:" | sort)"
+  redis_workloads="$(grep -E "^  *image:" <<<"${redis_rendered}" | grep -v "redis:7-alpine" | sort)"
+  check "dev-redis: swapping the mechanism rebuilds no service" \
+    "${dev_workloads}" \
+    "${redis_workloads}"
+
+  redis_conform_output="$(echo "${redis_rendered}" | "${KUBECONFORM}" -strict -summary -skip ScaledObject 2>&1)"
+  redis_conform_status=$?
+  check "dev-redis: every non-CRD resource validates against the Kubernetes API schema" \
+    "0" \
+    "${redis_conform_status}"
+  if [[ "${redis_conform_status}" -ne 0 ]]; then
+    echo "${redis_conform_output}"
   fi
 fi
 

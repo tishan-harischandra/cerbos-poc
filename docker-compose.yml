@@ -47,6 +47,23 @@ services:
       retries: 30
       start_period: 20s
 
+  # Redis is optional in exactly the way Oracle is: nothing in this stack
+  # needs it, and it exists so an installation that already runs Redis can
+  # point LEADER_ELECTION_TYPE=REDIS at it (ADR-009). Behind a profile so the
+  # default path does not start a service no default configuration uses.
+  redis:
+    image: docker.io/library/redis:7-alpine
+    profiles:
+      - redis
+    # No volume: a lease that survived a restart would be a lease held by a
+    # process that no longer exists, so forgetting everything on restart is
+    # the behaviour this wants rather than a limitation.
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
   cerbos:
     image: ghcr.io/cerbos/cerbos:0.46.0
     command: ["server", "--config=/conf/config.yaml"]
@@ -272,6 +289,14 @@ services:
       CAPABILITY_CATALOG_DIR: "/capability-catalog"
       KAFKA_BROKERS: "redpanda:9092"
       KAFKA_PERMISSION_CHANGED_TOPIC: "${KAFKA_PERMISSION_CHANGED_TOPIC:-permission-changed}"
+      # Only the leader drains the outbox (ADR-009). PG_ADVISORY is the
+      # default here because compose runs PostgreSQL and it is the one
+      # type with no split-brain window; an installation on the oracle
+      # profile sets DATABASE instead. There is no default in the code:
+      # an unset value refuses to start rather than silently electing
+      # every replica.
+      LEADER_ELECTION_TYPE: "${LEADER_ELECTION_TYPE:-PG_ADVISORY}"
+      LEADER_ELECTION_REDIS_ADDR: "${LEADER_ELECTION_REDIS_ADDR:-redis:6379}"
       # §9.3: high-risk actions default to a bounded expiry when a GRANT or
       # REVOKE names none, rather than being left unbounded (issue #15).
       USER_OVERRIDE_HIGH_RISK_ACTIONS: "${USER_OVERRIDE_HIGH_RISK_ACTIONS:-update,delete,assign}"
@@ -439,6 +464,11 @@ services:
       # Leader election only: this DSN grants no access to assignment data,
       # and the controller never opens the assignmentstore port (§13.1).
       POSTGRES_DSN: "postgres://${POSTGRES_USER:-cerbos_poc}:${POSTGRES_PASSWORD:-change-me}@postgres:5432/${POSTGRES_DB:-cerbos_poc}?sslmode=disable"
+      ASSIGNMENTSTORE_POSTGRES_DSN: "postgres://${POSTGRES_USER:-cerbos_poc}:${POSTGRES_PASSWORD:-change-me}@postgres:5432/${POSTGRES_DB:-cerbos_poc}?sslmode=disable"
+      # Which mechanism decides the singleton is an operational choice
+      # (ADR-009), and it is stated explicitly rather than defaulted.
+      LEADER_ELECTION_TYPE: "${LEADER_ELECTION_TYPE:-PG_ADVISORY}"
+      LEADER_ELECTION_REDIS_ADDR: "${LEADER_ELECTION_REDIS_ADDR:-redis:6379}"
       CERBOS_ADMIN_ADDRESSES: "cerbos-managed:3593"
       CERBOS_ADMIN_USERNAME: "cerbos"
       CERBOS_ADMIN_PASSWORD: "change-me"
