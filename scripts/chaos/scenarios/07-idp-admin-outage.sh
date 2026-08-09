@@ -67,5 +67,10 @@ fi
 echo "==> Restoring the IdP"
 kubectl_chaos scale deployment/keycloak --replicas=1
 wait_for_rollout deployment/keycloak 180s
+# The scale-to-zero above deleted the pod the long-lived Keycloak
+# port-forward from lib.sh's start_port_forwards was bound to; without
+# this, every later scenario's token_for call fails against a tunnel that
+# forwards to a pod that no longer exists (see restart_port_forward).
+restart_port_forward svc/keycloak "${KEYCLOAK_PORT}" 8080
 
 exit "${result}"

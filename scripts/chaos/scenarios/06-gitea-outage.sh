@@ -30,5 +30,8 @@ fi
 echo "==> Restoring Gitea"
 kubectl_chaos scale deployment/gitea --replicas=1
 wait_for_rollout deployment/gitea 180s
+# See 07-idp-admin-outage.sh's identical call: the scale-to-zero above
+# deleted the pod the long-lived Gitea port-forward was bound to.
+restart_port_forward svc/gitea "${CHAOS_GITEA_PORT}" 3000
 
 exit "${result}"
