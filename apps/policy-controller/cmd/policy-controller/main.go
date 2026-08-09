@@ -4,9 +4,9 @@
 // Cerbos fleet through the pod-local Admin API.
 //
 // Exactly one instance acts on any tick; every other instance stays passive
-// behind a PostgreSQL advisory lock (leader.Elector), because compose has no
-// leader election of its own and the mechanism has to be real and portable
-// to a future Kubernetes deployment.
+// behind the leaderlock port. Which mechanism decides that is an operational
+// choice this process knows nothing about: it asks the factory for an elector
+// and runs its poll loop inside the leadership it is given (ADR-009).
 //
 // In this compose topology there is exactly one Cerbos replica sharing one
 // bind-mounted policy directory with this controller, so the leader plays
@@ -27,15 +27,11 @@ import (
 	"time"
 
 	"github.com/tishan-harischandra/cerbos-poc/apps/policy-controller/internal/config"
-	"github.com/tishan-harischandra/cerbos-poc/apps/policy-controller/internal/leader"
 	"github.com/tishan-harischandra/cerbos-poc/apps/policy-controller/internal/server"
+	"github.com/tishan-harischandra/cerbos-poc/libs/leaderlock"
+	"github.com/tishan-harischandra/cerbos-poc/libs/leaderlock/provider"
 	"github.com/tishan-harischandra/cerbos-poc/libs/policyrelease"
 )
-
-// leaderLockKey identifies the advisory lock every policy-controller
-// instance contends for. It has no meaning beyond being a stable, unique
-// key for this one lock.
-const leaderLockKey = 726_314_009
 
 func main() {
 	logger := slog.New(slog.NewJSONHandler(os.Stdout, nil))
@@ -62,12 +58,19 @@ func main() {
 		}
 	}()
 
-	elector, err := leader.New(ctx, cfg.PostgresDSN, leaderLockKey)
+	// The coordination mechanism is selected here and nowhere else. There
+	// is no default: an unset LEADER_ELECTION_TYPE would mean every
+	// replica running the release pipeline at once.
+	electionConfig, err := provider.FromEnv(os.LookupEnv)
+	if err != nil {
+		logger.Error("could not read the leader election configuration", slog.Any("error", err))
+		os.Exit(1)
+	}
+	elector, err := provider.New(electionConfig)
 	if err != nil {
 		logger.Error("could not prepare leader election", slog.Any("error", err))
 		os.Exit(1)
 	}
-	defer func() { _ = elector.Close(context.Background()) }()
 
 	fetcher := policyrelease.NewGiteaClient(policyrelease.GiteaConfig{
 		BaseURL: cfg.GiteaBaseURL,
@@ -108,38 +111,43 @@ func main() {
 		slog.String("repo", cfg.GiteaRepo),
 		slog.String("tagPrefix", cfg.TagPrefix),
 		slog.Duration("pollInterval", cfg.PollInterval),
+		slog.String("leaderElection", string(electionConfig.Type)),
 	)
 
-	ticker := time.NewTicker(cfg.PollInterval)
+	// A passive instance reports its non-leadership on /readyz from the
+	// start, and only ever polls inside the leadership it is handed.
+	if err := elector.Run(ctx, leaderlock.ElectionPolicyController, func(leaderCtx context.Context) {
+		logger.Info("policy-controller elected", slog.String("identity", electionConfig.Identity))
+		status.SetLeader(true)
+		defer status.SetLeader(false)
+		poll(leaderCtx, logger, status, releaseCfg, cfg.PollInterval)
+	}); err != nil {
+		logger.Error("leader election stopped", slog.Any("error", err))
+		os.Exit(1)
+	}
+}
+
+// poll runs the release pipeline until leadership ends. Every pass is bounded
+// by leaderCtx, so a controller that loses the election stops mid-poll rather
+// than finishing a release it is no longer entitled to run.
+func poll(leaderCtx context.Context, logger *slog.Logger, status *server.Status, cfg policyrelease.ReleaseConfig, interval time.Duration) {
+	ticker := time.NewTicker(interval)
 	defer ticker.Stop()
 
-	// Run the first tick immediately rather than waiting a full interval
-	// after startup.
-	tick(ctx, logger, status, elector, releaseCfg)
+	// Run the first pass immediately rather than waiting a full interval
+	// after being elected.
+	runOnce(leaderCtx, logger, status, cfg)
 	for {
 		select {
-		case <-ctx.Done():
+		case <-leaderCtx.Done():
 			return
 		case <-ticker.C:
-			tick(ctx, logger, status, elector, releaseCfg)
+			runOnce(leaderCtx, logger, status, cfg)
 		}
 	}
 }
 
-// tick contends for leadership and, if won, runs one pass of the release
-// pipeline. A passive instance still reports its (non-)leadership on
-// /readyz.
-func tick(ctx context.Context, logger *slog.Logger, status *server.Status, elector *leader.Elector, cfg policyrelease.ReleaseConfig) {
-	acquired, err := elector.TryAcquire(ctx)
-	if err != nil {
-		logger.Error("leader election attempt failed", slog.Any("error", err))
-		return
-	}
-	status.SetLeader(acquired)
-	if !acquired {
-		return
-	}
-
+func runOnce(ctx context.Context, logger *slog.Logger, status *server.Status, cfg policyrelease.ReleaseConfig) {
 	result, err := policyrelease.RunOnce(ctx, cfg)
 	if err != nil {
 		logger.Error("release pipeline run failed", slog.Any("error", err), slog.String("revision", result.Revision))
