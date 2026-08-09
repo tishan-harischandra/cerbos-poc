@@ -31,13 +31,23 @@ pin_to_one_replica ads
 
 echo "==> Minting a token and warming the JWKS cache before the outage"
 token="$(token_for user-unassigned)"
-curl -sS -o /dev/null --max-time 5 \
-  -H 'Content-Type: application/json' -H "Authorization: Bearer ${token}" \
-  --data "${probe}" "${check_url}"
+# pin_to_one_replica's scale-down just above can leave the console's
+# upstream connection to ads pointed at the pod that no longer exists
+# until the cluster's networking converges on the survivor - a transient
+# blackhole, not a signal about this scenario's own assertion - so this
+# warm-up call is retried rather than trusted on its first attempt.
+admin_token="$(token_for user-admin)"
+warm_code=""
+for _ in $(seq 1 10); do
+  warm_code="$(curl -sS -o /dev/null -w '%{http_code}' --max-time 5 \
+    -H 'Content-Type: application/json' -H "Authorization: Bearer ${token}" \
+    --data "${probe}" "${check_url}")"
+  [[ "${warm_code}" == "200" ]] && break
+  sleep 2
+done
 # admin-service verifies tokens against its own, separately cached JWKS
 # (see the console diagnostics check below), so it needs its own warm
 # request too - a decision through ads warms only ads's.
-admin_token="$(token_for user-admin)"
 curl -sS -o /dev/null --max-time 5 -H "Authorization: Bearer ${admin_token}" \
   "http://127.0.0.1:${ADMIN_CONSOLE_PORT}/api/admin/idp/diagnostics"
 
@@ -45,9 +55,18 @@ echo "==> Stopping the IdP (scaling deployment/keycloak to 0)"
 kubectl_chaos scale deployment/keycloak --replicas=0
 kubectl_chaos wait --for=delete pod -l app=keycloak --timeout=60s
 
-code="$(curl -sS -o /dev/null -w '%{http_code}' --max-time 5 \
-  -H 'Content-Type: application/json' -H "Authorization: Bearer ${token}" \
-  --data "${probe}" "${check_url}")"
+code=""
+for _ in $(seq 1 10); do
+  code="$(curl -sS -o /dev/null -w '%{http_code}' --max-time 5 \
+    -H 'Content-Type: application/json' -H "Authorization: Bearer ${token}" \
+    --data "${probe}" "${check_url}")"
+  # Only a transport-level failure (curl never got a response at all) is
+  # retried here - the same transient blackhole the warm-up above accounts
+  # for. Any real HTTP response, including a non-200 one, is this
+  # assertion's actual answer and must not be retried away.
+  [[ "${code}" != "000" ]] && break
+  sleep 2
+done
 if [[ "${code}" == "200" ]]; then
   echo "ok   runtime authorization continues while the IdP admin API is unavailable"
 else
