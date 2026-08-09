@@ -86,6 +86,36 @@ func TestARejectedWriteMeansSomebodyElseWonRatherThanAnOutage(t *testing.T) {
 	}
 }
 
+// A leader that shuts down politely clears the holder and backdates the
+// Lease, precisely so the fleet does not have to wait out a duration nobody is
+// using. A successor that insisted on watching the record stand still for a
+// whole lease first would throw that away and turn every rolling restart into
+// a ttl of no leader at all.
+func TestAReleasedLeaseIsTakenOverAtOnce(t *testing.T) {
+	api := newFakeAPIServer(t, serviceAccountToken)
+	outgoing := newContender(t, api, "outgoing")
+	successor := newContender(t, api, "successor")
+	ctx := context.Background()
+
+	acquired, err := outgoing.Acquire(ctx)
+	if err != nil || !acquired {
+		t.Fatalf("Acquire by the first contender = %t, %v", acquired, err)
+	}
+	if err := outgoing.Release(ctx); err != nil {
+		t.Fatalf("Release: %v", err)
+	}
+
+	// One attempt, with no waiting: the Lease is explicitly free, and
+	// nothing about it needs to be observed over time to know that.
+	acquired, err = successor.Acquire(ctx)
+	if err != nil {
+		t.Fatalf("Acquire by the successor: %v", err)
+	}
+	if !acquired {
+		t.Error("a Lease its holder had released was not taken over until it expired")
+	}
+}
+
 // A pod that forgot its ServiceAccount token gets 401 from every call, and
 // the loop must report that rather than treat it as "somebody else leads".
 func TestAnUnauthenticatedContenderIsNeverElected(t *testing.T) {

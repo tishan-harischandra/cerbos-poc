@@ -209,6 +209,15 @@ func (e *Elector) Acquire(ctx context.Context) (bool, error) {
 		return e.put(ctx, current)
 	}
 
+	// Nobody holds it: the previous leader shut down and said so. That is
+	// a statement, not a timestamp to be second-guessed, so it is taken at
+	// once - waiting a full duration here would turn every rolling restart
+	// into a lease with no leader, which is the delay Release exists to
+	// avoid.
+	if current.Spec.HolderIdentity == "" {
+		return e.put(ctx, current)
+	}
+
 	// Somebody else holds it. Only this contender's own observation of
 	// how long the record has stood still may decide it is stale.
 	if current.Spec.RenewTime != e.observedRenew {
