@@ -50,15 +50,25 @@ claim_of() {
 # tamper_with <token>
 # Returns the same token with one signature byte changed, which is the cheapest
 # possible forgery and must be refused.
+#
+# The changed character must not be the signature's last one: base64url's
+# final character can carry as few as two significant bits (the rest is
+# encoding padding, always zero), so a signature whose length isn't a
+# multiple of 3 bytes - true for the 256-byte RSA signatures this realm
+# mints - has a last character where flipping between certain values (A and
+# B, notably) can leave every significant bit, and so the decoded signature
+# itself, unchanged: an apparently "tampered" token that still verifies.
+# The first character is always fully significant, so flipping it always
+# changes the decoded bytes.
 tamper_with() {
   local token="$1" header payload signature
   header="$(cut -d. -f1 <<<"${token}")"
   payload="$(cut -d. -f2 <<<"${token}")"
   signature="$(cut -d. -f3 <<<"${token}")"
-  local last="${signature: -1}"
+  local first="${signature:0:1}"
   local replacement="A"
-  [[ "${last}" == "A" ]] && replacement="B"
-  printf '%s.%s.%s%s' "${header}" "${payload}" "${signature%?}" "${replacement}"
+  [[ "${first}" == "A" ]] && replacement="B"
+  printf '%s.%s.%s%s' "${header}" "${payload}" "${replacement}" "${signature:1}"
 }
 
 # wait_for_keycloak waits until the realm's discovery document is served.
