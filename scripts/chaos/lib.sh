@@ -48,7 +48,9 @@ install_tools() {
 # ports, so both are reused unmodified once the port-forwards below are up:
 # Keycloak's KC_HOSTNAME is baked in as http://localhost:8081 (see
 # deploy/k8s/base/keycloak/deployment.yaml), and ADMIN_CONSOLE_PORT's own
-# default is 4200.
+# default is 4200. That port now forwards to admin-service, which serves the
+# console and proxies its API calls (ADR-008); every /api/... URL below is
+# unchanged, because the paths the console calls did not move.
 export KEYCLOAK_PORT="${KEYCLOAK_PORT:-8081}"
 export ADMIN_CONSOLE_PORT="${ADMIN_CONSOLE_PORT:-4200}"
 CHAOS_POSTGRES_PORT="${CHAOS_POSTGRES_PORT:-5432}"
@@ -89,7 +91,7 @@ start_port_forwards() {
   for spec in \
     "svc/postgres:${CHAOS_POSTGRES_PORT}:5432" \
     "svc/keycloak:${KEYCLOAK_PORT}:8080" \
-    "svc/admin-console:${ADMIN_CONSOLE_PORT}:80" \
+    "svc/admin-service:${ADMIN_CONSOLE_PORT}:8081" \
     "svc/gitea:${CHAOS_GITEA_PORT}:3000"; do
     local target="${spec%%:*}" rest="${spec#*:}"
     local local_port="${rest%%:*}" remote_port="${rest#*:}"
@@ -125,7 +127,7 @@ stop_port_forwards() {
 }
 
 # decision_probe_loop <duration-seconds> <failure-count-file>
-# Sends one authorization decision per second through admin-console -> ADS ->
+# Sends one authorization decision per second through admin-service -> ADS ->
 # Cerbos for the given duration, appending one line ("ok" or "FAIL <code>")
 # per request to failure-count-file. Scenarios run this in the background
 # while they inject a failure, then assert no FAIL line was written.

@@ -16,8 +16,8 @@ export interface OidcConfig {
 }
 
 /**
- * Runtime overrides rendered by docker-entrypoint.d/30-render-env-js.sh from
- * OIDC_ISSUER and OIDC_CLIENT_ID (see assets/env.template.js). Absent in a
+ * Runtime overrides served as assets/env.js by the Administration Service,
+ * from its own OIDC_ISSUER and OIDC_CLIENT_ID (ADR-008). Absent in a
  * local `nx serve` or in unit tests, where the compose-matching defaults
  * below apply instead.
  */

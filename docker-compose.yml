@@ -297,6 +297,11 @@ services:
       # every replica.
       LEADER_ELECTION_TYPE: "${LEADER_ELECTION_TYPE:-PG_ADVISORY}"
       LEADER_ELECTION_REDIS_ADDR: "${LEADER_ELECTION_REDIS_ADDR:-redis:6379}"
+      # This service serves the Admin Console (ADR-008), so the console's
+      # login configuration is now its own. The issuer is the published
+      # address the browser is redirected to, not the compose-internal one.
+      OIDC_ISSUER: "${KEYCLOAK_HOSTNAME:-http://localhost:8081}/realms/${IDP_REALM:-cerbos-poc}"
+      OIDC_CLIENT_ID: "${IDP_CLIENT_ID:-patient-app}"
       # §9.3: high-risk actions default to a bounded expiry when a GRANT or
       # REVOKE names none, rather than being left unbounded (issue #15).
       USER_OVERRIDE_HIGH_RISK_ACTIONS: "${USER_OVERRIDE_HIGH_RISK_ACTIONS:-update,delete,assign}"
@@ -316,6 +321,11 @@ services:
       - ./deploy/cerbos/catalog/resources:/authorization-catalog:ro
       - ./deploy/cerbos/catalog/ui-capabilities:/capability-catalog:ro
       - policy-release-archives:/var/lib/policy-controller/archives:ro
+    # The only published port on the control plane, and the Admin Console's
+    # address (ADR-008). Everything behind it - the ADS, the PDP, the
+    # database - stays on the internal network (§16.1).
+    ports:
+      - "${ADMIN_CONSOLE_PORT:-4200}:8081"
     depends_on:
       postgres:
         condition: service_healthy
@@ -498,25 +508,10 @@ services:
       timeout: 5s
       retries: 20
 
-  admin-console:
-    build:
-      context: .
-      dockerfile: apps/admin-console/Dockerfile
-    environment:
-      OIDC_ISSUER: "${KEYCLOAK_HOSTNAME:-http://localhost:8081}/realms/${IDP_REALM:-cerbos-poc}"
-      OIDC_CLIENT_ID: "${IDP_CLIENT_ID:-patient-app}"
-    ports:
-      - "${ADMIN_CONSOLE_PORT:-4200}:80"
-    depends_on:
-      ads:
-        condition: service_healthy
-      admin-service:
-        condition: service_healthy
-    healthcheck:
-      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://127.0.0.1/index.html"]
-      interval: 5s
-      timeout: 5s
-      retries: 20
+  # The Admin Console has no service of its own: admin-service serves its
+  # bundle and proxies its API calls (ADR-008). ADMIN_CONSOLE_PORT publishes
+  # admin-service instead, so the console is still reached at the same
+  # address it always was.
 
   business-ui:
     build:

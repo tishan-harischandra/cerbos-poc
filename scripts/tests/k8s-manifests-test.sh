@@ -48,8 +48,10 @@ check() {
   fi
 }
 
-services="postgres cerbos keycloak redpanda ads admin-service resource-service admin-console business-ui"
-scalable_services="cerbos ads admin-service resource-service admin-console business-ui"
+# admin-console is deliberately absent: the Administration Service serves the
+# console now, so there is no console workload to render (ADR-008).
+services="postgres cerbos keycloak redpanda ads admin-service resource-service business-ui"
+scalable_services="cerbos ads admin-service resource-service business-ui"
 
 for overlay in dev prod; do
   # LoadRestrictionsNone: common/kustomization.yaml's secretGenerator reads
@@ -116,6 +118,13 @@ for overlay in dev prod; do
     "true" \
     "$(contains "${rendered}" "serviceAccountName: leader-elector")"
 
+  # ADR-008: the console has no deployment, no service and no image of its
+  # own. Asserting its absence is what stops it being quietly reintroduced
+  # alongside the service that now serves it.
+  check "${overlay}: nothing deploys the console separately" \
+    "false" \
+    "$(contains "${rendered}" "admin-console")"
+
   # kubeconform has no bundled schema for KEDA's ScaledObject CRD, so it is
   # skipped explicitly rather than silently passing on an unresolvable
   # schema lookup.
@@ -135,7 +144,7 @@ check "dev overlay pins every workload to 1 replica" \
 
 check "prod overlay raises every workload's replica floor above dev's" \
   "true" \
-  "$("${KUSTOMIZE}" build --load-restrictor LoadRestrictionsNone deploy/k8s/overlays/prod | grep -c 'replicas: 3' | awk '{print ($1 >= 6)}' | sed 's/1/true/;s/0/false/')"
+  "$("${KUSTOMIZE}" build --load-restrictor LoadRestrictionsNone deploy/k8s/overlays/prod | grep -c 'replicas: 3' | awk '{print ($1 >= 5)}' | sed 's/1/true/;s/0/false/')"
 
 # dev-chaos (issue #26): the dev overlay plus the policy-release component,
 # the exact topology scripts/chaos deploys into kind so the Gitea-outage and

@@ -14,5 +14,4 @@ resources:
   - ads
   - admin-service
   - resource-service
-  - admin-console
   - business-ui
