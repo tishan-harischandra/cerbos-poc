@@ -4,16 +4,18 @@ FROM docker.io/library/golang:1.25-alpine AS build
 
 WORKDIR /src
 
-# The policy controller depends on libs/policyrelease, resolved by the
-# replace directive in its go.mod. Its manifest is copied before the sources
-# so a change to controller code alone still reuses the cached download
-# layer.
+# The policy controller depends on libs/policyrelease and libs/leaderlock,
+# resolved by the replace directives in its go.mod. Their manifests are
+# copied before the sources so a change to controller code alone still reuses
+# the cached download layer.
 COPY apps/policy-controller/go.mod apps/policy-controller/go.sum ./apps/policy-controller/
 COPY libs/policyrelease/go.mod libs/policyrelease/go.sum ./libs/policyrelease/
+COPY libs/leaderlock/go.mod libs/leaderlock/go.sum ./libs/leaderlock/
 WORKDIR /src/apps/policy-controller
 RUN go mod download
 
 COPY libs/policyrelease/ /src/libs/policyrelease/
+COPY libs/leaderlock/ /src/libs/leaderlock/
 COPY apps/policy-controller/ /src/apps/policy-controller/
 RUN CGO_ENABLED=0 go build -trimpath -ldflags="-s -w" -o /out/policy-controller ./cmd/policy-controller
 

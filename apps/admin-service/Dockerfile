@@ -13,6 +13,7 @@ COPY libs/capabilitycatalog/go.mod libs/capabilitycatalog/go.sum ./libs/capabili
 COPY libs/cataloggen/go.mod libs/cataloggen/go.sum ./libs/cataloggen/
 COPY libs/canonicalid/go.mod ./libs/canonicalid/
 COPY libs/idpdirectory/go.mod ./libs/idpdirectory/
+COPY libs/leaderlock/go.mod libs/leaderlock/go.sum ./libs/leaderlock/
 COPY libs/tokenverifier/go.mod ./libs/tokenverifier/
 COPY libs/outbox/go.mod libs/outbox/go.sum ./libs/outbox/
 COPY libs/permissionevents/go.mod ./libs/permissionevents/
