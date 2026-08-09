@@ -16,11 +16,23 @@ result=0
 token="$(token_for user-admin)"
 
 echo "==> Reading the current permission revision"
-revision_status="$(curl -sS -o /tmp/chaos-kafka-revision.json -w '%{http_code}' --max-time 5 \
-  -H "Authorization: Bearer ${token}" "${admin_url}/permission-revision")"
-current_revision="$(jq -r '.revision' /tmp/chaos-kafka-revision.json)"
+# The previous scenario (03-database-outage) only just restored PostgreSQL,
+# and admin-service's own connection pool needs a moment to notice its
+# pooled connections are stale and redial - so the first read here is
+# retried rather than failed outright on one slow response.
+revision_status=""
+current_revision=""
+for _ in $(seq 1 10); do
+  revision_status="$(curl -sS -o /tmp/chaos-kafka-revision.json -w '%{http_code}' --max-time 5 \
+    -H "Authorization: Bearer ${token}" "${admin_url}/permission-revision")"
+  current_revision="$(jq -r '.revision' /tmp/chaos-kafka-revision.json 2>/dev/null || true)"
+  if [[ "${revision_status}" == "200" ]] && [[ "${current_revision}" =~ ^[0-9]+$ ]]; then
+    break
+  fi
+  sleep 2
+done
 if [[ "${revision_status}" != "200" ]] || ! [[ "${current_revision}" =~ ^[0-9]+$ ]]; then
-  echo "FAIL a permission write commits while Kafka is paused (could not read the current permission revision: HTTP ${revision_status}: $(cat /tmp/chaos-kafka-revision.json))"
+  echo "FAIL a permission write commits while Kafka is paused (could not read the current permission revision: HTTP ${revision_status}: $(cat /tmp/chaos-kafka-revision.json 2>/dev/null))"
   exit 1
 fi
 
