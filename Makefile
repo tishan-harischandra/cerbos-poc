@@ -146,6 +146,14 @@ db-test-dual: ## Prove portability: the same contract against both engines
 	bash scripts/oracle-wait.sh
 	bash scripts/tests/migration-contract.sh oracle
 	bash scripts/tests/store-contract.sh dual
+	# The leader_lock lease is part of the same portability claim: an
+	# installation on Oracle needs the singleton workloads to behave the
+	# same way, not merely to start.
+	bash scripts/tests/leaderlock-contract.sh dual
+
+.PHONY: election-test
+election-test: ## Run the leader election contract against PostgreSQL
+	bash scripts/tests/leaderlock-contract.sh postgres
 
 .PHONY: smoke
 smoke: ## Verify a running stack end to end
