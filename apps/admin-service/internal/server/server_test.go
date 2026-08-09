@@ -171,10 +171,10 @@ func TestReadyzReportsReadyWithNoDependencies(t *testing.T) {
 // newHandler builds the surface and fails the test if it could not be built,
 // which keeps every case above reading as the assertion it is.
 func newHandler(t *testing.T, cfg server.Config) http.Handler {
-t.Helper()
-handler, err := server.New(cfg)
-if err != nil {
-t.Fatalf("server.New: %v", err)
-}
-return handler
+	t.Helper()
+	handler, err := server.New(cfg)
+	if err != nil {
+		t.Fatalf("server.New: %v", err)
+	}
+	return handler
 }
