@@ -60,6 +60,17 @@ type Config struct {
 	// names no ValidUntil. Non-positive falls back to
 	// useroverride.DefaultHighRiskValidityWindow.
 	HighRiskOverrideValidity time.Duration
+
+	// ConsoleDir is the built Admin Console bundle this service serves
+	// (ADR-008). Empty means it serves the administration API only, which
+	// is what a build with no bundle on disk - a developer running
+	// `nx serve admin-console` against it - wants.
+	ConsoleDir string
+	// OIDCIssuer and OIDCClientID are what the console's bundle needs at
+	// runtime to log a human in. They were rendered into assets/env.js by
+	// an entrypoint script when the console had its own image.
+	OIDCIssuer   string
+	OIDCClientID string
 }
 
 // LookupFunc mirrors os.LookupEnv so configuration stays testable.
@@ -85,6 +96,14 @@ func FromEnv(lookup LookupFunc) Config {
 
 		HighRiskActions:          splitOr(lookup, "USER_OVERRIDE_HIGH_RISK_ACTIONS", []string{"update", "delete", "assign"}),
 		HighRiskOverrideValidity: durationOr(lookup, "USER_OVERRIDE_HIGH_RISK_VALIDITY", 90*24*time.Hour),
+
+		ConsoleDir: valueOr(lookup, "ADMIN_CONSOLE_DIR", "/admin-console"),
+		// The issuer the browser is redirected to, which is the
+		// published address rather than the compose-internal one - the
+		// same distinction IDP_ISSUER already draws for token
+		// verification, and the same value.
+		OIDCIssuer:   valueOr(lookup, "OIDC_ISSUER", valueOr(lookup, "IDP_ISSUER", "http://localhost:8081/realms/cerbos-poc")),
+		OIDCClientID: valueOr(lookup, "OIDC_CLIENT_ID", valueOr(lookup, "IDP_CLIENT_ID", "patient-app")),
 	}
 }
 

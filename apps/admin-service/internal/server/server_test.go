@@ -21,7 +21,7 @@ func (fakeVerifier) Verify(context.Context, string) (tokenverifier.VerifiedToken
 }
 
 func TestHealthzAlwaysAnswers(t *testing.T) {
-	handler := server.New(server.Config{})
+	handler := newHandler(t, server.Config{})
 	rec := httptest.NewRecorder()
 	handler.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/healthz", nil))
 	if rec.Code != http.StatusOK {
@@ -30,7 +30,7 @@ func TestHealthzAlwaysAnswers(t *testing.T) {
 }
 
 func TestRoleMatrixRoutesAreAbsentWithoutARoleMatrixHandler(t *testing.T) {
-	handler := server.New(server.Config{})
+	handler := newHandler(t, server.Config{})
 	rec := httptest.NewRecorder()
 	handler.ServeHTTP(rec, httptest.NewRequest(http.MethodGet,
 		"/admin/authz/tenants/tenant-a/permission-revision", nil))
@@ -40,7 +40,7 @@ func TestRoleMatrixRoutesAreAbsentWithoutARoleMatrixHandler(t *testing.T) {
 }
 
 func TestRoleMatrixRoutesRequireABearerToken(t *testing.T) {
-	handler := server.New(server.Config{
+	handler := newHandler(t, server.Config{
 		Verifier:   fakeVerifier{},
 		RoleMatrix: &rolematrix.Handler{},
 	})
@@ -53,7 +53,7 @@ func TestRoleMatrixRoutesRequireABearerToken(t *testing.T) {
 }
 
 func TestUserOverrideRoutesAreAbsentWithoutAUserOverrideHandler(t *testing.T) {
-	handler := server.New(server.Config{})
+	handler := newHandler(t, server.Config{})
 	rec := httptest.NewRecorder()
 	handler.ServeHTTP(rec, httptest.NewRequest(http.MethodGet,
 		"/admin/authz/tenants/tenant-a/hospitals/hospital-1/users/user-1/overrides?resource=patient_record", nil))
@@ -63,7 +63,7 @@ func TestUserOverrideRoutesAreAbsentWithoutAUserOverrideHandler(t *testing.T) {
 }
 
 func TestUserOverrideRoutesRequireABearerToken(t *testing.T) {
-	handler := server.New(server.Config{
+	handler := newHandler(t, server.Config{
 		Verifier:     fakeVerifier{},
 		UserOverride: &useroverride.Handler{},
 	})
@@ -76,7 +76,7 @@ func TestUserOverrideRoutesRequireABearerToken(t *testing.T) {
 }
 
 func TestCatalogRouteIsAbsentWithoutACatalogHandler(t *testing.T) {
-	handler := server.New(server.Config{})
+	handler := newHandler(t, server.Config{})
 	rec := httptest.NewRecorder()
 	handler.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/admin/authz/resources", nil))
 	if rec.Code != http.StatusNotFound {
@@ -85,7 +85,7 @@ func TestCatalogRouteIsAbsentWithoutACatalogHandler(t *testing.T) {
 }
 
 func TestCatalogRouteRequiresABearerToken(t *testing.T) {
-	handler := server.New(server.Config{
+	handler := newHandler(t, server.Config{
 		Verifier: fakeVerifier{},
 		Catalog:  &catalogapi.Handler{},
 	})
@@ -97,7 +97,7 @@ func TestCatalogRouteRequiresABearerToken(t *testing.T) {
 }
 
 func TestSimulateAccessRouteIsAbsentWithoutASimulateHandler(t *testing.T) {
-	handler := server.New(server.Config{})
+	handler := newHandler(t, server.Config{})
 	rec := httptest.NewRecorder()
 	handler.ServeHTTP(rec, httptest.NewRequest(http.MethodPost, "/admin/authz/simulate", nil))
 	if rec.Code != http.StatusNotFound {
@@ -106,7 +106,7 @@ func TestSimulateAccessRouteIsAbsentWithoutASimulateHandler(t *testing.T) {
 }
 
 func TestSimulateAccessRouteRequiresABearerToken(t *testing.T) {
-	handler := server.New(server.Config{
+	handler := newHandler(t, server.Config{
 		Verifier: fakeVerifier{},
 		Simulate: &simulate.Handler{},
 	})
@@ -118,7 +118,7 @@ func TestSimulateAccessRouteRequiresABearerToken(t *testing.T) {
 }
 
 func TestSimulateCapabilitiesRouteIsAbsentWithoutASimulateHandler(t *testing.T) {
-	handler := server.New(server.Config{})
+	handler := newHandler(t, server.Config{})
 	rec := httptest.NewRecorder()
 	handler.ServeHTTP(rec, httptest.NewRequest(http.MethodPost, "/admin/authz/simulate-capabilities", nil))
 	if rec.Code != http.StatusNotFound {
@@ -127,7 +127,7 @@ func TestSimulateCapabilitiesRouteIsAbsentWithoutASimulateHandler(t *testing.T) 
 }
 
 func TestSimulateCapabilitiesRouteRequiresABearerToken(t *testing.T) {
-	handler := server.New(server.Config{
+	handler := newHandler(t, server.Config{
 		Verifier: fakeVerifier{},
 		Simulate: &simulate.Handler{},
 	})
@@ -139,7 +139,7 @@ func TestSimulateCapabilitiesRouteRequiresABearerToken(t *testing.T) {
 }
 
 func TestCapabilityImpactRouteIsAbsentWithoutACatalogHandler(t *testing.T) {
-	handler := server.New(server.Config{})
+	handler := newHandler(t, server.Config{})
 	rec := httptest.NewRecorder()
 	handler.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/admin/authz/resources/patient_record/actions/read/capabilities", nil))
 	if rec.Code != http.StatusNotFound {
@@ -148,7 +148,7 @@ func TestCapabilityImpactRouteIsAbsentWithoutACatalogHandler(t *testing.T) {
 }
 
 func TestCapabilityImpactRouteRequiresABearerToken(t *testing.T) {
-	handler := server.New(server.Config{
+	handler := newHandler(t, server.Config{
 		Verifier: fakeVerifier{},
 		Catalog:  &catalogapi.Handler{},
 	})
@@ -160,10 +160,21 @@ func TestCapabilityImpactRouteRequiresABearerToken(t *testing.T) {
 }
 
 func TestReadyzReportsReadyWithNoDependencies(t *testing.T) {
-	handler := server.New(server.Config{})
+	handler := newHandler(t, server.Config{})
 	rec := httptest.NewRecorder()
 	handler.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/readyz", nil))
 	if rec.Code != http.StatusOK {
 		t.Fatalf("status = %d, want 200", rec.Code)
 	}
+}
+
+// newHandler builds the surface and fails the test if it could not be built,
+// which keeps every case above reading as the assertion it is.
+func newHandler(t *testing.T, cfg server.Config) http.Handler {
+t.Helper()
+handler, err := server.New(cfg)
+if err != nil {
+t.Fatalf("server.New: %v", err)
+}
+return handler
 }

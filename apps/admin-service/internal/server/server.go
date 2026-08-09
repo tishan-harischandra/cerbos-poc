@@ -10,6 +10,7 @@ import (
 
 	"github.com/tishan-harischandra/cerbos-poc/apps/admin-service/internal/auditsearch"
 	"github.com/tishan-harischandra/cerbos-poc/apps/admin-service/internal/catalogapi"
+	"github.com/tishan-harischandra/cerbos-poc/apps/admin-service/internal/console"
 	"github.com/tishan-harischandra/cerbos-poc/apps/admin-service/internal/platformstatus"
 	"github.com/tishan-harischandra/cerbos-poc/apps/admin-service/internal/rolematrix"
 	"github.com/tishan-harischandra/cerbos-poc/apps/admin-service/internal/simulate"
@@ -64,10 +65,22 @@ type Config struct {
 	// diagnostics endpoints (issue #22). Nil means the routes are not
 	// registered.
 	PlatformStatus *platformstatus.Handler
+
+	// Console serves the Admin Console: its bundle, its runtime
+	// environment, and the ADS calls it makes through this origin
+	// (ADR-008). Nil leaves all of that unregistered, which is what a
+	// deployment with no bundle on disk wants - the administration API
+	// still answers.
+	Console *console.Config
 }
 
 // New builds the Administration Service HTTP handler.
-func New(cfg Config) http.Handler {
+//
+// It answers on one port for both audiences: the administration API under
+// /admin, and the Admin Console it serves to a browser (ADR-008). The console
+// calls this same origin under /api, so the browser never reaches the ADS or
+// this service's API directly (§16.1).
+func New(cfg Config) (http.Handler, error) {
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /healthz", func(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusOK, map[string]any{"status": "ok"})
@@ -137,7 +150,50 @@ func New(cfg Config) http.Handler {
 		}
 		writeJSON(w, code, map[string]any{"status": status, "dependencies": results})
 	})
-	return mux
+
+	if cfg.Console == nil {
+		return mux, nil
+	}
+	return withConsole(mux, *cfg.Console)
+}
+
+// withConsole adds the browser-facing surface to the API mux.
+//
+// The console's routes and the routes they reach are registered on one mux, in
+// one file. That is the point of ADR-008: a prefix the console calls and a
+// prefix this service registers can no longer disagree in production only,
+// because nothing between them is written in another language.
+func withConsole(mux *http.ServeMux, cfg console.Config) (http.Handler, error) {
+	// Only /api comes off, and the rest goes back through this same mux, so
+	// /api/admin/authz/... reaches the /admin/authz/... route it names.
+	mux.Handle(console.AdminPrefix, console.StripAPIPrefix(mux))
+
+	proxy, err := console.ADSProxy(cfg.ADSAddr)
+	if err != nil {
+		return nil, err
+	}
+	mux.Handle(console.ADSPrefix, proxy)
+
+	// Registered ahead of the bundle: the environment is configuration this
+	// service holds, not a file the build produced.
+	mux.Handle("GET "+console.EnvJSPath, console.EnvJS(cfg.Environment))
+
+	assets, err := console.Assets(cfg.Dir)
+	if err != nil {
+		return nil, err
+	}
+	mux.Handle("/", assets)
+
+	// The shell answers anything the mux does not recognise, because a
+	// deep link is a route only the browser's router knows. That must stop
+	// at the API's own namespaces: a mistyped endpoint would otherwise
+	// answer 200 with HTML, and a caller would try to parse the login page
+	// as JSON. A more specific pattern wins in the mux, so the real routes
+	// registered above are unaffected and only the gaps between them reach
+	// these.
+	mux.Handle("/admin/", http.NotFoundHandler())
+	mux.Handle(console.APIPrefix+"/", http.NotFoundHandler())
+	return mux, nil
 }
 
 func writeJSON(w http.ResponseWriter, status int, body any) {

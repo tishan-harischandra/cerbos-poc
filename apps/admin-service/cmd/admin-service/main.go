@@ -24,6 +24,7 @@ import (
 	"github.com/tishan-harischandra/cerbos-poc/apps/admin-service/internal/useroverride"
 	"github.com/tishan-harischandra/cerbos-poc/libs/assignmentstore/postgresstore"
 	"github.com/tishan-harischandra/cerbos-poc/libs/capabilitycatalog"
+	"github.com/tishan-harischandra/cerbos-poc/apps/admin-service/internal/console"
 	idpprovider "github.com/tishan-harischandra/cerbos-poc/libs/idpdirectory/provider"
 	"github.com/tishan-harischandra/cerbos-poc/libs/leaderlock"
 	electionprovider "github.com/tishan-harischandra/cerbos-poc/libs/leaderlock/provider"
@@ -95,7 +96,22 @@ func main() {
 		os.Exit(1)
 	}
 
-	handler := server.New(server.Config{
+	// The console is served from this process (ADR-008), so its bundle is
+	// optional configuration rather than a separate deployment: a build
+	// with nothing on disk still serves the administration API.
+	var consoleConfig *console.Config
+	if cfg.ConsoleDir != "" {
+		consoleConfig = &console.Config{
+			Dir:     cfg.ConsoleDir,
+			ADSAddr: cfg.ADSAddr,
+			Environment: console.Environment{
+				OIDCIssuer:   cfg.OIDCIssuer,
+				OIDCClientID: cfg.OIDCClientID,
+			},
+		}
+	}
+
+	handler, err := server.New(server.Config{
 		Dependencies: []server.Dependency{
 			{Name: "postgres", Probe: tcpProbe(cfg.PostgresAddr)},
 			{Name: "idp", Probe: tcpProbe(cfg.IdPAddr)},
@@ -129,7 +145,12 @@ func main() {
 			IdPRoleSource:        string(idpConfig.RoleSource),
 			IdPTenantMappingMode: string(idpConfig.TenantMappingMode),
 		},
+		Console: consoleConfig,
 	})
+	if err != nil {
+		logger.Error("could not build the http surface", slog.Any("error", err))
+		os.Exit(1)
+	}
 
 	httpServer := &http.Server{
 		Addr:              cfg.HTTPAddr,
@@ -182,6 +203,7 @@ func main() {
 		slog.String("idpType", string(idpConfig.Type)),
 		slog.String("idpIssuer", idpConfig.Issuer),
 		slog.String("leaderElection", string(electionConfig.Type)),
+		slog.String("consoleDir", cfg.ConsoleDir),
 	)
 
 	if err := httpServer.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {

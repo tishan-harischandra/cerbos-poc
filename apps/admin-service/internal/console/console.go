@@ -23,6 +23,18 @@ import (
 	"strings"
 )
 
+// Config describes the console this service serves.
+type Config struct {
+	// Dir is the built Angular bundle on disk.
+	Dir string
+	// ADSAddr is where the console's ADS calls are forwarded. It is the
+	// same address this service already uses for the simulator, so the
+	// browser's route to the ADS and the service's own cannot diverge.
+	ADSAddr string
+	// Environment is what the bundle needs to know at runtime.
+	Environment Environment
+}
+
 // Environment is the configuration the browser needs at runtime.
 //
 // The bundle is built long before anyone knows which Keycloak an installation
