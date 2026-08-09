@@ -18,6 +18,10 @@ token="$(token_for user-admin)"
 echo "==> Reading the current permission revision"
 current_revision="$(curl -sS --max-time 5 -H "Authorization: Bearer ${token}" \
   "${admin_url}/permission-revision" | jq -r '.revision')"
+if ! [[ "${current_revision}" =~ ^[0-9]+$ ]]; then
+  echo "FAIL a permission write commits while Kafka is paused (could not read the current permission revision: got '${current_revision}')"
+  exit 1
+fi
 
 echo "==> Pausing Kafka (scaling statefulset/redpanda to 0)"
 kubectl_chaos scale statefulset/redpanda --replicas=0
