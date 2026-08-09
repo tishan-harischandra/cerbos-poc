@@ -223,13 +223,20 @@ UPDATE leader_lock
    AND expires_at > now()`,
 			string(e.election), e.cfg.Identity, seconds)
 	case DialectOracle:
+		// The placeholders ascend in the order they appear, because
+		// go-ora binds positionally and ignores the number: writing
+		// the SET clause as :3 bound the election name to it and the
+		// ttl to election_name, so every renewal matched no row and
+		// the leader stood down at its first renewal - on Oracle
+		// only. The same trap is recorded against the outbox in
+		// oraclestore (issue #48).
 		result, err = e.db.ExecContext(ctx, `
 UPDATE leader_lock
-   SET expires_at = SYSTIMESTAMP + NUMTODSINTERVAL(:3, 'SECOND')
- WHERE election_name = :1
-   AND holder = :2
+   SET expires_at = SYSTIMESTAMP + NUMTODSINTERVAL(:1, 'SECOND')
+ WHERE election_name = :2
+   AND holder = :3
    AND expires_at > SYSTIMESTAMP`,
-			string(e.election), e.cfg.Identity, seconds)
+			seconds, string(e.election), e.cfg.Identity)
 	default:
 		return false, fmt.Errorf("databaselock: %q is not a dialect this adapter speaks", e.dialect)
 	}
