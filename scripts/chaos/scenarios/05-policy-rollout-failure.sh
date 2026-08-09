@@ -63,7 +63,9 @@ done
 if [[ "${rejected}" -eq 1 ]]; then
   echo "ok   the failed release is recorded and not marked active"
 else
-  echo "FAIL the failed release is recorded and not marked active (never observed in history: ${history:-none})"
+  controller_status="$(kubectl_chaos exec deployment/policy-controller -- \
+    wget -qO- http://127.0.0.1:8082/readyz 2>&1 || true)"
+  echo "FAIL the failed release is recorded and not marked active (never observed in history: ${history:-none}; policy-controller /readyz: ${controller_status:-none})"
   result=1
 fi
 
