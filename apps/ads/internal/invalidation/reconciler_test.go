@@ -140,6 +140,51 @@ func (s *erroringOneTenantSource) PermissionRevision(_ context.Context, tenantID
 	return assignmentstore.PermissionRevision{TenantID: tenantID, Revision: revision}, found, nil
 }
 
+// hangingRevisionSource never returns until its context is cancelled - the
+// case that matters here is a PostgreSQL connection left half-open by a
+// restart (issue #26's chaos suite), which otherwise blocks pgxpool's
+// Acquire indefinitely since ReconcileOnce's own caller passes it no
+// deadline.
+type hangingRevisionSource struct{}
+
+func (hangingRevisionSource) PermissionRevision(ctx context.Context, _ string) (assignmentstore.PermissionRevision, bool, error) {
+	<-ctx.Done()
+	return assignmentstore.PermissionRevision{}, false, ctx.Err()
+}
+
+// A tenant whose Store call hangs must not stall the whole pass past
+// PerTenantTimeout - a bound this test sets short so it does not itself
+// hang - and must still report the hang through OnError rather than
+// silently doing nothing.
+func TestReconcileOnceBoundsAHangingTenantByPerTenantTimeout(t *testing.T) {
+	cache := &fakeReconcilerCache{known: []string{"tenant-a"}, cached: map[string]int64{"tenant-a": 5}}
+
+	var errs []error
+	reconciler := invalidation.NewReconciler(invalidation.ReconcilerConfig{
+		Cache: cache, Store: hangingRevisionSource{},
+		PerTenantTimeout: 20 * time.Millisecond,
+		OnError:          func(err error) { errs = append(errs, err) },
+	})
+
+	done := make(chan struct{})
+	go func() {
+		reconciler.ReconcileOnce(context.Background())
+		close(done)
+	}()
+
+	select {
+	case <-done:
+	case <-time.After(time.Second):
+		t.Fatal("ReconcileOnce did not return within PerTenantTimeout of a hanging Store call")
+	}
+	if len(errs) != 1 {
+		t.Fatalf("got %d errors, want 1 for the timed-out tenant", len(errs))
+	}
+	if len(cache.invalidated) != 0 {
+		t.Errorf("invalidated = %v, want none: a timeout is not a confirmed drift", cache.invalidated)
+	}
+}
+
 // A tenant this replica has never served costs nothing: KnownTenants would
 // simply never name it, so Run must not require any external enumeration of
 // every tenant in the system.
