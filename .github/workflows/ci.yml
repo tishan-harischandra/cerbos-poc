@@ -138,7 +138,7 @@ jobs:
           fi
 
           if git diff --name-only "${base}" HEAD | grep -qE \
-              '^(deploy/liquibase/|libs/assignmentstore/|scripts/liquibase\.sh|scripts/oracle-wait\.sh|scripts/tests/(migration|store)-contract\.sh|docker-compose\.yml|\.github/workflows/ci\.yml)'; then
+              '^(deploy/liquibase/|libs/assignmentstore/|libs/leaderlock/|scripts/liquibase\.sh|scripts/oracle-wait\.sh|scripts/tests/(migration|store|leaderlock)-contract\.sh|docker-compose\.yml|\.github/workflows/ci\.yml)'; then
             echo "database=true" >> "${GITHUB_OUTPUT}"
           else
             echo "database=false" >> "${GITHUB_OUTPUT}"
@@ -181,6 +181,15 @@ jobs:
       # pass by quietly not running.
       - name: One contract suite, both engines
         run: bash scripts/tests/store-contract.sh dual
+
+      # The leader_lock lease is part of the same portability claim, and it is
+      # the half a compile cannot check: the renewal statement was silently
+      # wrong on Oracle alone (go-ora binds placeholders in the order they
+      # appear, not by number), so a leader stood down at its first renewal
+      # while PostgreSQL stayed perfectly green. Only running it on both
+      # engines finds that.
+      - name: The leader election contract, both engines
+        run: bash scripts/tests/leaderlock-contract.sh dual
 
       - name: Database logs
         if: failure()
