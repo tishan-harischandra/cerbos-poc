@@ -13,6 +13,18 @@ decided by a hand-authored `patient_record` policy through the single synthetic
 evaluation role. Permission assignments are seeded in process; the authorization
 database arrives with the role matrix slice.
 
+## Documentation
+
+| Document | What it answers |
+| --- | --- |
+| [`docs/Cerbos_Multi_Tenant_Authorization_Design_v1.3.md`](docs/Cerbos_Multi_Tenant_Authorization_Design_v1.3.md) | The design this prototype implements |
+| [`docs/PRD_Cerbos_Authorization_Prototype.md`](docs/PRD_Cerbos_Authorization_Prototype.md) | What was in and out of scope, and why |
+| [`docs/DESIGN_COVERAGE.md`](docs/DESIGN_COVERAGE.md) | Every design section §5-§19: implemented and cited, or out of scope with a reason |
+| [`docs/DEVIATIONS.md`](docs/DEVIATIONS.md) | Every deviation from design v1.3, with its reason |
+| [`docs/MEASURED_FINDINGS.md`](docs/MEASURED_FINDINGS.md) | Measured numbers and the configuration that produced them |
+| [`docs/LOAD_TESTING.md`](docs/LOAD_TESTING.md) | Minimum host specification, how to run a load test, how to read the result |
+| [`docs/adr/`](docs/adr/) | Decisions taken during implementation (ADR-008 onward; ADR-001-007 are in the design's §22) |
+
 ## Prerequisites
 
 Only two things must exist on the host:
@@ -42,6 +54,69 @@ make smoke   # verify the running stack end to end
 make down    # stop the stack, keep the database volume
 make clean   # remove containers, volumes, local images and build caches
 ```
+
+## The guided walkthrough
+
+The claim this prototype exists to demonstrate: **a permission change is data,
+not a policy release.** An administrator grants a role a permission, and a
+clinician's browser reflects it within seconds - with nothing rebuilt, no
+policy compiled and no service restarted anywhere in that path.
+
+Start from a clean clone:
+
+```bash
+cp .env.example .env
+make up      # build, start, migrate and seed - a few minutes on a first run
+```
+
+Then follow it in the browser:
+
+1. **Open the Admin Console** at <http://localhost:4200> and log in as
+   `user-admin` / `demo-password`. The landing screen is the role matrix.
+2. **Find the role.** Search for `doctor` and select it. Its canonical
+   identifier is `kc:cerbos-poc:patient-app:doctor` - the same string the
+   authorization database is keyed by and a token normalises to (§7.5).
+3. **Open the Business UI** at <http://localhost:4201> in a second tab and
+   click into patient `patient-456`. The patient detail route is denied: the
+   `patient.route.details` capability needs `person:read`, which the doctor
+   role does not grant.
+4. **Grant it.** Back in the console, filter the resource catalog for
+   `person`, tick `read`, and press Save.
+5. **Read the impact preview.** Before anything is written, the console lists
+   the composite UI capabilities that resource-action affects -
+   `patient.route.details` among them (§9.2). Confirm.
+6. **Watch the Business UI.** Reload the patient page. Within a second or two
+   the detail route renders. Nothing was rebuilt: the role matrix write bumped
+   the tenant's permission revision, the outbox event invalidated exactly the
+   affected cache keys, and the next decision saw the new data.
+7. **Check that no policy moved.** In the console's revision and activation
+   screen, the active root policy release is the same one as before the
+   change.
+
+Untick the permission and save again to put the demo back where it started.
+
+The same sequence, executed rather than described:
+
+```bash
+make walkthrough                  # against the compose stack
+bash scripts/k8s-walkthrough.sh   # the same script against deploy/k8s on kind
+```
+
+`scripts/tests/walkthrough.sh` drives the identical HTTP surface the two
+browser tabs use, asserts each step, and times the convergence. CI runs it, so
+"works exactly as written" is checked rather than claimed.
+
+### Demo logins
+
+Every demo user's password is `demo-password`, in both deployment paths.
+
+| User | Use it for |
+| --- | --- |
+| `user-admin` | The Admin Console: role matrix, overrides, simulator, audit |
+| `user-doctor` | A clinician with role-granted `patient_record` read and update |
+| `user-doctor-revoked` | The same role, with a user REVOKE on `update` (ADR-003) |
+| `user-clerk-granted` | No role grants; a user GRANT on `read` alone |
+| `user-unassigned` | A valid login with no permissions at all |
 
 ## Exposed URLs
 
@@ -115,7 +190,9 @@ scripts/              Container-backed toolchain helpers and infrastructure test
 ```bash
 make test          # every project's tests, the policy suite, the compose contract
 make policy-test   # compile the policies and run the precedence matrix alone
+make arch-test     # the four architectural invariants no compiler enforces
 make smoke         # health checks and real decisions against a running stack
+make walkthrough   # the guided walkthrough above, executed against a running stack
 make graph         # the single Go + Angular dependency graph
 make gen           # every project's code generators
 npx nx affected --target=test --base=main
