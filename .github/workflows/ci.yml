@@ -48,6 +48,25 @@ jobs:
       - name: An Angular change must not rebuild the Go service
         run: bash scripts/tests/nx-affected-isolation.sh
 
+  # The four architectural invariants no compiler enforces (§21, issue #27):
+  # precedence lives only in Cerbos policy, no consumer names a concrete
+  # adapter, no dialect-specific SQL outside the driver adapters, and the
+  # composite capability evaluator stays a pure function.
+  #
+  # They run here on every commit rather than only through `nx affected`,
+  # because each one scans the whole repository: a violation can be introduced
+  # by a file that Nx has no reason to consider related to `tests/architecture`.
+  # Every checker also carries a deliberate-violation test, so the suite proves
+  # it can still fail as well as that it passes.
+  architecture:
+    name: architecture invariants
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Precedence, adapter imports, dialect leaks and evaluator purity
+        run: make arch-test
+
   policy:
     name: cerbos policy suite
     runs-on: ubuntu-latest
