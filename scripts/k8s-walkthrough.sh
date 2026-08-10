@@ -21,6 +21,12 @@ export CHAOS_NAMESPACE="${K8S_WALKTHROUGH_NAMESPACE:-cerbos-poc-dev}"
 export CHAOS_OVERLAY="${K8S_WALKTHROUGH_OVERLAY:-deploy/k8s/overlays/dev}"
 export CHAOS_KUBECONFIG="${CHAOS_KUBECONFIG:-${repo_root}/.k8s-walkthrough-kubeconfig}"
 export CHAOS_KIND_CONFIG="${CHAOS_KIND_CONFIG:-${repo_root}/scripts/k8s-walkthrough-kind.yaml}"
+# Not 5432. A developer machine running this very likely already has something
+# on the default PostgreSQL port - a host install, or the compose stack - and
+# `kubectl port-forward` does not fail when it cannot bind 127.0.0.1: it binds
+# ::1 only and looks fine, so the migration silently authenticates against the
+# wrong database and reports a password failure.
+export CHAOS_POSTGRES_PORT="${CHAOS_POSTGRES_PORT:-55432}"
 
 # shellcheck source=scripts/chaos/lib.sh
 source "${repo_root}/scripts/chaos/lib.sh"

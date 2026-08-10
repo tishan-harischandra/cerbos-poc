@@ -123,13 +123,49 @@ Kafka-outage chaos scenario exercises.
 policy revision is the same string before and after (`root-v1.4.0`), which is
 the whole claim of §3.1: assignments are data, not policy files.
 
+## The same walkthrough on Kubernetes
+
+`scripts/k8s-walkthrough.sh` runs `scripts/tests/walkthrough.sh` unchanged
+against `deploy/k8s/overlays/dev` on a single-node kind cluster.
+
+| Property | Value |
+|---|---|
+| Cluster | kind, one node, Kubernetes v1.30 |
+| Overlay | `deploy/k8s/overlays/dev`, one replica per service |
+| Prerequisite installed by the script | KEDA 2.15.1 (every base workload carries a `ScaledObject`) |
+| Access | `kubectl port-forward` for admin-service, Keycloak and PostgreSQL |
+| Result | Every step passed, identically to compose |
+| Convergence, grant | 1 s |
+| Convergence, withdrawal | 1 s |
+| Root policy revision | `root-v1.4.0`, unchanged across the change |
+| First run, wall clock | ~25 min, almost all of it image pulls |
+| Second run against the same cluster | ~1 min |
+
+Two environment-shaped problems this surfaced, both now handled by the script
+and worth knowing about for any similar run:
+
+- **Podman names a locally built image `localhost/<name>`**, while a manifest's
+  unqualified `cerbos-poc/ads:dev` resolves to `docker.io/cerbos-poc/ads:dev`.
+  Every pod sat in `ImagePullBackOff` next to an image that was already on the
+  node. The script builds and loads fully qualified names, which is a no-op
+  under Docker.
+- **`kubectl port-forward` does not fail when it cannot bind 127.0.0.1.** With
+  a PostgreSQL already on the host's 5432 it bound `::1` only and looked
+  healthy, and the migration authenticated against the host's database
+  instead. The script forwards PostgreSQL on 55432.
+
+**No difference in steps, URLs or credentials.** The same demo logins, the
+same `/api/admin` and `/api/ads` paths, the same ports once forwarded - which
+is the point of publishing nothing but the Administration Service in either
+path.
+
 ## Observed bottlenecks
 
-- **Image pulls and cold starts dominate every first run.** On this host a
-  first `scripts/k8s-walkthrough.sh` spends most of its wall clock pulling
-  PostgreSQL, Keycloak and Redpanda and waiting for Keycloak's realm import,
-  not doing anything the platform is responsible for. Rollout waits are
-  generous for that reason.
+- **Image pulls and cold starts dominate every first run.** Measured: 3m11s to
+  pull `postgres:16-alpine` into the kind node, and over 17 minutes of
+  queueing behind other pulls before it started. Nothing the platform is
+  responsible for, which is why the rollout waits are generous (900 s) and why
+  a second run against the same cluster takes about a minute.
 - **`kubectl port-forward` is a single-connection tunnel** and will be the
   limit in any Kubernetes load run long before the platform is. See
   [`LOAD_TESTING.md`](LOAD_TESTING.md).

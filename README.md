@@ -257,19 +257,45 @@ bind mounts — the combined tree is well over the ~1MiB a ConfigMap allows,
 and its per-resource directory structure (ADR-006) doesn't survive a flat
 ConfigMap's key space anyway.
 
-To run locally against `kind` or `minikube`:
+To run locally against `kind` or `minikube`, one command does the whole
+sequence - cluster, KEDA, images, overlay, schema, seed, and the guided
+walkthrough against the result:
 
 ```bash
-docker build -f deploy/cerbos/Dockerfile -t cerbos-poc/cerbos-assets:dev .
-docker build -f apps/ads/Dockerfile -t cerbos-poc/ads:dev .
-docker build -f apps/admin-service/Dockerfile -t cerbos-poc/admin-service:dev .
-docker build -f apps/resource-service/Dockerfile -t cerbos-poc/resource-service:dev .
-docker build -f apps/business-ui/Dockerfile -t cerbos-poc/business-ui:dev .
-kind load docker-image cerbos-poc/cerbos-assets:dev cerbos-poc/ads:dev \
-  cerbos-poc/admin-service:dev cerbos-poc/resource-service:dev \
-  cerbos-poc/business-ui:dev
+bash scripts/k8s-walkthrough.sh                     # up, verify, tear down
+K8S_WALKTHROUGH_KEEP=1 bash scripts/k8s-walkthrough.sh   # leave it running
+```
+
+Budget around 25 minutes for a first run: almost all of it is pulling
+PostgreSQL, Keycloak and Redpanda into the node. A second run against the same
+cluster takes about a minute.
+
+By hand, the same steps are:
+
+```bash
+docker build -f deploy/cerbos/Dockerfile -t docker.io/cerbos-poc/cerbos-assets:dev .
+docker build -f apps/ads/Dockerfile -t docker.io/cerbos-poc/ads:dev .
+docker build -f apps/admin-service/Dockerfile -t docker.io/cerbos-poc/admin-service:dev .
+docker build -f apps/resource-service/Dockerfile -t docker.io/cerbos-poc/resource-service:dev .
+docker build -f apps/business-ui/Dockerfile -t docker.io/cerbos-poc/business-ui:dev .
+kind load docker-image docker.io/cerbos-poc/cerbos-assets:dev docker.io/cerbos-poc/ads:dev \
+  docker.io/cerbos-poc/admin-service:dev docker.io/cerbos-poc/resource-service:dev \
+  docker.io/cerbos-poc/business-ui:dev
 kubectl apply -k deploy/k8s/overlays/dev
 ```
+
+The image names are fully qualified on purpose: a manifest's
+`cerbos-poc/ads:dev` resolves as `docker.io/cerbos-poc/ads:dev`, and Podman
+would otherwise build and load it as `localhost/cerbos-poc/ads:dev`, leaving
+every pod in `ImagePullBackOff` beside an image that is already on the node.
+
+**Nothing about the walkthrough changes on Kubernetes**: the same demo logins,
+the same `/api/admin` and `/api/ads` paths, and the same two browser entry
+points once `admin-service` and `keycloak` are forwarded (`kubectl port-forward
+svc/admin-service 4200:8081`, `svc/keycloak 8081:8080`). Forward PostgreSQL on
+something other than 5432 if the host already has one - `port-forward` binds
+`::1` only rather than failing, and a migration then reaches the wrong
+database.
 
 `make k8s-validate` (wired into `make ci`) renders both overlays with
 `kustomize` and validates every resource against the Kubernetes API schema

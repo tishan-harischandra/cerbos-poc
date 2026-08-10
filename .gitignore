@@ -17,4 +17,5 @@ libs/keycloakbulkload/cmd/loadseed/loadseed
 
 .angular
 
-vitest.config.*.timestamp*
+vitest.config.*.timestamp*.k8s-walkthrough-kubeconfig
+.~lock.*#
