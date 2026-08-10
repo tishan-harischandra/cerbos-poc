@@ -16,13 +16,18 @@ result=0
 token="$(token_for user-admin)"
 
 echo "==> Reading the current permission revision"
-# The previous scenario (03-database-outage) only just restored PostgreSQL,
-# and admin-service's own connection pool needs a moment to notice its
-# pooled connections are stale and redial - so the first read here is
-# retried rather than failed outright on one slow response.
+# The previous scenario (03-database-outage) only just restored PostgreSQL.
+# Unlike ads - whose pool is exercised continuously by 03's own
+# decision_probe_loop and so has already cycled every connection that was
+# stale against the pre-restart pod - admin-service takes no traffic during
+# 03, so its pool's first opportunity to notice a pooled connection is dead
+# and redial is this very read. That first read (and several more) can
+# therefore return a genuine query error rather than merely being slow, so
+# it is retried on any non-200 rather than failed outright, with a budget
+# generous enough to cover pgxpool cycling through every stale connection.
 revision_status=""
 current_revision=""
-for _ in $(seq 1 10); do
+for _ in $(seq 1 30); do
   revision_status="$(curl -sS -o /tmp/chaos-kafka-revision.json -w '%{http_code}' --max-time 5 \
     -H "Authorization: Bearer ${token}" "${admin_url}/permission-revision")"
   current_revision="$(jq -r '.revision' /tmp/chaos-kafka-revision.json 2>/dev/null || true)"
