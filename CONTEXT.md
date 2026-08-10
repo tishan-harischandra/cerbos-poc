@@ -108,11 +108,11 @@ The **Election** that drains committed outbox rows to Kafka.
 
 ## Flagged ambiguities
 
-- **"ADS"** expands to *Authorization Decision Service* in
+- **"ADS"** expanded to *Authorization Decision Service* in
   `docs/Cerbos_Multi_Tenant_Authorization_Design_v1.3.md` §1.1 but to *Assignment
   Data Service* in `apps/ads/internal/server/server.go`. Resolved: the design
-  document's *Authorization Decision Service* is authoritative; the code comment
-  is the outlier and should be corrected.
+  document's *Authorization Decision Service* is authoritative, and the code
+  comment now says so.
 - **"admin"** was used for both the **Administration Service** and the **Admin
   Console**. Resolved: these are distinct concepts, and remain so as terms even
   though ADR-008 makes them one deployment.

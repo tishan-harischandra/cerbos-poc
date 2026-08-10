@@ -5,13 +5,28 @@ A working prototype of the design in
 The product requirements live in
 [`docs/PRD_Cerbos_Authorization_Prototype.md`](docs/PRD_Cerbos_Authorization_Prototype.md).
 
-The workspace is an Nx monorepo driving Go and Angular in one dependency graph,
-running as a `docker compose` stack with PostgreSQL and the Cerbos PDP.
+The workspace is an Nx monorepo driving Go and Angular in one dependency graph.
+It runs as a `docker compose` stack for a local demo, and from `deploy/k8s` on
+a real cluster.
 
-The ADS serves real authorization decisions on `POST /internal/authz/check`,
-decided by a hand-authored `patient_record` policy through the single synthetic
-evaluation role. Permission assignments are seeded in process; the authorization
-database arrives with the role matrix slice.
+Role and user assignments live in the authorization database and reach the
+decision path as *data*; the Cerbos policy tree - one file per resource across
+the FHIR catalog - holds the rules, and permission precedence lives there and
+nowhere else, behind the single synthetic role `sys:permission-evaluator`.
+Changing who can do what never rebuilds or releases a policy, which is the
+claim [the guided walkthrough](#the-guided-walkthrough) demonstrates.
+
+## Documentation
+
+| Document | What it answers |
+| --- | --- |
+| [`docs/Cerbos_Multi_Tenant_Authorization_Design_v1.3.md`](docs/Cerbos_Multi_Tenant_Authorization_Design_v1.3.md) | The design this prototype implements |
+| [`docs/PRD_Cerbos_Authorization_Prototype.md`](docs/PRD_Cerbos_Authorization_Prototype.md) | What was in and out of scope, and why |
+| [`docs/DESIGN_COVERAGE.md`](docs/DESIGN_COVERAGE.md) | Every design section §5-§19: implemented and cited, or out of scope with a reason |
+| [`docs/DEVIATIONS.md`](docs/DEVIATIONS.md) | Every deviation from design v1.3, with its reason |
+| [`docs/MEASURED_FINDINGS.md`](docs/MEASURED_FINDINGS.md) | Measured numbers and the configuration that produced them |
+| [`docs/LOAD_TESTING.md`](docs/LOAD_TESTING.md) | Minimum host specification, how to run a load test, how to read the result |
+| [`docs/adr/`](docs/adr/) | Decisions taken during implementation (ADR-008 onward; ADR-001-007 are in the design's §22) |
 
 ## Prerequisites
 
@@ -43,16 +58,82 @@ make down    # stop the stack, keep the database volume
 make clean   # remove containers, volumes, local images and build caches
 ```
 
+## The guided walkthrough
+
+The claim this prototype exists to demonstrate: **a permission change is data,
+not a policy release.** An administrator grants a role a permission, and a
+clinician's browser reflects it within seconds - with nothing rebuilt, no
+policy compiled and no service restarted anywhere in that path.
+
+Start from a clean clone:
+
+```bash
+cp .env.example .env
+make up      # build, start, migrate and seed - a few minutes on a first run
+```
+
+Then follow it in the browser:
+
+1. **Open the Admin Console** at <http://localhost:4200> and log in as
+   `user-admin` / `demo-password`. The landing screen is the role matrix.
+2. **Find the role.** Search for `doctor` and select it. Its canonical
+   identifier is `kc:cerbos-poc:patient-app:doctor` - the same string the
+   authorization database is keyed by and a token normalises to (§7.5).
+3. **Open the Business UI** at <http://localhost:4201> in a second tab and
+   click into patient `patient-456`. The patient detail route is denied: the
+   `patient.route.details` capability needs `person:read`, which the doctor
+   role does not grant.
+4. **Grant it.** Back in the console, filter the resource catalog for
+   `person`, tick `read`, and press Save.
+5. **Read the impact preview.** Before anything is written, the console lists
+   the composite UI capabilities that resource-action affects -
+   `patient.route.details` among them (§9.2). Confirm.
+6. **Watch the Business UI.** Reload the patient page. Within a second or two
+   the detail route renders. Nothing was rebuilt: the role matrix write bumped
+   the tenant's permission revision, the outbox event invalidated exactly the
+   affected cache keys, and the next decision saw the new data.
+7. **Check that no policy moved.** In the console's revision and activation
+   screen, the active root policy release is the same one as before the
+   change.
+
+Untick the permission and save again to put the demo back where it started.
+
+The same sequence, executed rather than described:
+
+```bash
+make walkthrough                  # against the compose stack
+bash scripts/k8s-walkthrough.sh   # the same script against deploy/k8s on kind
+```
+
+`scripts/tests/walkthrough.sh` drives the identical HTTP surface the two
+browser tabs use, asserts each step, and times the convergence. CI runs it, so
+"works exactly as written" is checked rather than claimed.
+
+### Demo logins
+
+Every demo user's password is `demo-password`, in both deployment paths.
+
+| User | Use it for |
+| --- | --- |
+| `user-admin` | The Admin Console: role matrix, overrides, simulator, audit |
+| `user-doctor` | A clinician with role-granted `patient_record` read and update |
+| `user-doctor-revoked` | The same role, with a user REVOKE on `update` (ADR-003) |
+| `user-clerk-granted` | No role grants; a user GRANT on `read` alone |
+| `user-unassigned` | A valid login with no permissions at all |
+
 ## Exposed URLs
 
-Only the Administration Service is published to the host. It serves the Admin
-Console and proxies the console's API calls (ADR-008), so everything else -
-the PDP, the ADS, the database - is reachable only from inside the compose
-network (§16.1).
+Three things are published: the two browser entry points and the identity
+provider a browser has to be redirected to. Everything else - the PDP, the
+ADS, the database - is reachable only from inside the compose network (§16.1).
+The Administration Service serves the Admin Console and proxies its API calls
+(ADR-008), so the console needs no port of its own.
 
 | Service | Host URL | In-network address | Published? |
 | --- | --- | --- | --- |
 | Admin Console | <http://localhost:4200> | `admin-service:8081` | yes (`ADMIN_CONSOLE_PORT`) |
+| Business UI | <http://localhost:4201> | `business-ui:80` | yes (`BUSINESS_UI_PORT`) |
+| Keycloak | <http://localhost:8081> | `keycloak:8080` | yes (`KEYCLOAK_PORT`) - a login is a browser redirect |
 | Administration API | <http://localhost:4200/api/admin/...> | `admin-service:8081/admin/...` | same port as the console |
 | ADS health | <http://localhost:4200/api/ads/healthz> | `ads:8080/healthz` | proxied by admin-service only |
 | ADS readiness | <http://localhost:4200/api/ads/readyz> | `ads:8080/readyz` | proxied by admin-service only |
@@ -115,7 +196,9 @@ scripts/              Container-backed toolchain helpers and infrastructure test
 ```bash
 make test          # every project's tests, the policy suite, the compose contract
 make policy-test   # compile the policies and run the precedence matrix alone
+make arch-test     # the four architectural invariants no compiler enforces
 make smoke         # health checks and real decisions against a running stack
+make walkthrough   # the guided walkthrough above, executed against a running stack
 make graph         # the single Go + Angular dependency graph
 make gen           # every project's code generators
 npx nx affected --target=test --base=main
@@ -180,19 +263,45 @@ bind mounts — the combined tree is well over the ~1MiB a ConfigMap allows,
 and its per-resource directory structure (ADR-006) doesn't survive a flat
 ConfigMap's key space anyway.
 
-To run locally against `kind` or `minikube`:
+To run locally against `kind` or `minikube`, one command does the whole
+sequence - cluster, KEDA, images, overlay, schema, seed, and the guided
+walkthrough against the result:
 
 ```bash
-docker build -f deploy/cerbos/Dockerfile -t cerbos-poc/cerbos-assets:dev .
-docker build -f apps/ads/Dockerfile -t cerbos-poc/ads:dev .
-docker build -f apps/admin-service/Dockerfile -t cerbos-poc/admin-service:dev .
-docker build -f apps/resource-service/Dockerfile -t cerbos-poc/resource-service:dev .
-docker build -f apps/business-ui/Dockerfile -t cerbos-poc/business-ui:dev .
-kind load docker-image cerbos-poc/cerbos-assets:dev cerbos-poc/ads:dev \
-  cerbos-poc/admin-service:dev cerbos-poc/resource-service:dev \
-  cerbos-poc/business-ui:dev
+bash scripts/k8s-walkthrough.sh                     # up, verify, tear down
+K8S_WALKTHROUGH_KEEP=1 bash scripts/k8s-walkthrough.sh   # leave it running
+```
+
+Budget around 25 minutes for a first run: almost all of it is pulling
+PostgreSQL, Keycloak and Redpanda into the node. A second run against the same
+cluster takes about a minute.
+
+By hand, the same steps are:
+
+```bash
+docker build -f deploy/cerbos/Dockerfile -t docker.io/cerbos-poc/cerbos-assets:dev .
+docker build -f apps/ads/Dockerfile -t docker.io/cerbos-poc/ads:dev .
+docker build -f apps/admin-service/Dockerfile -t docker.io/cerbos-poc/admin-service:dev .
+docker build -f apps/resource-service/Dockerfile -t docker.io/cerbos-poc/resource-service:dev .
+docker build -f apps/business-ui/Dockerfile -t docker.io/cerbos-poc/business-ui:dev .
+kind load docker-image docker.io/cerbos-poc/cerbos-assets:dev docker.io/cerbos-poc/ads:dev \
+  docker.io/cerbos-poc/admin-service:dev docker.io/cerbos-poc/resource-service:dev \
+  docker.io/cerbos-poc/business-ui:dev
 kubectl apply -k deploy/k8s/overlays/dev
 ```
+
+The image names are fully qualified on purpose: a manifest's
+`cerbos-poc/ads:dev` resolves as `docker.io/cerbos-poc/ads:dev`, and Podman
+would otherwise build and load it as `localhost/cerbos-poc/ads:dev`, leaving
+every pod in `ImagePullBackOff` beside an image that is already on the node.
+
+**Nothing about the walkthrough changes on Kubernetes**: the same demo logins,
+the same `/api/admin` and `/api/ads` paths, and the same two browser entry
+points once `admin-service` and `keycloak` are forwarded (`kubectl port-forward
+svc/admin-service 4200:8081`, `svc/keycloak 8081:8080`). Forward PostgreSQL on
+something other than 5432 if the host already has one - `port-forward` binds
+`::1` only rather than failing, and a migration then reaches the wrong
+database.
 
 `make k8s-validate` (wired into `make ci`) renders both overlays with
 `kustomize` and validates every resource against the Kubernetes API schema

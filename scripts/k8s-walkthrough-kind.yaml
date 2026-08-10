@@ -1,0 +1,8 @@
+# One node: the walkthrough exercises the deployment path, not scheduling or
+# rescheduling, so there is nothing here for a second node to prove. The chaos
+# suite's three-node topology (scripts/chaos/kind-config.yaml) exists for the
+# node-drain scenario, which this run does not have.
+kind: Cluster
+apiVersion: kind.x-k8s.io/v1alpha4
+nodes:
+  - role: control-plane
