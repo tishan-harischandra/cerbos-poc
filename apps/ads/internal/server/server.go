@@ -1,4 +1,5 @@
-// Package server exposes the Assignment Data Service (ADS) HTTP surface.
+// Package server exposes the Authorization Decision Service (ADS) HTTP
+// surface.
 package server
 
 import (

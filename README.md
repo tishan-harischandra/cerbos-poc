@@ -5,13 +5,16 @@ A working prototype of the design in
 The product requirements live in
 [`docs/PRD_Cerbos_Authorization_Prototype.md`](docs/PRD_Cerbos_Authorization_Prototype.md).
 
-The workspace is an Nx monorepo driving Go and Angular in one dependency graph,
-running as a `docker compose` stack with PostgreSQL and the Cerbos PDP.
+The workspace is an Nx monorepo driving Go and Angular in one dependency graph.
+It runs as a `docker compose` stack for a local demo, and from `deploy/k8s` on
+a real cluster.
 
-The ADS serves real authorization decisions on `POST /internal/authz/check`,
-decided by a hand-authored `patient_record` policy through the single synthetic
-evaluation role. Permission assignments are seeded in process; the authorization
-database arrives with the role matrix slice.
+Role and user assignments live in the authorization database and reach the
+decision path as *data*; the Cerbos policy tree - one file per resource across
+the FHIR catalog - holds the rules, and permission precedence lives there and
+nowhere else, behind the single synthetic role `sys:permission-evaluator`.
+Changing who can do what never rebuilds or releases a policy, which is the
+claim [the guided walkthrough](#the-guided-walkthrough) demonstrates.
 
 ## Documentation
 
@@ -120,14 +123,17 @@ Every demo user's password is `demo-password`, in both deployment paths.
 
 ## Exposed URLs
 
-Only the Administration Service is published to the host. It serves the Admin
-Console and proxies the console's API calls (ADR-008), so everything else -
-the PDP, the ADS, the database - is reachable only from inside the compose
-network (§16.1).
+Three things are published: the two browser entry points and the identity
+provider a browser has to be redirected to. Everything else - the PDP, the
+ADS, the database - is reachable only from inside the compose network (§16.1).
+The Administration Service serves the Admin Console and proxies its API calls
+(ADR-008), so the console needs no port of its own.
 
 | Service | Host URL | In-network address | Published? |
 | --- | --- | --- | --- |
 | Admin Console | <http://localhost:4200> | `admin-service:8081` | yes (`ADMIN_CONSOLE_PORT`) |
+| Business UI | <http://localhost:4201> | `business-ui:80` | yes (`BUSINESS_UI_PORT`) |
+| Keycloak | <http://localhost:8081> | `keycloak:8080` | yes (`KEYCLOAK_PORT`) - a login is a browser redirect |
 | Administration API | <http://localhost:4200/api/admin/...> | `admin-service:8081/admin/...` | same port as the console |
 | ADS health | <http://localhost:4200/api/ads/healthz> | `ads:8080/healthz` | proxied by admin-service only |
 | ADS readiness | <http://localhost:4200/api/ads/readyz> | `ads:8080/readyz` | proxied by admin-service only |
