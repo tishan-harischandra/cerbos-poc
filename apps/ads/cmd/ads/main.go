@@ -305,7 +305,7 @@ func main() {
 		CapabilityHandler: authenticated(capability.NewHandler(capability.Config{
 			PDP:               pdp,
 			CapabilityCatalog: capability.NewFSCatalog(cfg.CapabilityCatalogDir, cfg.CapabilityCatalogRevision, nil),
-			TargetResolver:    capability.DefaultTargetResolver{},
+			TargetResolver:    capability.StoreTargetResolver{Store: store},
 			Assignments: assignments.NewResolver(assignments.ResolverConfig{
 				Matrix:    roleMatrixCache,
 				Overrides: overridesCache,

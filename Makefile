@@ -162,6 +162,10 @@ smoke: ## Verify a running stack end to end
 	bash scripts/tests/identity-e2e.sh
 	bash scripts/tests/decision-e2e.sh
 
+.PHONY: walkthrough
+walkthrough: ## Execute the README's guided walkthrough against a running deployment
+	bash scripts/tests/walkthrough.sh
+
 .PHONY: gen
 gen: ## Run every project's code generators
 	$(NX) run-many --target=generate --all

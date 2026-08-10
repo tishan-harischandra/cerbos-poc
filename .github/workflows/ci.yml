@@ -241,6 +241,12 @@ jobs:
       - name: Smoke the running stack and its decisions
         run: make smoke
 
+      # The README's guided walkthrough, executed rather than described, so
+      # "works exactly as written on a clean machine" is a check rather than a
+      # claim (issue #27).
+      - name: The guided walkthrough works as written
+        run: make walkthrough
+
       - name: Container logs
         if: failure()
         run: docker compose logs --no-color
