@@ -51,6 +51,9 @@ failures=0
 pass() { echo "ok   $1"; }
 fail() { echo "FAIL $1"; failures=$((failures + 1)); }
 
+save_body_file="$(mktemp -t walkthrough-save.XXXXXX)"
+trap 'rm -f "${save_body_file}"' EXIT
+
 command -v jq >/dev/null 2>&1 || { echo "walkthrough: jq is required" >&2; exit 1; }
 
 # url-encodes one path segment. Canonical role identifiers carry colons, and a
@@ -120,15 +123,15 @@ save_matrix() {
        )
      }' <<<"${current}")"
 
-  status="$(curl -sS --max-time 10 -o /tmp/walkthrough-save -w '%{http_code}' \
+  status="$(curl -sS --max-time 10 -o "${save_body_file}" -w '%{http_code}' \
     -X PUT -H "Authorization: Bearer ${token}" -H 'Content-Type: application/json' \
     --data "${body}" \
     "${ADMIN_URL}/authz/tenants/${TENANT}/roles/${role_path}/permissions")"
   if [[ "${status}" != "200" ]]; then
-    echo "walkthrough: the save was refused (HTTP ${status}): $(cat /tmp/walkthrough-save)" >&2
+    echo "walkthrough: the save was refused (HTTP ${status}): $(cat "${save_body_file}")" >&2
     return 1
   fi
-  jq -r '.revision' /tmp/walkthrough-save
+  jq -r '.revision' "${save_body_file}"
 }
 
 # root_policy_revision <admin-token> - the immutable policy release the PDP is
@@ -211,8 +214,6 @@ if elapsed="$(wait_for_capability "${doctor_token}" false)"; then
 else
   fail "${CAPABILITY} was still allowed ${elapsed}s after the withdrawal"
 fi
-
-rm -f /tmp/walkthrough-save
 
 if (( failures > 0 )); then
   echo

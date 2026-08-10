@@ -23,6 +23,10 @@ func TestCapabilityEvalHasNoIODependency(t *testing.T) {
 		t.Fatalf("reading %s: %v", packageDir, err)
 	}
 
+	// Test files are excluded: the package's own property test drives it
+	// with a random source, which is exactly the kind of ambient input the
+	// production code may not have. Forbidding it in the test as well would
+	// forbid testing the property.
 	var scanned int
 	var findings []architecture.Finding
 	for _, entry := range entries {

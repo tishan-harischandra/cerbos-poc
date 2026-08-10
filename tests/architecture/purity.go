@@ -19,6 +19,12 @@ const PureEvaluationPackage = "libs/capabilityeval"
 // the outside world enters. The list is deliberately a denylist of entry
 // points rather than an allowlist of pure packages: a new pure helper should
 // not need this file edited, but a new socket should.
+//
+// The last three are not I/O in the strict sense. A clock and a random source
+// are ambient inputs the caller cannot see or control, and they defeat the
+// property this package exists to have just as thoroughly as a file read: an
+// evaluator whose answer depends on the time it was asked cannot be tested
+// exhaustively in memory.
 var ioPackages = []string{
 	"os",
 	"os/exec",
@@ -39,12 +45,6 @@ var ioPackages = []string{
 	"time",
 	"math/rand",
 	"crypto/rand",
-}
-
-// ioAllowedPrefixes are import paths that begin with a forbidden name but are
-// not that package.
-var ioAllowedPrefixes = []string{
-	"golang.org/x/",
 }
 
 // catalogLoaderPrefix names the half of the capability catalog package that
@@ -74,9 +74,6 @@ func ScanForIODependency(relativePath, source string) ([]Finding, error) {
 	for _, imported := range file.Imports {
 		path, err := strconv.Unquote(imported.Path.Value)
 		if err != nil {
-			continue
-		}
-		if isIOAllowed(path) {
 			continue
 		}
 		if _, isForbidden := forbidden[path]; !isForbidden {
@@ -118,13 +115,4 @@ func ScanForIODependency(relativePath, source string) ([]Finding, error) {
 	})
 
 	return findings, nil
-}
-
-func isIOAllowed(path string) bool {
-	for _, prefix := range ioAllowedPrefixes {
-		if strings.HasPrefix(path, prefix) {
-			return true
-		}
-	}
-	return false
 }
