@@ -6,12 +6,22 @@ import { Router, provideRouter } from '@angular/router';
 import { CapabilityStore, UiCapabilitySnapshot } from '@cerbos-poc/capability';
 
 import { appRoutes } from './app.routes';
+import { provideEstablishedSession } from './auth/session.testing';
 
 // Every test below provides HttpClientTesting so PatientDetail's instance
 // snapshot fetch (triggered as a side effect of the /patients/:id route
 // matching) has somewhere safe to land; these tests never flush it, since
 // they assert on routing/guard behaviour, not on the fetch itself.
-const httpProviders = [provideHttpClient(), provideHttpClientTesting()];
+//
+// provideEstablishedSession stands in for the login and module snapshot
+// that sessionGuard requires before capabilityGuard is ever reached; what
+// is under test here is capabilityGuard's verdict, not how the session
+// was established.
+const httpProviders = [
+  provideHttpClient(),
+  provideHttpClientTesting(),
+  provideEstablishedSession(),
+];
 
 function snapshotGranting(...keys: string[]): UiCapabilitySnapshot {
   const capabilities: UiCapabilitySnapshot['capabilities'] = {};

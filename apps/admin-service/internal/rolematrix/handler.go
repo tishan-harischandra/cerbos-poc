@@ -10,6 +10,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log/slog"
 	"net/http"
 	"time"
 
@@ -132,6 +133,9 @@ func (h *Handler) Save(w http.ResponseWriter, r *http.Request) {
 			ResourceKey: permission.ResourceKey, ActionKey: permission.ActionKey,
 		})
 		if err != nil {
+			slog.ErrorContext(r.Context(), "TEMP DEBUG: reading the current role permission failed",
+				slog.Any("error", err), slog.String("tenant", tenant), slog.String("role", role),
+				slog.String("resourceKey", permission.ResourceKey), slog.String("actionKey", permission.ActionKey))
 			writeError(w, http.StatusInternalServerError, "reading the current role permission failed")
 			return
 		}

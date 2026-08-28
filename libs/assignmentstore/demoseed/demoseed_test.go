@@ -67,13 +67,21 @@ func (w *recordingWriter) SavePermissionRevision(_ context.Context, revision ass
 
 func (w *recordingWriter) permission(t *testing.T, tenant, role, action string) assignmentstore.RolePermission {
 	t.Helper()
+	return w.permissionFor(t, tenant, role, demoseed.ResourceKey, action)
+}
+
+// permissionFor addresses a resource other than patient_record, which the
+// seed needs since hospital_context carries the scoping grant every list
+// route depends on.
+func (w *recordingWriter) permissionFor(t *testing.T, tenant, role, resource, action string) assignmentstore.RolePermission {
+	t.Helper()
 	key := assignmentstore.RolePermissionKey{
 		TenantID: tenant, RoleExternalID: role,
-		ResourceKey: demoseed.ResourceKey, ActionKey: action,
+		ResourceKey: resource, ActionKey: action,
 	}
 	permission, found := w.permissions[key]
 	if !found {
-		t.Fatalf("the seed wrote no %s/%s/%s row", tenant, role, action)
+		t.Fatalf("the seed wrote no %s/%s/%s/%s row", tenant, role, resource, action)
 	}
 	return permission
 }
@@ -98,6 +106,27 @@ func applySeed(t *testing.T) *recordingWriter {
 		t.Fatalf("Apply: %v", err)
 	}
 	return writer
+}
+
+// patients.route.list - the Business UI's landing route - composes
+// patient_record:list with hospital_context:read (§12.1). A seed that
+// grants neither drops the demo clinician straight onto /forbidden on
+// login, which reads as a broken application rather than as the
+// deliberate denial it is. patient.route.details stays denied on purpose:
+// that is the grant the guided walkthrough makes visible.
+func TestTheDoctorRoleCanReachThePatientListRoute(t *testing.T) {
+	writer := applySeed(t)
+
+	list := writer.permission(t, demoseed.TenantID, demoseed.DoctorRole, "list")
+	if !list.Enabled {
+		t.Error("the seeded patient_record:list grant is disabled, so the list route is denied")
+	}
+
+	scope := writer.permissionFor(t, demoseed.TenantID, demoseed.DoctorRole,
+		demoseed.HospitalContextResourceKey, "read")
+	if !scope.Enabled {
+		t.Error("the seeded hospital_context:read grant is disabled, so every list route is denied")
+	}
 }
 
 func TestTheDoctorRoleGrantsReadAndUpdate(t *testing.T) {

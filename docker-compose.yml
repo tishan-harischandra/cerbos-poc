@@ -508,11 +508,6 @@ services:
       timeout: 5s
       retries: 20
 
-  # The Admin Console has no service of its own: admin-service serves its
-  # bundle and proxies its API calls (ADR-008). ADMIN_CONSOLE_PORT publishes
-  # admin-service instead, so the console is still reached at the same
-  # address it always was.
-
   business-ui:
     build:
       context: .

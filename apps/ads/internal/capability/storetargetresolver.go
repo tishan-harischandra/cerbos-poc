@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"github.com/tishan-harischandra/cerbos-poc/libs/assignmentstore"
+	"github.com/tishan-harischandra/cerbos-poc/libs/capabilitycatalog"
 	"github.com/tishan-harischandra/cerbos-poc/libs/capabilityeval"
 )
 
@@ -46,13 +47,21 @@ type StoreTargetResolver struct {
 func (r StoreTargetResolver) Resolve(ctx context.Context, query TargetQuery) (ResolvedTarget, error) {
 	instanceID, isInstance := query.RouteContext[query.TargetRef+"Id"]
 	if !isInstance {
+		attributes := map[string]any{
+			"tenantId":   query.TenantID,
+			"hospitalId": query.HospitalID,
+		}
+		// hospital_context is the exception to "every resource schema
+		// requires status": it is the pure scoping check and its schema
+		// sets additionalProperties:false without one, so attaching a
+		// status here fails validation at the PDP and denies the leaf that
+		// every X.route.list capability in the catalog depends on.
+		if query.ResourceKind != capabilitycatalog.HospitalContextResource {
+			attributes["status"] = CollectionStatus
+		}
 		return ResolvedTarget{
-			Resource: capabilityeval.ResourceRef{Kind: query.ResourceKind, ID: query.HospitalID},
-			Attributes: map[string]any{
-				"tenantId":   query.TenantID,
-				"hospitalId": query.HospitalID,
-				"status":     CollectionStatus,
-			},
+			Resource:   capabilityeval.ResourceRef{Kind: query.ResourceKind, ID: query.HospitalID},
+			Attributes: attributes,
 		}, nil
 	}
 

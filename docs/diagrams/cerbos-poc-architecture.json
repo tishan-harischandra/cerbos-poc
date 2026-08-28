@@ -1,0 +1,49 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "Cerbos Multi-Tenant Authorization Prototype",
+    "quality_profile": "showcase",
+    "views": [
+      { "id": "decision-path", "label": "Decision path", "focus": ["business-ui", "resource-service", "ads", "cerbos", "postgres"], "note": "A resource call reaches Cerbos only through the ADS decision endpoint." },
+      { "id": "write-path", "label": "Permission write path", "focus": ["admin-console", "admin-service", "postgres", "redpanda", "ads"], "note": "Role and override writes land in Postgres, then invalidate ADS caches over Kafka." },
+      { "id": "policy-release", "label": "Policy release", "focus": ["gitea", "policy-controller", "cerbos"], "note": "The policy-release profile turns a signed Gitea tag into an activated policy set." }
+    ]
+  },
+  "components": [
+    { "id": "admin-console", "type": "frontend", "label": "Admin Console", "sublabel": "Angular :4200", "pos": [60, 80], "size": [180, 68] },
+    { "id": "keycloak", "type": "security", "label": "Keycloak", "sublabel": "OIDC realm cerbos-poc", "pos": [60, 300], "size": [180, 68], "tag": "IDP_TYPE=KEYCLOAK" },
+    { "id": "business-ui", "type": "frontend", "label": "Business UI", "sublabel": "Angular :4201", "pos": [60, 540], "size": [180, 68] },
+    { "id": "admin-service", "type": "backend", "label": "Admin Service", "sublabel": "Go :8081", "pos": [350, 80], "size": [180, 68] },
+    { "id": "postgres", "type": "database", "label": "PostgreSQL", "sublabel": "assignments + outbox", "pos": [350, 300], "size": [180, 68], "tag": "Oracle 23ai portable" },
+    { "id": "resource-service", "type": "backend", "label": "Resource Service", "sublabel": "Go :8080 · fhir_resource", "pos": [350, 540], "size": [180, 68] },
+    { "id": "redpanda", "type": "messagebus", "label": "Redpanda", "sublabel": "Kafka :9092", "pos": [640, 80], "size": [180, 68] },
+    { "id": "ads", "type": "backend", "label": "Authorization Decision Service", "sublabel": "Go :8080", "pos": [620, 410], "size": [220, 68], "tag": "assembles permissionContext" },
+    { "id": "policy-controller", "type": "backend", "label": "Policy Controller", "sublabel": "Go :8082 · leader only", "pos": [930, 80], "size": [180, 68] },
+    { "id": "cerbos", "type": "security", "label": "Cerbos PDP", "sublabel": "gRPC :3593", "pos": [930, 410], "size": [180, 68], "tag": "sole precedence engine" },
+    { "id": "gitea", "type": "external", "label": "Gitea", "sublabel": "root-policy repo", "pos": [1150, 80], "size": [180, 68] }
+  ],
+  "boundaries": [
+    { "kind": "region", "label": "Internal compose network", "wraps": ["admin-service", "postgres", "resource-service", "redpanda", "ads", "policy-controller", "cerbos"] },
+    { "kind": "security-group", "label": "Policy decision point", "wraps": ["ads", "cerbos"] }
+  ],
+  "connections": [
+    { "id": "console-to-admin", "from": "admin-console", "to": "admin-service", "label": "HTTPS admin API", "variant": "emphasis" },
+    { "id": "console-login", "from": "admin-console", "to": "keycloak", "label": "OIDC login", "variant": "security", "labelDy": 24 },
+    { "id": "ui-to-resource", "from": "business-ui", "to": "resource-service", "label": "HTTPS resource calls" },
+    { "id": "keycloak-to-ads", "from": "keycloak", "to": "ads", "label": "verify JWT · read role bindings", "variant": "security" },
+    { "id": "admin-writes", "from": "admin-service", "to": "postgres", "label": "role grants · user overrides · outbox", "labelDy": 24 },
+    { "id": "admin-publishes", "from": "admin-service", "to": "redpanda", "label": "publish permission-changed", "labelDy": 58, "labelDx": 40 },
+    { "id": "invalidate", "from": "redpanda", "to": "ads", "label": "invalidate role-matrix cache", "variant": "dashed", "labelDy": 24 },
+    { "id": "resource-decision", "from": "resource-service", "to": "ads", "label": "POST /decision", "variant": "emphasis" },
+    { "id": "ads-reads", "from": "ads", "to": "postgres", "label": "read assignments" },
+    { "id": "ads-to-cerbos", "from": "ads", "to": "cerbos", "label": "gRPC CheckResources", "variant": "emphasis", "labelDy": -28 },
+    { "id": "controller-polls", "from": "policy-controller", "to": "gitea", "label": "poll root-v* tags", "variant": "dashed", "labelDy": -28 },
+    { "id": "controller-activates", "from": "policy-controller", "to": "cerbos", "label": "atomic install · activate", "labelDy": 24 }
+  ],
+  "cards": [
+    { "dot": "cyan", "title": "Decision path", "items": ["Only the ADS calls the Cerbos PDP", "The Resource Service is a policy enforcement point, never a decision point"] },
+    { "dot": "emerald", "title": "Write path", "items": ["Admin Service owns every permission write", "Outbox rows publish permission-changed to Kafka", "A revision reconciler repairs missed invalidations"] },
+    { "dot": "rose", "title": "Precedence", "items": ["mandatory deny > user REVOKE > user GRANT > role grant > default deny", "Evaluated exclusively in Cerbos policies; the ADS only assembles data"] }
+  ]
+}

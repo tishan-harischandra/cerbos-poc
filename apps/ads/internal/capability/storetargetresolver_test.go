@@ -139,6 +139,36 @@ func TestACollectionTargetResolvesToTheHospitalAndIsActive(t *testing.T) {
 	}
 }
 
+// hospital_context is the one resource in the catalog that carries no
+// status: it is the pure tenant/hospital scoping check, and its schema
+// (deploy/cerbos/policies/_schemas/hospital_context.json) sets
+// additionalProperties:false without a status property. Sending one anyway
+// fails schema validation at the PDP, which denies by mandatory rule - and
+// because every X.route.list capability requires the hospital_context:read
+// leaf, that denies every list route in the catalog no matter what the role
+// matrix says. Confirmed against a live stack: "R.attr[/]: additionalProperties
+// 'status' not allowed".
+func TestTheHospitalContextTargetCarriesNoStatus(t *testing.T) {
+	store := &fakeResourceStore{resources: map[string]assignmentstore.Resource{}}
+	resolver := capability.StoreTargetResolver{Store: store}
+
+	resolved, err := resolver.Resolve(context.Background(), capability.TargetQuery{
+		TenantID: "tenant-a", HospitalID: "hospital-1",
+		ResourceKind: "hospital_context", TargetRef: "hospitalContext",
+	})
+	if err != nil {
+		t.Fatalf("Resolve: %v", err)
+	}
+
+	if _, present := resolved.Attributes["status"]; present {
+		t.Errorf("status = %v, want no status attribute at all for hospital_context",
+			resolved.Attributes["status"])
+	}
+	if resolved.Attributes["tenantId"] != "tenant-a" || resolved.Attributes["hospitalId"] != "hospital-1" {
+		t.Errorf("isolation attributes = %v, want the caller's tenant and hospital", resolved.Attributes)
+	}
+}
+
 // A store that cannot answer must not be reported as "no such resource":
 // fail-closed is right, but silently so would make an outage look like a
 // permission change.

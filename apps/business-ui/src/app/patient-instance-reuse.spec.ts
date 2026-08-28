@@ -9,6 +9,7 @@ import { CapabilityStore, UiCapabilitySnapshot } from '@cerbos-poc/capability';
 
 import { App } from './app';
 import { appRoutes } from './app.routes';
+import { provideEstablishedSession } from './auth/session.testing';
 
 function snapshot(): UiCapabilitySnapshot {
   return {
@@ -30,6 +31,10 @@ describe('navigating between a loaded patient resource and its child routes', ()
         provideRouter(appRoutes),
         provideHttpClient(),
         provideHttpClientTesting(),
+        // sessionGuard runs ahead of capabilityGuard on these routes; the
+        // instance fetch below is what this test is about, so the module
+        // snapshot it would otherwise wait for is already in place.
+        provideEstablishedSession(),
       ],
     });
     const httpMock = TestBed.inject(HttpTestingController);

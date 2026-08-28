@@ -40,6 +40,12 @@ const (
 	AuditorRole = "kc:cerbos-poc:patient-app:auditor"
 	// ResourceKey is the one resource the root policy tree covers so far.
 	ResourceKey = "patient_record"
+	// HospitalContextResourceKey is the synthetic tenant/hospital scoping
+	// resource every X.route.list composite UI capability requires a read
+	// on (§12.1). It is not a clinical resource and holds no data of its
+	// own; without a grant on it, every list route in the catalog is
+	// denied however the rest of the matrix reads.
+	HospitalContextResourceKey = "hospital_context"
 	// Revision is the demo tenant's permission revision, reported alongside
 	// every decision taken against this matrix.
 	Revision = 184
@@ -105,6 +111,14 @@ func Apply(ctx context.Context, writer Writer, at time.Time) error {
 		// The ordinary case: a role grant that allows.
 		rolePermission(TenantID, DoctorRole, "read", true, began, ends),
 		rolePermission(TenantID, DoctorRole, "update", true, began, ends),
+		// The two leaves patients.route.list composes, so the Business UI's
+		// landing route works on a freshly seeded stack instead of showing
+		// the demo clinician /forbidden the moment they log in. The route
+		// the walkthrough grants - patient.route.details, which needs
+		// person:read - is deliberately still denied here.
+		rolePermission(TenantID, DoctorRole, "list", true, began, ends),
+		resourceRolePermission(TenantID, DoctorRole, HospitalContextResourceKey,
+			"read", true, began, ends),
 		// Disabled: in force, but granting nothing. Not a denial (§8.3).
 		rolePermission(TenantID, DoctorRole, "delete", false, began, ends),
 		// Enabled but out of date, so ignoring expiry would visibly grant.
@@ -195,11 +209,18 @@ func resource(resourceType, id, tenant, hospital, status string, at time.Time) a
 }
 
 func rolePermission(tenant, role, action string, enabled bool, from, until time.Time) assignmentstore.RolePermission {
+	return resourceRolePermission(tenant, role, ResourceKey, action, enabled, from, until)
+}
+
+// resourceRolePermission is rolePermission for a resource other than
+// patient_record - hospital_context, in particular, which carries the
+// scoping grant every list route depends on.
+func resourceRolePermission(tenant, role, resource, action string, enabled bool, from, until time.Time) assignmentstore.RolePermission {
 	return assignmentstore.RolePermission{
 		Key: assignmentstore.RolePermissionKey{
 			TenantID:       tenant,
 			RoleExternalID: role,
-			ResourceKey:    ResourceKey,
+			ResourceKey:    resource,
 			ActionKey:      action,
 		},
 		Enabled:    enabled,
