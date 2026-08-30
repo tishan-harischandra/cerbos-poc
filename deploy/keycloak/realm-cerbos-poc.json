@@ -5,6 +5,23 @@
   "registrationAllowed": false,
   "loginWithEmailAllowed": true,
   "accessTokenLifespan": 900,
+  "organizationsEnabled": true,
+  "organizations": [
+    {
+      "name": "North Hospital",
+      "alias": "north-hospital",
+      "enabled": true,
+      "domains": [{ "name": "north-hospital.example.test", "verified": false }],
+      "members": [{ "username": "user-doctor" }]
+    },
+    {
+      "name": "South Hospital",
+      "alias": "south-hospital",
+      "enabled": true,
+      "domains": [{ "name": "south-hospital.example.test", "verified": false }],
+      "members": []
+    }
+  ],
   "clients": [
     {
       "clientId": "patient-app",
@@ -31,6 +48,7 @@
         "post.logout.redirect.uris": "http://localhost:4200/*##http://localhost:4201/*"
       },
       "defaultClientScopes": ["basic", "web-origins", "profile", "roles", "email"],
+      "optionalClientScopes": ["organization"],
       "protocolMappers": [
         {
           "name": "audience",

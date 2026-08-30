@@ -178,6 +178,37 @@ path.
 - **The policy suite is CPU-bound in one container.** Sixteen seconds on
   sixteen cores is not sixteen seconds on a two-core runner.
 
+## Organization-scoped tokens without a browser (issue #75)
+
+The realm/tenant/organization rework (#74) puts one load-bearing assumption on
+the critical path: that the 1,000-VU protocol-level load model can obtain an
+organization-scoped token by direct grant, with no browser and no custom
+Keycloak authenticator SPI in the path. This was spiked against a real
+Keycloak 26.4 (the `organization` feature is Preview and must be enabled with
+`--features=organization`; `deploy/keycloak/realm-cerbos-poc.json` now
+declares two organizations and one membership; `scripts/tests/org-scope-spike.sh`
+is the committed, repeatable form of this investigation).
+
+| Question | Answer |
+|---|---|
+| Does `grant_type=password` with `scope=organization:<alias>` populate an `organization` claim? | **Yes.** Confirmed on a direct grant against `patient-app`, no browser, no authenticator flow involved. |
+| What shape is the claim? | A JSON array of alias strings, e.g. `"organization": ["north-hospital"]` - not a map, not a bare scalar. Parse it as a list of one. |
+| What happens when the requested alias is not a membership? | Keycloak does **not** refuse the grant. It returns 200 with a token whose granted `scope` silently drops the `organization:<alias>` entry and whose `organization` claim is absent entirely. A caller that only checks the HTTP status will not notice. |
+| Does this apply to an administrator with no membership at all? | Same silent omission - holding the realm role `admin` does not let a direct grant acquire an organization scope by simply asking for it. |
+| Can organization membership be declared in the static realm-import JSON? | Only with `{"username": "<user>"}` member objects. `{"id": "<user>"}` deserializes but then fails import with a null-pointer deep in Keycloak's organization importer (`Cannot invoke "UserModel.getId()" because "user" is null`) - a real bug/limitation in 26.4's realm importer, not a fixture mistake. Any future seed/onboarding code that adds members programmatically must go through the Admin REST API (`POST .../organizations/{id}/members` with a bare user-id string body), not a hand-written import block. |
+
+**Finding: the load model in #74 survives unchanged.** Protocol-level virtual
+users can obtain a real organization-scoped token via direct grant exactly as
+the PRD's user story #41 assumes. No redesign is required before slice #87.
+
+**Finding: "requesting an org you don't belong to" is enforced by omission,
+not rejection.** The decision service's own refusal of an unscoped token
+(PRD decision: "a token carrying neither an active organization nor the
+tenant-wide marker is refused") is therefore load-bearing on its own -
+Keycloak's token endpoint will not do that refusing for it. Slice #78 and the
+decision-service tests must check for the *absence* of a usable organization
+claim, not for a non-200 status from Keycloak.
+
 ## What has not been measured
 
 Stated plainly, so nobody mistakes an absence for a pass:
