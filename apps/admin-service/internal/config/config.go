@@ -102,7 +102,7 @@ func FromEnv(lookup LookupFunc) Config {
 		// published address rather than the compose-internal one - the
 		// same distinction IDP_ISSUER already draws for token
 		// verification, and the same value.
-		OIDCIssuer:   valueOr(lookup, "OIDC_ISSUER", valueOr(lookup, "IDP_ISSUER", "http://localhost:8081/realms/cerbos-poc")),
+		OIDCIssuer:   valueOr(lookup, "OIDC_ISSUER", valueOr(lookup, "IDP_ISSUER", "http://localhost:8081/realms/tenant-a")),
 		OIDCClientID: valueOr(lookup, "OIDC_CLIENT_ID", valueOr(lookup, "IDP_CLIENT_ID", "patient-app")),
 	}
 }

@@ -71,7 +71,7 @@ func TestAMissingAssetIsNotAnsweredByTheShell(t *testing.T) {
 // service that holds the configuration answers for it directly.
 func TestTheRuntimeEnvironmentIsRenderedFromConfiguration(t *testing.T) {
 	handler := console.EnvJS(console.Environment{
-		OIDCIssuer:   "http://localhost:8081/realms/cerbos-poc",
+		OIDCIssuer:   "http://localhost:8081/realms/tenant-a",
 		OIDCClientID: "patient-app",
 	})
 
@@ -84,7 +84,7 @@ func TestTheRuntimeEnvironmentIsRenderedFromConfiguration(t *testing.T) {
 		t.Errorf("Content-Type = %q, want javascript, or the browser refuses to execute it", got)
 	}
 	body := response.Body.String()
-	for _, want := range []string{"window.__ENV__", "http://localhost:8081/realms/cerbos-poc", "patient-app"} {
+	for _, want := range []string{"window.__ENV__", "http://localhost:8081/realms/tenant-a", "patient-app"} {
 		if !strings.Contains(body, want) {
 			t.Errorf("body = %q, want it to contain %q", body, want)
 		}

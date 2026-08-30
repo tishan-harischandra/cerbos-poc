@@ -16,7 +16,7 @@ principals:
       tenantId: tenant-a
       hospitalId: hospital-1
       idpRoles:
-        - "kc:cerbos-poc:patient-app:doctor"
+        - "kc:tenant-a:patient-app:doctor"
 
   doctor_of_other_tenant:
     id: idp-user-999
@@ -26,7 +26,7 @@ principals:
       tenantId: tenant-b
       hospitalId: hospital-1
       idpRoles:
-        - "kc:cerbos-poc:patient-app:doctor"
+        - "kc:tenant-a:patient-app:doctor"
 
   doctor_of_other_hospital:
     id: idp-user-888
@@ -36,7 +36,7 @@ principals:
       tenantId: tenant-a
       hospitalId: hospital-2
       idpRoles:
-        - "kc:cerbos-poc:patient-app:doctor"
+        - "kc:tenant-a:patient-app:doctor"
 
 resources:
   # Row 2: mandatory passes, user revokes, role grants.

@@ -13,7 +13,7 @@ export const ADMIN_SERVICE_URL = __ENV.LOADTEST_ADMIN_SERVICE_URL || 'http://adm
 // The load-test identity provider (issue #24), not the demo Keycloak: the
 // full population only exists there.
 export const KEYCLOAK_URL = __ENV.LOADTEST_KEYCLOAK_URL || 'http://keycloak-loadtest:8080';
-export const REALM = __ENV.LOADTEST_REALM || 'cerbos-poc-loadtest';
+export const REALM = __ENV.LOADTEST_REALM || 'tenant-a-loadtest';
 export const CLIENT_ID = __ENV.LOADTEST_CLIENT_ID || 'patient-app';
 export const PASSWORD = __ENV.LOADTEST_PASSWORD || 'Load-Test-Only-P@ss1';
 

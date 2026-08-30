@@ -54,11 +54,11 @@ describe('authInterceptor', () => {
     });
 
     TestBed.inject(HttpClient)
-      .post('http://localhost:8081/realms/cerbos-poc/protocol/openid-connect/token', {})
+      .post('http://localhost:8081/realms/tenant-a/protocol/openid-connect/token', {})
       .subscribe();
 
     const request = TestBed.inject(HttpTestingController).expectOne(
-      'http://localhost:8081/realms/cerbos-poc/protocol/openid-connect/token',
+      'http://localhost:8081/realms/tenant-a/protocol/openid-connect/token',
     );
     expect(request.request.headers.has('Authorization')).toBe(false);
   });

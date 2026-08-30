@@ -31,7 +31,7 @@ func identity() tokenauth.Identity {
 		PrincipalID: "user-doctor",
 		TenantID:    "tenant-a",
 		HospitalID:  "hospital-1",
-		Roles:       []string{"kc:cerbos-poc:patient-app:doctor"},
+		Roles:       []string{"kc:tenant-a:patient-app:doctor"},
 	}
 }
 

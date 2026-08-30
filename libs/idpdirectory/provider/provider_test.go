@@ -96,7 +96,7 @@ func TestTheSecretIsReadFromTheReferencedFile(t *testing.T) {
 	cfg, err := provider.FromEnv(lookup(map[string]string{
 		"IDP_TYPE":                   "KEYCLOAK",
 		"IDP_BASE_URL":               "http://keycloak:8080",
-		"IDP_REALM":                  "cerbos-poc",
+		"IDP_REALM":                  "tenant-a",
 		"IDP_TENANT_ID":              "tenant-a",
 		"IDP_CLIENT_ID":              "patient-app",
 		"IDP_SERVICE_CLIENT_ID":      "authorization-admin-service",
@@ -116,7 +116,7 @@ func TestAMissingSecretReferenceIsRefused(t *testing.T) {
 	_, err := provider.FromEnv(lookup(map[string]string{
 		"IDP_TYPE":     "KEYCLOAK",
 		"IDP_BASE_URL": "http://keycloak:8080",
-		"IDP_REALM":    "cerbos-poc",
+		"IDP_REALM":    "tenant-a",
 	}))
 	if err == nil {
 		t.Fatal("FromEnv accepted a configuration with no credentials reference")
@@ -128,10 +128,10 @@ func TestAMissingSecretReferenceIsRefused(t *testing.T) {
 func TestTheIssuerAndKeySetAreDerivedFromTheRealm(t *testing.T) {
 	cfg := configFor(t, "KEYCLOAK")
 
-	if want := "http://keycloak:8080/realms/cerbos-poc"; cfg.Issuer != want {
+	if want := "http://keycloak:8080/realms/tenant-a"; cfg.Issuer != want {
 		t.Errorf("Issuer = %q, want %q", cfg.Issuer, want)
 	}
-	if want := "http://keycloak:8080/realms/cerbos-poc/protocol/openid-connect/certs"; cfg.JWKSURL() != want {
+	if want := "http://keycloak:8080/realms/tenant-a/protocol/openid-connect/certs"; cfg.JWKSURL() != want {
 		t.Errorf("JWKSURL = %q, want %q", cfg.JWKSURL(), want)
 	}
 	if cfg.RoleSource != tokenverifier.RoleSourceClient {
@@ -152,8 +152,8 @@ func TestTheKeySetIsFetchedOverTheBackendRouteEvenWhenTheIssuerIsPublished(t *te
 	cfg, err := provider.FromEnv(lookup(map[string]string{
 		"IDP_TYPE":                   "KEYCLOAK",
 		"IDP_BASE_URL":               "http://keycloak:8080",
-		"IDP_ISSUER":                 "http://localhost:8081/realms/cerbos-poc",
-		"IDP_REALM":                  "cerbos-poc",
+		"IDP_ISSUER":                 "http://localhost:8081/realms/tenant-a",
+		"IDP_REALM":                  "tenant-a",
 		"IDP_TENANT_ID":              "tenant-a",
 		"IDP_CLIENT_ID":              "patient-app",
 		"IDP_SERVICE_CLIENT_ID":      "authorization-admin-service",
@@ -163,10 +163,10 @@ func TestTheKeySetIsFetchedOverTheBackendRouteEvenWhenTheIssuerIsPublished(t *te
 		t.Fatalf("FromEnv: %v", err)
 	}
 
-	if cfg.Issuer != "http://localhost:8081/realms/cerbos-poc" {
+	if cfg.Issuer != "http://localhost:8081/realms/tenant-a" {
 		t.Errorf("Issuer = %q, want the published address the token claims", cfg.Issuer)
 	}
-	if want := "http://keycloak:8080/realms/cerbos-poc/protocol/openid-connect/certs"; cfg.JWKSURL() != want {
+	if want := "http://keycloak:8080/realms/tenant-a/protocol/openid-connect/certs"; cfg.JWKSURL() != want {
 		t.Errorf("JWKSURL = %q, want %q", cfg.JWKSURL(), want)
 	}
 }
@@ -196,7 +196,7 @@ func configFor(t *testing.T, idpType string) provider.Config {
 	cfg, err := provider.FromEnv(lookup(map[string]string{
 		"IDP_TYPE":                   idpType,
 		"IDP_BASE_URL":               "http://keycloak:8080",
-		"IDP_REALM":                  "cerbos-poc",
+		"IDP_REALM":                  "tenant-a",
 		"IDP_TENANT_ID":              "tenant-a",
 		"IDP_CLIENT_ID":              "patient-app",
 		"IDP_SERVICE_CLIENT_ID":      "authorization-admin-service",

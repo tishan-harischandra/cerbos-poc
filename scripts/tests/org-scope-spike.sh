@@ -40,7 +40,7 @@ token_with_scope() {
 
 echo "--- the realm fixture ---"
 
-# The realm fixture (deploy/keycloak/realm-cerbos-poc.json) declares
+# The realm fixture (deploy/keycloak/realm-tenant-a.json) declares
 # organizationsEnabled, two organizations - north-hospital and
 # south-hospital - and user-doctor as a member of north-hospital only, via
 # Keycloak's own realm import. Declarative membership import works with a

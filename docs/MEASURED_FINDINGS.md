@@ -145,7 +145,7 @@ Two environment-shaped problems this surfaced, both now handled by the script
 and worth knowing about for any similar run:
 
 - **Podman names a locally built image `localhost/<name>`**, while a manifest's
-  unqualified `cerbos-poc/ads:dev` resolves to `docker.io/cerbos-poc/ads:dev`.
+  unqualified `tenant-a/ads:dev` resolves to `docker.io/tenant-a/ads:dev`.
   Every pod sat in `ImagePullBackOff` next to an image that was already on the
   node. The script builds and loads fully qualified names, which is a no-op
   under Docker.
@@ -185,7 +185,7 @@ the critical path: that the 1,000-VU protocol-level load model can obtain an
 organization-scoped token by direct grant, with no browser and no custom
 Keycloak authenticator SPI in the path. This was spiked against a real
 Keycloak 26.4 (the `organization` feature is Preview and must be enabled with
-`--features=organization`; `deploy/keycloak/realm-cerbos-poc.json` now
+`--features=organization`; `deploy/keycloak/realm-tenant-a.json` now
 declares two organizations and one membership; `scripts/tests/org-scope-spike.sh`
 is the committed, repeatable form of this investigation).
 

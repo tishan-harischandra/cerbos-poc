@@ -84,7 +84,7 @@ def check_identity_provider(services: dict) -> None:
     check("keycloak imports a realm rather than being configured by hand",
           "--import-realm" in (keycloak.get("command") or []))
 
-    realm_import = REPO_ROOT / "deploy" / "keycloak" / "realm-cerbos-poc.json"
+    realm_import = REPO_ROOT / "deploy" / "keycloak" / "realm-tenant-a.json"
     check("the realm import exists", realm_import.exists())
     if realm_import.exists():
         realm = json.loads(realm_import.read_text())

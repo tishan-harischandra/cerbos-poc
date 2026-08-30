@@ -145,7 +145,7 @@ if [[ "${status}" == "200" ]]; then
   # §7.5: the identifier the directory reports has to be the one a token
   # normalises to, or the console would write matrix rows nothing matches.
   canonical="$(jq -r '.items[] | select(.name == "doctor") | .canonicalId' /tmp/identity-body)"
-  if [[ "${canonical}" == "kc:cerbos-poc:patient-app:doctor" ]]; then
+  if [[ "${canonical}" == "kc:tenant-a:patient-app:doctor" ]]; then
     pass "the directory's canonical identifier matches token normalisation byte for byte"
   else
     fail "the directory's canonical identifier matches token normalisation (was '${canonical}')"

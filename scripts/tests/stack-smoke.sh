@@ -41,7 +41,7 @@ check "the ADS reaches the identity provider from inside the network" "$?"
 # Unlike the PDP, Keycloak has to be reachable from the host: a login is a
 # browser redirect, and a redirect nobody can follow is not a login.
 discovery="$(curl -fsS --max-time 5 \
-  "http://127.0.0.1:${KEYCLOAK_PORT:-8081}/realms/${IDP_REALM:-cerbos-poc}/.well-known/openid-configuration" 2>/dev/null)"
+  "http://127.0.0.1:${KEYCLOAK_PORT:-8081}/realms/${IDP_REALM:-tenant-a}/.well-known/openid-configuration" 2>/dev/null)"
 check "the identity provider is reachable from the browser's side" "$?"
 grep -q 'authorization_endpoint' <<<"${discovery}"
 check "the realm publishes an authorization endpoint to log in against" "$?"

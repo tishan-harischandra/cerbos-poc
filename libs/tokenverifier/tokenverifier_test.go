@@ -16,9 +16,9 @@ import (
 )
 
 const (
-	issuer   = "http://keycloak:8080/realms/cerbos-poc"
+	issuer   = "http://keycloak:8080/realms/tenant-a"
 	audience = "patient-app"
-	realm    = "cerbos-poc"
+	realm    = "tenant-a"
 )
 
 // A token minted by the realm, for this audience, still inside its lifetime is
@@ -45,8 +45,8 @@ func TestAWellFormedTokenYieldsTheIdentityItCarries(t *testing.T) {
 	if verified.HospitalID != "hospital-1" {
 		t.Errorf("HospitalID = %q, want %q", verified.HospitalID, "hospital-1")
 	}
-	if len(verified.Roles) != 1 || verified.Roles[0] != "kc:cerbos-poc:patient-app:doctor" {
-		t.Errorf("Roles = %v, want [kc:cerbos-poc:patient-app:doctor]", verified.Roles)
+	if len(verified.Roles) != 1 || verified.Roles[0] != "kc:tenant-a:patient-app:doctor" {
+		t.Errorf("Roles = %v, want [kc:tenant-a:patient-app:doctor]", verified.Roles)
 	}
 }
 
@@ -65,7 +65,7 @@ func TestTheMandatoryIdentityChecksEachRejectATokenThatFailsThem(t *testing.T) {
 		{
 			name: "another issuer",
 			token: func() string {
-				return fixture.sign(t, fixture.valid(claims{"iss": "http://evil.example/realms/cerbos-poc"}))
+				return fixture.sign(t, fixture.valid(claims{"iss": "http://evil.example/realms/tenant-a"}))
 			},
 			want: tokenverifier.ErrInvalidIssuer,
 		},
@@ -200,7 +200,7 @@ func TestOnlyTheConfiguredRoleClaimIsNormalised(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Verify: %v", err)
 	}
-	if len(verified.Roles) != 1 || verified.Roles[0] != "kc:cerbos-poc:patient-app:doctor" {
+	if len(verified.Roles) != 1 || verified.Roles[0] != "kc:tenant-a:patient-app:doctor" {
 		t.Fatalf("Roles = %v, want only the configured client's roles", verified.Roles)
 	}
 }
@@ -228,8 +228,8 @@ func TestARealmRoleSourceNormalisesRealmRoles(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Verify: %v", err)
 	}
-	if len(verified.Roles) != 1 || verified.Roles[0] != "kc:cerbos-poc:realm:auditor" {
-		t.Errorf("Roles = %v, want [kc:cerbos-poc:realm:auditor]", verified.Roles)
+	if len(verified.Roles) != 1 || verified.Roles[0] != "kc:tenant-a:realm:auditor" {
+		t.Errorf("Roles = %v, want [kc:tenant-a:realm:auditor]", verified.Roles)
 	}
 }
 

@@ -31,7 +31,7 @@ const validRequest = `{
   ]
 }`
 
-const doctorRole = "kc:cerbos-poc:patient-app:doctor"
+const doctorRole = "kc:tenant-a:patient-app:doctor"
 
 type recordingMetrics struct {
 	observations []observation

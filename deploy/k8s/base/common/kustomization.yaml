@@ -11,13 +11,13 @@ configMapGenerator:
       - IDP_TYPE=KEYCLOAK
       - IDP_BASE_URL=http://keycloak:8080
       - IDP_ADDR=keycloak:8080
-      - IDP_REALM=cerbos-poc
+      - IDP_REALM=tenant-a
       - IDP_TENANT_ID=tenant-a
-      - IDP_TENANT_MAPPING_MODE=CLAIM
+      - IDP_TENANT_MAPPING_MODE=REALM
       - IDP_ROLE_SOURCE=CLIENT
       - IDP_CLIENT_ID=patient-app
       - IDP_SERVICE_CLIENT_ID=authorization-admin-service
-      - IDP_ISSUER=http://localhost:8081/realms/cerbos-poc
+      - IDP_ISSUER=http://localhost:8081/realms/tenant-a
   # Which mechanism elects the singleton workloads (ADR-009). K8S_LEASE is
   # the natural choice here: the control plane already keeps Leases
   # available, an operator can read the election with kubectl, and the

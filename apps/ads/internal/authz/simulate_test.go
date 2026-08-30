@@ -20,7 +20,7 @@ const simulateRequest = `{
   "tenantId": "tenant-a",
   "hospitalId": "hospital-1",
   "principalId": "user-doctor",
-  "idpRoles": ["kc:cerbos-poc:patient-app:doctor"],
+  "idpRoles": ["kc:tenant-a:patient-app:doctor"],
   "resource": {
     "kind": "patient_record",
     "id": "patient-456",
@@ -32,7 +32,7 @@ const simulateRequest = `{
 func simulatePost(body string) *http.Request {
 	req := httptest.NewRequest(http.MethodPost, "/internal/authz/simulate", strings.NewReader(body))
 	req.Header.Set("Content-Type", "application/json")
-	return req.WithContext(tokenauth.WithIdentity(req.Context(), identityWithRoles("kc:cerbos-poc:patient-app:administrator")))
+	return req.WithContext(tokenauth.WithIdentity(req.Context(), identityWithRoles("kc:tenant-a:patient-app:administrator")))
 }
 
 // The simulator reuses the exact same Assignments+PDP+DecisionSource path
@@ -159,7 +159,7 @@ func TestSimulateRejectsASimulatedReservedRole(t *testing.T) {
 	handler := authz.NewSimulateHandler(authz.Config{PDP: pdp, Assignments: emptyAssignments{}})
 
 	withReservedRole := strings.Replace(simulateRequest,
-		`"idpRoles": ["kc:cerbos-poc:patient-app:doctor"]`,
+		`"idpRoles": ["kc:tenant-a:patient-app:doctor"]`,
 		`"idpRoles": ["sys:permission-evaluator"]`, 1)
 
 	rec := httptest.NewRecorder()

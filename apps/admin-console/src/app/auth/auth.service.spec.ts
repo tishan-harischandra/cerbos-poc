@@ -28,7 +28,7 @@ describe('AuthService', () => {
         {
           provide: OIDC_CONFIG,
           useValue: {
-            issuer: 'http://localhost:8081/realms/cerbos-poc',
+            issuer: 'http://localhost:8081/realms/tenant-a',
             clientId: 'patient-app',
             redirectUri: 'http://localhost:4200/callback',
           },
@@ -57,7 +57,7 @@ describe('AuthService', () => {
     expect(redirectSpy).toHaveBeenCalledTimes(1);
     const url = new URL(redirectSpy.mock.calls[0][0] as string);
     expect(url.origin + url.pathname).toEqual(
-      'http://localhost:8081/realms/cerbos-poc/protocol/openid-connect/auth',
+      'http://localhost:8081/realms/tenant-a/protocol/openid-connect/auth',
     );
     expect(url.searchParams.get('response_type')).toEqual('code');
     expect(url.searchParams.get('client_id')).toEqual('patient-app');
@@ -82,7 +82,7 @@ describe('AuthService', () => {
 
     const promise = auth.handleCallback('auth-code-1', state);
     httpMock
-      .expectOne('http://localhost:8081/realms/cerbos-poc/protocol/openid-connect/token')
+      .expectOne('http://localhost:8081/realms/tenant-a/protocol/openid-connect/token')
       .flush({ access_token: token });
 
     expect(await promise).toBe(true);
@@ -100,7 +100,7 @@ describe('AuthService', () => {
 
     expect(result).toBe(false);
     expect(auth.isAuthenticated()).toBe(false);
-    httpMock.expectNone('http://localhost:8081/realms/cerbos-poc/protocol/openid-connect/token');
+    httpMock.expectNone('http://localhost:8081/realms/tenant-a/protocol/openid-connect/token');
   });
 
   it('deletes the stored verifier and state after one callback attempt, matching or not', async () => {
@@ -120,7 +120,7 @@ describe('AuthService', () => {
 
     const promise = auth.handleCallback('auth-code-1', state);
     httpMock
-      .expectOne('http://localhost:8081/realms/cerbos-poc/protocol/openid-connect/token')
+      .expectOne('http://localhost:8081/realms/tenant-a/protocol/openid-connect/token')
       .flush({ error: 'invalid_grant' }, { status: 400, statusText: 'Bad Request' });
 
     expect(await promise).toBe(false);
@@ -136,7 +136,7 @@ describe('AuthService', () => {
       state,
     );
     httpMock
-      .expectOne('http://localhost:8081/realms/cerbos-poc/protocol/openid-connect/token')
+      .expectOne('http://localhost:8081/realms/tenant-a/protocol/openid-connect/token')
       .flush({ access_token: fakeJwt({ sub: 'admin-1' }) });
     await promise;
 
@@ -145,7 +145,7 @@ describe('AuthService', () => {
     expect(auth.isAuthenticated()).toBe(false);
     const url = new URL(redirectSpy.mock.calls[1][0] as string);
     expect(url.origin + url.pathname).toEqual(
-      'http://localhost:8081/realms/cerbos-poc/protocol/openid-connect/logout',
+      'http://localhost:8081/realms/tenant-a/protocol/openid-connect/logout',
     );
   });
 });
