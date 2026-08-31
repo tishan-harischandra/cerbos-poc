@@ -22,6 +22,7 @@ import (
 	"github.com/tishan-harischandra/cerbos-poc/libs/assignmentstore/postgresstore"
 	"github.com/tishan-harischandra/cerbos-poc/libs/assignmentstore/tenantresolve"
 	"github.com/tishan-harischandra/cerbos-poc/libs/idpdirectory/provider"
+	"github.com/tishan-harischandra/cerbos-poc/libs/tokenverifier"
 )
 
 func main() {
@@ -43,34 +44,39 @@ func main() {
 	// trustworthy tenant/hospital for Create, in addition to forwarding the
 	// same token to the ADS's own decision endpoint.
 	//
-	// The tenant (realm, issuer, client) comes from the tenant registry
-	// (issue #76) rather than IDP_REALM/IDP_TENANT_ID/IDP_ISSUER.
+	// A deployment serves every realm the tenant registry names (issue
+	// #77): each realm gets its own token verifier, and a token's own
+	// issuer - never a claim, never request input - selects which realm's
+	// verifier checks it.
 	tenantCtx, cancelTenantCtx := context.WithTimeout(context.Background(), 90*time.Second)
-	tenant, err := tenantresolve.Single(tenantCtx, store)
+	tenants, err := tenantresolve.All(tenantCtx, store)
 	cancelTenantCtx()
 	if err != nil {
 		logger.Error("could not resolve the tenant registry", slog.Any("error", err))
 		os.Exit(1)
 	}
-	idpConfig, err := provider.ConfigFromTenant(os.LookupEnv, provider.Tenant{
-		Realm:               tenant.Realm,
-		Issuer:              tenant.Issuer,
-		BrowserClientID:     tenant.BrowserClientID,
-		ServiceClientID:     tenant.ServiceClientID,
-		CredentialSecretRef: tenant.CredentialSecretRef,
-	})
+	providerTenants := make([]provider.Tenant, 0, len(tenants))
+	for _, tenant := range tenants {
+		providerTenants = append(providerTenants, provider.Tenant{
+			Realm:               tenant.Realm,
+			Issuer:              tenant.Issuer,
+			BrowserClientID:     tenant.BrowserClientID,
+			ServiceClientID:     tenant.ServiceClientID,
+			CredentialSecretRef: tenant.CredentialSecretRef,
+		})
+	}
+	installations, err := provider.InstallationsFromTenants(os.LookupEnv, providerTenants)
 	if err != nil {
 		logger.Error("could not read the identity provider configuration", slog.Any("error", err))
 		os.Exit(1)
 	}
-	verifier, err := provider.NewVerifier(idpConfig)
-	if err != nil {
-		logger.Error("could not prepare token verification", slog.Any("error", err))
-		os.Exit(1)
+	verifiers := tokenverifier.NewRegistry()
+	for _, installation := range installations {
+		verifiers.Register(installation.Config.Issuer, installation.Verifier)
 	}
 
 	authenticated := func(next http.Handler) http.Handler {
-		return tokenauth.Require(tokenauth.Config{Verifier: verifier, Logger: logger}, next)
+		return tokenauth.Require(tokenauth.Config{Verifier: verifiers, Logger: logger}, next)
 	}
 
 	handler := server.New(server.Config{

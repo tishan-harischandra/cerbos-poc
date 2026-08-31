@@ -178,10 +178,9 @@ func TestConvergence_RejectsAnAdministratorFromAnotherTenant(t *testing.T) {
 
 func TestIdPDiagnostics_ReportsTheSelectedProviderAndOKConnectivity(t *testing.T) {
 	handler := &platformstatus.Handler{
-		ADS:                  &fakeADS{},
-		IdPType:              "KEYCLOAK",
-		IdPRoleSource:        "CLIENT",
-		IdPTenantMappingMode: "CLAIM",
+		ADS:           &fakeADS{},
+		IdPType:       "KEYCLOAK",
+		IdPRoleSource: "CLIENT",
 	}
 
 	rec := httptest.NewRecorder()
@@ -191,10 +190,9 @@ func TestIdPDiagnostics_ReportsTheSelectedProviderAndOKConnectivity(t *testing.T
 		t.Fatalf("status = %d, want %d: %s", rec.Code, http.StatusOK, rec.Body)
 	}
 	var body struct {
-		Provider          string `json:"provider"`
-		RoleSource        string `json:"roleSource"`
-		TenantMappingMode string `json:"tenantMappingMode"`
-		Connectivity      string `json:"connectivity"`
+		Provider     string `json:"provider"`
+		RoleSource   string `json:"roleSource"`
+		Connectivity string `json:"connectivity"`
 	}
 	if err := json.Unmarshal(rec.Body.Bytes(), &body); err != nil {
 		t.Fatalf("response is not JSON: %v", err)

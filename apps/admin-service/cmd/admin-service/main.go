@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"sort"
 	"syscall"
 	"time"
 
@@ -32,6 +33,7 @@ import (
 	"github.com/tishan-harischandra/cerbos-poc/libs/outbox"
 	"github.com/tishan-harischandra/cerbos-poc/libs/outbox/kafkapublisher"
 	"github.com/tishan-harischandra/cerbos-poc/libs/policyrelease"
+	"github.com/tishan-harischandra/cerbos-poc/libs/tokenverifier"
 )
 
 func main() {
@@ -64,37 +66,50 @@ func main() {
 	}
 
 	// The identity provider is selected here and nowhere else (§7.1), the
-	// same as every other service that verifies a token. The tenant
-	// (realm, issuer, client) comes from the tenant registry (issue #76)
-	// rather than IDP_REALM/IDP_TENANT_ID/IDP_ISSUER.
+	// same as every other service that verifies a token. A deployment
+	// serves every realm the tenant registry names (issue #77): each realm
+	// gets its own token verifier, and a token's own issuer - never a
+	// claim, never request input - selects which realm's verifier checks
+	// it.
 	tenantCtx, cancelTenantCtx := context.WithTimeout(context.Background(), 90*time.Second)
-	tenant, err := tenantresolve.Single(tenantCtx, store)
+	tenants, err := tenantresolve.All(tenantCtx, store)
 	cancelTenantCtx()
 	if err != nil {
 		logger.Error("could not resolve the tenant registry", slog.Any("error", err))
 		os.Exit(1)
 	}
-	idpConfig, err := idpprovider.ConfigFromTenant(os.LookupEnv, idpprovider.Tenant{
-		Realm:               tenant.Realm,
-		Issuer:              tenant.Issuer,
-		BrowserClientID:     tenant.BrowserClientID,
-		ServiceClientID:     tenant.ServiceClientID,
-		CredentialSecretRef: tenant.CredentialSecretRef,
-	})
+	providerTenants := make([]idpprovider.Tenant, 0, len(tenants))
+	for _, tenant := range tenants {
+		providerTenants = append(providerTenants, idpprovider.Tenant{
+			Realm:               tenant.Realm,
+			Issuer:              tenant.Issuer,
+			BrowserClientID:     tenant.BrowserClientID,
+			ServiceClientID:     tenant.ServiceClientID,
+			CredentialSecretRef: tenant.CredentialSecretRef,
+		})
+	}
+	installations, err := idpprovider.InstallationsFromTenants(os.LookupEnv, providerTenants)
 	if err != nil {
 		logger.Error("could not read the identity provider configuration", slog.Any("error", err))
 		os.Exit(1)
 	}
+
+	// The console's own login configuration (ADR-008) is only ever one
+	// realm's: a browser lands on one login page. Absent an explicit
+	// override, that is the first realm the registry names; an
+	// installation that wants a particular realm's login page sets
+	// OIDC_ISSUER/OIDC_CLIENT_ID rather than relying on map order.
+	homeRealm := homeInstallation(providerTenants, installations)
 	if cfg.OIDCIssuer == "" {
-		cfg.OIDCIssuer = idpConfig.Issuer
+		cfg.OIDCIssuer = homeRealm.Config.Issuer
 	}
 	if cfg.OIDCClientID == "" {
-		cfg.OIDCClientID = idpConfig.ClientID
+		cfg.OIDCClientID = homeRealm.Config.ClientID
 	}
-	verifier, err := idpprovider.NewVerifier(idpConfig)
-	if err != nil {
-		logger.Error("could not prepare token verification", slog.Any("error", err))
-		os.Exit(1)
+
+	verifiers := tokenverifier.NewRegistry()
+	for _, installation := range installations {
+		verifiers.Register(installation.Config.Issuer, installation.Verifier)
 	}
 
 	// The outbox publisher is a singleton across replicas, so this service
@@ -138,7 +153,7 @@ func main() {
 			{Name: "postgres", Probe: tcpProbe(cfg.PostgresAddr)},
 			{Name: "idp", Probe: tcpProbe(cfg.IdPAddr)},
 		},
-		Verifier: verifier,
+		Verifier: verifiers,
 		RoleMatrix: &rolematrix.Handler{
 			Store:   store,
 			Catalog: catalog,
@@ -161,11 +176,10 @@ func main() {
 			Store: store,
 		},
 		PlatformStatus: &platformstatus.Handler{
-			PolicyStore:          policyrelease.NewStore(cfg.PolicyReleaseStoreDir),
-			ADS:                  adsclient.New(cfg.ADSAddr),
-			IdPType:              string(idpConfig.Type),
-			IdPRoleSource:        string(idpConfig.RoleSource),
-			IdPTenantMappingMode: string(idpConfig.TenantMappingMode),
+			PolicyStore:   policyrelease.NewStore(cfg.PolicyReleaseStoreDir),
+			ADS:           adsclient.New(cfg.ADSAddr),
+			IdPType:       string(homeRealm.Config.Type),
+			IdPRoleSource: string(homeRealm.Config.RoleSource),
 		},
 		Console: consoleConfig,
 	})
@@ -219,11 +233,15 @@ func main() {
 		}
 	}()
 
+	realms := make([]string, 0, len(installations))
+	for realm := range installations {
+		realms = append(realms, realm)
+	}
 	logger.Info("admin-service listening",
 		slog.String("addr", cfg.HTTPAddr),
 		slog.String("postgres", cfg.PostgresAddr),
-		slog.String("idpType", string(idpConfig.Type)),
-		slog.String("idpIssuer", idpConfig.Issuer),
+		slog.String("idpType", string(homeRealm.Config.Type)),
+		slog.Any("realms", realms),
 		slog.String("leaderElection", string(electionConfig.Type)),
 		slog.String("consoleDir", cfg.ConsoleDir),
 	)
@@ -232,6 +250,20 @@ func main() {
 		logger.Error("admin-service stopped", slog.Any("error", err))
 		os.Exit(1)
 	}
+}
+
+// homeInstallation picks the console's own login realm: the
+// lowest-named realm, so the choice is a repeatable fact about the
+// registry rather than Go's unspecified map iteration order. An
+// installation that wants a particular realm's login page overrides it
+// with OIDC_ISSUER/OIDC_CLIENT_ID rather than relying on this default.
+func homeInstallation(tenants []idpprovider.Tenant, installations map[string]idpprovider.Installation) idpprovider.Installation {
+	realms := make([]string, 0, len(tenants))
+	for _, tenant := range tenants {
+		realms = append(realms, tenant.Realm)
+	}
+	sort.Strings(realms)
+	return installations[realms[0]]
 }
 
 func tcpProbe(addr string) func(context.Context) error {
