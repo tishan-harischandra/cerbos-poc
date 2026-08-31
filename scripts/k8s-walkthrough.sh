@@ -92,23 +92,27 @@ kubectl_chaos_sys create namespace "${CHAOS_NAMESPACE}" --dry-run=client -o yaml
 "${KUSTOMIZE}" build --load-restrictor LoadRestrictionsNone "${CHAOS_OVERLAY}" \
   | kubectl_chaos_sys apply -f -
 
-echo "==> Waiting for workloads"
+echo "==> Waiting for infrastructure workloads"
 for target in \
   statefulset/postgres \
   statefulset/redpanda \
   deployment/keycloak \
-  deployment/cerbos \
-  deployment/ads \
-  deployment/admin-service \
-  deployment/resource-service \
-  deployment/business-ui; do
+  deployment/cerbos; do
   # Generous, because the first run on a fresh cluster pulls PostgreSQL,
   # Keycloak and Redpanda from a registry while it waits. A subsequent run
   # against a reused cluster settles in well under a minute.
   wait_for_rollout "${target}" "${K8S_WALKTHROUGH_ROLLOUT_TIMEOUT:-900s}"
 done
 
-start_port_forwards
+# ads, admin-service and resource-service resolve their tenant from the
+# tenant registry at startup (issue #76) and will not become Ready until
+# it is seeded, so the schema, the role matrix and the tenant registry all
+# have to be in place before those workloads are even waited on - the same
+# ordering constraint `make up` observes for compose. A lone port-forward to
+# Postgres is enough for that; the rest come up once start_port_forwards
+# runs below.
+start_one_port_forward svc/postgres "${CHAOS_POSTGRES_PORT}" 5432
+sleep 3
 
 echo "==> Applying the assignmentstore schema"
 GO_NETWORK=host LIQUIBASE_NETWORK=host \
@@ -119,6 +123,24 @@ echo "==> Seeding the demo role matrix"
 GO_NETWORK=host \
   POSTGRES_HOST=127.0.0.1 POSTGRES_PORT="${CHAOS_POSTGRES_PORT}" \
   bash "${repo_root}/scripts/seed.sh" postgres
+
+echo "==> Seeding the tenant registry"
+GO_NETWORK=host \
+  POSTGRES_HOST=127.0.0.1 POSTGRES_PORT="${CHAOS_POSTGRES_PORT}" \
+  bash "${repo_root}/scripts/seed-tenants.sh" postgres
+
+stop_port_forwards
+
+echo "==> Waiting for application workloads"
+for target in \
+  deployment/ads \
+  deployment/admin-service \
+  deployment/resource-service \
+  deployment/business-ui; do
+  wait_for_rollout "${target}" "${K8S_WALKTHROUGH_ROLLOUT_TIMEOUT:-900s}"
+done
+
+start_port_forwards
 
 echo "==> Running the guided walkthrough against the cluster"
 bash "${repo_root}/scripts/tests/walkthrough.sh"

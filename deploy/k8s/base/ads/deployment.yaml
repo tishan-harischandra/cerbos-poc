@@ -36,9 +36,6 @@ spec:
                 name: idp-config
             - secretRef:
                 name: postgres-dsn
-          env:
-            - name: IDP_CREDENTIALS_SECRET_REF
-              value: /run/secrets/idp-admin-credentials
           volumeMounts:
             - name: capability-catalog
               mountPath: /capability-catalog

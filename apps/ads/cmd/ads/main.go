@@ -30,6 +30,7 @@ import (
 	"github.com/tishan-harischandra/cerbos-poc/apps/ads/internal/tokenauth"
 	"github.com/tishan-harischandra/cerbos-poc/libs/assignmentstore"
 	"github.com/tishan-harischandra/cerbos-poc/libs/assignmentstore/postgresstore"
+	"github.com/tishan-harischandra/cerbos-poc/libs/assignmentstore/tenantresolve"
 	"github.com/tishan-harischandra/cerbos-poc/libs/cerbosclient"
 	"github.com/tishan-harischandra/cerbos-poc/libs/idpdirectory/provider"
 	"github.com/tishan-harischandra/cerbos-poc/libs/permissioncontext"
@@ -133,7 +134,25 @@ func main() {
 	// The identity provider is selected here and nowhere else (§7.1). Every
 	// handler below sees only the port, so switching provider is a change to
 	// IDP_TYPE rather than to any of this.
-	idpConfig, err := provider.FromEnv(os.LookupEnv)
+	//
+	// The tenant (realm, issuer, client) is resolved from the tenant
+	// registry (issue #76) rather than IDP_REALM/IDP_TENANT_ID/IDP_ISSUER,
+	// so which tenant this installation serves is a database row, not a
+	// value that could disagree between this service and the registry.
+	tenantCtx, cancelTenantCtx := context.WithTimeout(context.Background(), 90*time.Second)
+	tenant, err := tenantresolve.Single(tenantCtx, store)
+	cancelTenantCtx()
+	if err != nil {
+		logger.Error("could not resolve the tenant registry", slog.Any("error", err))
+		os.Exit(1)
+	}
+	idpConfig, err := provider.ConfigFromTenant(os.LookupEnv, provider.Tenant{
+		Realm:               tenant.Realm,
+		Issuer:              tenant.Issuer,
+		BrowserClientID:     tenant.BrowserClientID,
+		ServiceClientID:     tenant.ServiceClientID,
+		CredentialSecretRef: tenant.CredentialSecretRef,
+	})
 	if err != nil {
 		logger.Error("could not read the identity provider configuration", slog.Any("error", err))
 		os.Exit(1)

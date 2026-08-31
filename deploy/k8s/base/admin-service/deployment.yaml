@@ -46,8 +46,6 @@ spec:
             - secretRef:
                 name: postgres-dsn
           env:
-            - name: IDP_CREDENTIALS_SECRET_REF
-              value: /run/secrets/idp-admin-credentials
             # The pod name, so `kubectl get lease` names the replica that
             # holds the election rather than an opaque identifier.
             - name: LEADER_ELECTION_IDENTITY

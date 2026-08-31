@@ -1,8 +1,14 @@
 # Shared configuration every Go service (ads, admin-service,
-# resource-service) needs: the §7.1 IdP adapter selection, its admin
-# credential, and the assignmentstore Postgres DSN. Centralised here so an
-# overlay only has to patch one place to point every service at a
-# different IdP realm or database, instead of three copies drifting apart.
+# resource-service) needs: the §7.1 IdP adapter selection and the
+# assignmentstore Postgres DSN. Centralised here so an overlay only has to
+# patch one place to point every service at a different IdP adapter or
+# database, instead of three copies drifting apart.
+#
+# Who the tenant is - realm, issuer, client, service account secret - is
+# not here: it comes from the tenant registry (issue #76,
+# deploy/tenant-registry.yaml, seeded by scripts/seed-tenants.sh) instead
+# of IDP_REALM/IDP_TENANT_ID/IDP_ISSUER/IDP_CLIENT_ID/
+# IDP_SERVICE_CLIENT_ID/IDP_CREDENTIALS_SECRET_REF.
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 configMapGenerator:
@@ -11,13 +17,8 @@ configMapGenerator:
       - IDP_TYPE=KEYCLOAK
       - IDP_BASE_URL=http://keycloak:8080
       - IDP_ADDR=keycloak:8080
-      - IDP_REALM=tenant-a
-      - IDP_TENANT_ID=tenant-a
       - IDP_TENANT_MAPPING_MODE=REALM
       - IDP_ROLE_SOURCE=CLIENT
-      - IDP_CLIENT_ID=patient-app
-      - IDP_SERVICE_CLIENT_ID=authorization-admin-service
-      - IDP_ISSUER=http://localhost:8081/realms/tenant-a
   # Which mechanism elects the singleton workloads (ADR-009). K8S_LEASE is
   # the natural choice here: the control plane already keeps Leases
   # available, an operator can read the election with kubectl, and the
