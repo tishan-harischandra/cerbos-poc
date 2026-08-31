@@ -51,10 +51,10 @@ type Config struct {
 	BaseURL string
 	Realm   string
 	// TenantID is the authorization tenant this realm or organisation maps to.
+	// Each adapter declares this mapping itself (issue #77): there is no
+	// installation-wide mode to choose it by, and it is never read from a
+	// token claim.
 	TenantID idpdirectory.TenantID
-	// TenantMappingMode decides whether the tenant comes from a token claim or
-	// from the realm itself.
-	TenantMappingMode tokenverifier.TenantMappingMode
 
 	RoleSource tokenverifier.RoleSource
 	// ClientID is the browser-facing client: the token audience, and the owner
@@ -91,14 +91,13 @@ type LookupFunc func(key string) (string, bool)
 // Environment variables, all prefixed IDP_ so one glance at a compose file
 // shows the whole identity configuration.
 const (
-	EnvType              = "IDP_TYPE"
-	EnvBaseURL           = "IDP_BASE_URL"
-	EnvRealm             = "IDP_REALM"
-	EnvTenantID          = "IDP_TENANT_ID"
-	EnvTenantMappingMode = "IDP_TENANT_MAPPING_MODE"
-	EnvRoleSource        = "IDP_ROLE_SOURCE"
-	EnvClientID          = "IDP_CLIENT_ID"
-	EnvServiceClientID   = "IDP_SERVICE_CLIENT_ID"
+	EnvType            = "IDP_TYPE"
+	EnvBaseURL         = "IDP_BASE_URL"
+	EnvRealm           = "IDP_REALM"
+	EnvTenantID        = "IDP_TENANT_ID"
+	EnvRoleSource      = "IDP_ROLE_SOURCE"
+	EnvClientID        = "IDP_CLIENT_ID"
+	EnvServiceClientID = "IDP_SERVICE_CLIENT_ID"
 	// EnvCredentialsSecretRef is §7.1's credentialsSecretRef: a path to a
 	// mounted file. A secret passed by value would be visible in
 	// `docker inspect` and inherited by every child process.
@@ -110,16 +109,15 @@ const (
 // FromEnv resolves the installation's identity configuration.
 func FromEnv(lookup LookupFunc) (Config, error) {
 	cfg := Config{
-		Type:              Type(valueOr(lookup, EnvType, string(TypeKeycloak))),
-		BaseURL:           strings.TrimRight(valueOr(lookup, EnvBaseURL, ""), "/"),
-		Realm:             valueOr(lookup, EnvRealm, ""),
-		TenantID:          idpdirectory.TenantID(valueOr(lookup, EnvTenantID, "")),
-		TenantMappingMode: tokenverifier.TenantMappingMode(valueOr(lookup, EnvTenantMappingMode, string(tokenverifier.TenantMappingClaim))),
-		RoleSource:        tokenverifier.RoleSource(valueOr(lookup, EnvRoleSource, string(tokenverifier.RoleSourceClient))),
-		ClientID:          valueOr(lookup, EnvClientID, ""),
-		ServiceClientID:   valueOr(lookup, EnvServiceClientID, ""),
-		Issuer:            strings.TrimRight(valueOr(lookup, EnvIssuer, ""), "/"),
-		WSO2TenantDomain:  valueOr(lookup, EnvWSO2TenantDomain, ""),
+		Type:             Type(valueOr(lookup, EnvType, string(TypeKeycloak))),
+		BaseURL:          strings.TrimRight(valueOr(lookup, EnvBaseURL, ""), "/"),
+		Realm:            valueOr(lookup, EnvRealm, ""),
+		TenantID:         idpdirectory.TenantID(valueOr(lookup, EnvTenantID, "")),
+		RoleSource:       tokenverifier.RoleSource(valueOr(lookup, EnvRoleSource, string(tokenverifier.RoleSourceClient))),
+		ClientID:         valueOr(lookup, EnvClientID, ""),
+		ServiceClientID:  valueOr(lookup, EnvServiceClientID, ""),
+		Issuer:           strings.TrimRight(valueOr(lookup, EnvIssuer, ""), "/"),
+		WSO2TenantDomain: valueOr(lookup, EnvWSO2TenantDomain, ""),
 	}
 
 	switch {
@@ -157,24 +155,24 @@ type Tenant struct {
 // #76) instead of IDP_REALM/IDP_TENANT_ID/IDP_ISSUER/IDP_CLIENT_ID/
 // IDP_SERVICE_CLIENT_ID/IDP_CREDENTIALS_SECRET_REF. Adapter-level settings
 // that describe how this installation talks to the identity provider
-// product - Type, BaseURL, TenantMappingMode, RoleSource,
-// WSO2TenantDomain - still come from the environment: they are not who the
-// tenant is, so they do not belong in the registry.
+// product - Type, BaseURL, RoleSource, WSO2TenantDomain - still come from
+// the environment: they are not who the tenant is, so they do not belong in
+// the registry.
 //
-// TenantID is the realm verbatim (§7.1): there is no separate tenant_id
-// column and no mapping layer.
+// TenantID is the realm verbatim (§7.1, §77): there is no separate
+// tenant_id column and no mapping layer, and this is the one place the
+// Keycloak adapter's identity mapping is declared.
 func ConfigFromTenant(lookup LookupFunc, tenant Tenant) (Config, error) {
 	cfg := Config{
-		Type:              Type(valueOr(lookup, EnvType, string(TypeKeycloak))),
-		BaseURL:           strings.TrimRight(valueOr(lookup, EnvBaseURL, ""), "/"),
-		Realm:             tenant.Realm,
-		TenantID:          idpdirectory.TenantID(tenant.Realm),
-		TenantMappingMode: tokenverifier.TenantMappingMode(valueOr(lookup, EnvTenantMappingMode, string(tokenverifier.TenantMappingClaim))),
-		RoleSource:        tokenverifier.RoleSource(valueOr(lookup, EnvRoleSource, string(tokenverifier.RoleSourceClient))),
-		ClientID:          tenant.BrowserClientID,
-		ServiceClientID:   tenant.ServiceClientID,
-		Issuer:            strings.TrimRight(tenant.Issuer, "/"),
-		WSO2TenantDomain:  valueOr(lookup, EnvWSO2TenantDomain, ""),
+		Type:             Type(valueOr(lookup, EnvType, string(TypeKeycloak))),
+		BaseURL:          strings.TrimRight(valueOr(lookup, EnvBaseURL, ""), "/"),
+		Realm:            tenant.Realm,
+		TenantID:         idpdirectory.TenantID(tenant.Realm),
+		RoleSource:       tokenverifier.RoleSource(valueOr(lookup, EnvRoleSource, string(tokenverifier.RoleSourceClient))),
+		ClientID:         tenant.BrowserClientID,
+		ServiceClientID:  tenant.ServiceClientID,
+		Issuer:           strings.TrimRight(tenant.Issuer, "/"),
+		WSO2TenantDomain: valueOr(lookup, EnvWSO2TenantDomain, ""),
 	}
 
 	switch {
@@ -190,6 +188,38 @@ func ConfigFromTenant(lookup LookupFunc, tenant Tenant) (Config, error) {
 		return Config{}, errors.New("the tenant registry row has no credential secret ref")
 	}
 	return finish(cfg, tenant.CredentialSecretRef)
+}
+
+// Installation is one realm's resolved identity configuration: the
+// directory and verifier its traffic uses.
+type Installation struct {
+	Config    Config
+	Directory idpdirectory.IdentityDirectory
+	Verifier  *tokenverifier.Verifier
+}
+
+// InstallationsFromTenants builds one Installation per tenant registry row
+// (issue #77): a deployment serves every realm the registry names, and each
+// realm's traffic is verified and directed by its own configuration, keyed
+// by realm, never by a shared installation-wide one.
+func InstallationsFromTenants(lookup LookupFunc, tenants []Tenant) (map[string]Installation, error) {
+	installations := make(map[string]Installation, len(tenants))
+	for _, tenant := range tenants {
+		cfg, err := ConfigFromTenant(lookup, tenant)
+		if err != nil {
+			return nil, fmt.Errorf("realm %q: %w", tenant.Realm, err)
+		}
+		directory, err := New(cfg)
+		if err != nil {
+			return nil, fmt.Errorf("realm %q: %w", tenant.Realm, err)
+		}
+		verifier, err := NewVerifier(cfg)
+		if err != nil {
+			return nil, fmt.Errorf("realm %q: %w", tenant.Realm, err)
+		}
+		installations[tenant.Realm] = Installation{Config: cfg, Directory: directory, Verifier: verifier}
+	}
+	return installations, nil
 }
 
 // finish reads the service account secret and applies the defaults common
@@ -247,13 +277,12 @@ func New(cfg Config) (idpdirectory.IdentityDirectory, error) {
 // reading roles from another.
 func NewVerifier(cfg Config) (*tokenverifier.Verifier, error) {
 	return tokenverifier.New(tokenverifier.Config{
-		Issuer:            cfg.Issuer,
-		Audience:          cfg.ClientID,
-		Realm:             cfg.Realm,
-		RoleSource:        cfg.RoleSource,
-		ClientID:          cfg.ClientID,
-		TenantMappingMode: cfg.TenantMappingMode,
-		Keys:              tokenverifier.NewJWKS(tokenverifier.JWKSConfig{URL: cfg.JWKSURL()}),
+		Issuer:     cfg.Issuer,
+		Audience:   cfg.ClientID,
+		Realm:      cfg.Realm,
+		RoleSource: cfg.RoleSource,
+		ClientID:   cfg.ClientID,
+		Keys:       tokenverifier.NewJWKS(tokenverifier.JWKSConfig{URL: cfg.JWKSURL()}),
 	})
 }
 

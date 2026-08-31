@@ -1,10 +1,11 @@
-// Package tenantresolve picks the one tenant a service instance serves
-// (issue #76).
+// Package tenantresolve resolves which tenants a service instance serves
+// (issue #76, issue #77).
 //
-// #76 scopes an installation to exactly one realm: a service does not
-// choose among several rows, it reads the only one there is. Any other
-// count means the tenant registry seed step has not run, or has run
-// against the wrong database, and is refused rather than guessed at.
+// #76 introduced the registry with exactly one row; #77 lets a deployment
+// serve every realm the registry names. Single keeps the one-tenant
+// contract for anything that still wants it; All waits for the registry to
+// be seeded at all and returns every row, so a service can build one
+// installation per realm.
 package tenantresolve
 
 import (
@@ -50,6 +51,31 @@ func Single(ctx context.Context, tenants Lister) (assignmentstore.Tenant, error)
 		select {
 		case <-ctx.Done():
 			return assignmentstore.Tenant{}, lastErr
+		case <-time.After(PollInterval):
+		}
+	}
+}
+
+// All returns every row in the tenant registry, retrying on ctx until at
+// least one exists or ctx is done (issue #77). A deployment that serves more
+// than one realm builds one installation per row this returns, rather than
+// refusing to start until the registry holds exactly one.
+func All(ctx context.Context, tenants Lister) ([]assignmentstore.Tenant, error) {
+	var lastErr error
+	for {
+		all, err := tenants.Tenants(ctx)
+		switch {
+		case err != nil:
+			lastErr = fmt.Errorf("tenantresolve: listing the tenant registry: %w", err)
+		case len(all) > 0:
+			return all, nil
+		default:
+			lastErr = fmt.Errorf("tenantresolve: the tenant registry has no rows; has the tenant registry seed step run?")
+		}
+
+		select {
+		case <-ctx.Done():
+			return nil, lastErr
 		case <-time.After(PollInterval):
 		}
 	}
