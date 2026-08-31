@@ -371,6 +371,85 @@ func TestTheDecisionIsLoggedWithRevisionsAndRoles(t *testing.T) {
 	}
 }
 
+// A cross-tenant or cross-hospital refusal is logged as its own alertable
+// fact (issue #77), distinguishable from an ordinary deny: an operator
+// watching for isolation violations should not have to guess which denies
+// among many were this one.
+func TestACrossTenantDenialIsLoggedDistinguishably(t *testing.T) {
+	pdp := &recordingPDP{
+		result: cerbosclient.Result{
+			CallID: "call-isolation",
+			Decisions: map[cerbosclient.Leaf]cerbosclient.Decision{
+				leaf("patient-456", "read"): {Allowed: false},
+			},
+			FiredRules: map[cerbosclient.ResourceRef][]string{
+				{Kind: "patient_record", ID: "patient-456"}: {"tenant_and_hospital_isolation"},
+			},
+		},
+	}
+
+	var logged strings.Builder
+	handler := authz.NewHandler(authz.Config{
+		PDP:         pdp,
+		Assignments: emptyAssignments{},
+		Logger:      slog.New(slog.NewJSONHandler(&logged, nil)),
+	})
+
+	handler.ServeHTTP(httptest.NewRecorder(), post(validRequest))
+
+	var record struct {
+		Message        string `json:"msg"`
+		PrincipalID    string `json:"principalId"`
+		CallerTenantID string `json:"callerTenantId"`
+	}
+	found := false
+	for _, line := range strings.Split(strings.TrimSpace(logged.String()), "\n") {
+		if err := json.Unmarshal([]byte(line), &record); err != nil {
+			t.Fatalf("log line is not JSON: %v", err)
+		}
+		if strings.Contains(record.Message, "cross-tenant") {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Fatalf("no log record named a cross-tenant refusal; log was:\n%s", logged.String())
+	}
+	if record.PrincipalID != "user-doctor" {
+		t.Errorf("principalId = %q, want user-doctor", record.PrincipalID)
+	}
+	if record.CallerTenantID != "tenant-a" {
+		t.Errorf("callerTenantId = %q, want tenant-a", record.CallerTenantID)
+	}
+}
+
+// An ordinary deny - no rule granted the action, isolation never fired -
+// must not be logged as a cross-tenant attempt: the point of a
+// distinguishable log line is lost if it fires on every refusal.
+func TestAnOrdinaryDenialIsNotLoggedAsCrossTenant(t *testing.T) {
+	pdp := &recordingPDP{
+		result: cerbosclient.Result{
+			CallID: "call-ordinary",
+			Decisions: map[cerbosclient.Leaf]cerbosclient.Decision{
+				leaf("patient-456", "read"): {Allowed: false},
+			},
+		},
+	}
+
+	var logged strings.Builder
+	handler := authz.NewHandler(authz.Config{
+		PDP:         pdp,
+		Assignments: emptyAssignments{},
+		Logger:      slog.New(slog.NewJSONHandler(&logged, nil)),
+	})
+
+	handler.ServeHTTP(httptest.NewRecorder(), post(validRequest))
+
+	if strings.Contains(logged.String(), "cross-tenant") {
+		t.Errorf("an ordinary deny was logged as a cross-tenant refusal; log was:\n%s", logged.String())
+	}
+}
+
 // §16.2: mask or omit sensitive attributes from decision audit logs. A
 // clinical attribute value sent in the request must never appear in the
 // decision log line, only stable identifiers and revisions.
