@@ -6,12 +6,12 @@ import { InjectionToken } from '@angular/core';
  * The Business UI is the same "browser-facing client" (patient-app) §7.1
  * describes as public and holding no administrative permission of any
  * kind. Its own origin is registered on that client in
- * deploy/keycloak/realm-cerbos-poc.json: a redirect URI Keycloak does not
+ * deploy/keycloak/realm-tenant-a.json: a redirect URI Keycloak does not
  * know is refused at the authorization endpoint, before any code is
  * issued.
  */
 export interface OidcConfig {
-  /** The Keycloak issuer, e.g. http://localhost:8081/realms/cerbos-poc. */
+  /** The Keycloak issuer, e.g. http://localhost:8081/realms/tenant-a. */
   issuer: string;
   clientId: string;
   /** Where Keycloak redirects back to after login. */
@@ -36,7 +36,7 @@ function runtimeEnv(): RuntimeEnv {
 export const OIDC_CONFIG = new InjectionToken<OidcConfig>('OIDC_CONFIG', {
   providedIn: 'root',
   factory: () => ({
-    issuer: runtimeEnv().oidcIssuer || 'http://localhost:8081/realms/cerbos-poc',
+    issuer: runtimeEnv().oidcIssuer || 'http://localhost:8081/realms/tenant-a',
     clientId: runtimeEnv().oidcClientId || 'patient-app',
     redirectUri: `${window.location.origin}/callback`,
   }),

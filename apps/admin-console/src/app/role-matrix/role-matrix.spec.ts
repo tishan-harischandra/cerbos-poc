@@ -80,7 +80,7 @@ describe('RoleMatrix', () => {
     fixture.componentInstance.roleQuery.set('doctor');
     const searchPromise = fixture.componentInstance.searchRoles();
     httpMock.expectOne('/api/ads/internal/directory/roles?query=doctor').flush({
-      items: [{ canonicalId: 'kc:cerbos-poc:patient-app:doctor', externalId: 'doctor', name: 'Doctor', description: '' }],
+      items: [{ canonicalId: 'kc:tenant-a:patient-app:doctor', externalId: 'doctor', name: 'Doctor', description: '' }],
     });
     await searchPromise;
     fixture.detectChanges();
@@ -88,7 +88,7 @@ describe('RoleMatrix', () => {
     const option = fixture.nativeElement.querySelector('[data-testid="role-option"]') as HTMLElement;
     expect(option).toBeTruthy();
     expect(option.textContent).toContain('Doctor');
-    expect(option.textContent).toContain('persists as kc:cerbos-poc:patient-app:doctor');
+    expect(option.textContent).toContain('persists as kc:tenant-a:patient-app:doctor');
   });
 
   it('loads the full matrix for a selected role and renders its current grants', async () => {
@@ -97,10 +97,10 @@ describe('RoleMatrix', () => {
     httpMock.expectOne('/api/admin/authz/resources').flush(patientRecordCatalog);
 
     const selectPromise = fixture.componentInstance.selectRole({
-      canonicalId: 'kc:cerbos-poc:patient-app:doctor', externalId: 'doctor', name: 'Doctor', description: '',
+      canonicalId: 'kc:tenant-a:patient-app:doctor', externalId: 'doctor', name: 'Doctor', description: '',
     });
     httpMock
-      .expectOne('/api/admin/authz/tenants/tenant-a/roles/kc:cerbos-poc:patient-app:doctor/permissions')
+      .expectOne('/api/admin/authz/tenants/tenant-a/roles/kc:tenant-a:patient-app:doctor/permissions')
       .flush({
         permissions: [
           { resourceKey: 'patient_record', actionKey: 'read', enabled: true, validFrom: '2026-01-01T00:00:00Z' },

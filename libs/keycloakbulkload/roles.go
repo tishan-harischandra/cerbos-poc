@@ -144,7 +144,7 @@ func (c *AdminClient) EnsureRealm(ctx context.Context, setup RealmSetup) (client
 		"publicClient":              true,
 		"protocol":                  "openid-connect",
 		"directAccessGrantsEnabled": true,
-		// Mirrors deploy/keycloak/realm-cerbos-poc.json's "tenant"/"hospital"
+		// Mirrors deploy/keycloak/realm-tenant-a.json's "tenant"/"hospital"
 		// mappers: without these, a seeded user's token carries roles but no
 		// tenant_id/hospital_id, and the decision path this harness exists to
 		// exercise at scale has nothing to key a tenant or hospital scope on.

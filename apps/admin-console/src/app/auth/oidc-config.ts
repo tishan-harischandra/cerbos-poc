@@ -8,7 +8,7 @@ import { InjectionToken } from '@angular/core';
  * same client every other browser-facing surface on this port uses.
  */
 export interface OidcConfig {
-  /** The Keycloak issuer, e.g. http://localhost:8081/realms/cerbos-poc. */
+  /** The Keycloak issuer, e.g. http://localhost:8081/realms/tenant-a. */
   issuer: string;
   clientId: string;
   /** Where Keycloak redirects back to after login. */
@@ -33,7 +33,7 @@ function runtimeEnv(): RuntimeEnv {
 export const OIDC_CONFIG = new InjectionToken<OidcConfig>('OIDC_CONFIG', {
   providedIn: 'root',
   factory: () => ({
-    issuer: runtimeEnv().oidcIssuer || 'http://localhost:8081/realms/cerbos-poc',
+    issuer: runtimeEnv().oidcIssuer || 'http://localhost:8081/realms/tenant-a',
     clientId: runtimeEnv().oidcClientId || 'patient-app',
     redirectUri: `${window.location.origin}/callback`,
   }),

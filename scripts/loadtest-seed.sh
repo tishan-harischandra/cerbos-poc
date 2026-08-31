@@ -28,13 +28,13 @@ case "${profile}" in
     ;;
 esac
 
-export GO_NETWORK="${GO_NETWORK:-${COMPOSE_PROJECT_NAME:-cerbos-poc}_default}"
+export GO_NETWORK="${GO_NETWORK:-${COMPOSE_PROJECT_NAME:-tenant-a}_default}"
 export LOADSEED_PROFILE="${profile}"
 export KEYCLOAK_LOADTEST_ADMIN_URL="http://keycloak-loadtest:8080"
 export KEYCLOAK_LOADTEST_DB_DSN="postgres://${KEYCLOAK_DB_USER:-keycloak}:${KEYCLOAK_DB_PASSWORD:-change-me}@keycloak-db:5432/${KEYCLOAK_DB_NAME:-keycloak}?sslmode=disable"
 export KEYCLOAK_ADMIN="${KEYCLOAK_ADMIN:-admin}"
 export KEYCLOAK_ADMIN_PASSWORD="${KEYCLOAK_ADMIN_PASSWORD:-change-me}"
-export KEYCLOAK_LOADTEST_REALM="${KEYCLOAK_LOADTEST_REALM:-cerbos-poc-loadtest}"
+export KEYCLOAK_LOADTEST_REALM="${KEYCLOAK_LOADTEST_REALM:-tenant-a-loadtest}"
 export ASSIGNMENTSTORE_POSTGRES_DSN="postgres://${POSTGRES_USER:-cerbos_poc}:${POSTGRES_PASSWORD:-change-me}@${POSTGRES_HOST:-postgres}:${POSTGRES_PORT:-5432}/${POSTGRES_DB:-cerbos_poc}?sslmode=disable"
 export LOADSEED_DATA_DIR="/workspace"
 export LOADSEED_SKIP_KEYCLOAK="${LOADSEED_SKIP_KEYCLOAK:-}"

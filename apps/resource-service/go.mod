@@ -21,6 +21,8 @@ require github.com/tishan-harischandra/cerbos-poc/libs/canonicalid v0.0.0 // ind
 
 replace github.com/tishan-harischandra/cerbos-poc/libs/assignmentstore => ../../libs/assignmentstore
 
+replace github.com/tishan-harischandra/cerbos-poc/libs/tenantregistry => ../../libs/tenantregistry
+
 replace github.com/tishan-harischandra/cerbos-poc/libs/tokenverifier => ../../libs/tokenverifier
 
 replace github.com/tishan-harischandra/cerbos-poc/libs/canonicalid => ../../libs/canonicalid

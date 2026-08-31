@@ -24,6 +24,7 @@ import (
 	"github.com/tishan-harischandra/cerbos-poc/apps/admin-service/internal/simulate"
 	"github.com/tishan-harischandra/cerbos-poc/apps/admin-service/internal/useroverride"
 	"github.com/tishan-harischandra/cerbos-poc/libs/assignmentstore/postgresstore"
+	"github.com/tishan-harischandra/cerbos-poc/libs/assignmentstore/tenantresolve"
 	"github.com/tishan-harischandra/cerbos-poc/libs/capabilitycatalog"
 	idpprovider "github.com/tishan-harischandra/cerbos-poc/libs/idpdirectory/provider"
 	"github.com/tishan-harischandra/cerbos-poc/libs/leaderlock"
@@ -63,11 +64,32 @@ func main() {
 	}
 
 	// The identity provider is selected here and nowhere else (§7.1), the
-	// same as every other service that verifies a token.
-	idpConfig, err := idpprovider.FromEnv(os.LookupEnv)
+	// same as every other service that verifies a token. The tenant
+	// (realm, issuer, client) comes from the tenant registry (issue #76)
+	// rather than IDP_REALM/IDP_TENANT_ID/IDP_ISSUER.
+	tenantCtx, cancelTenantCtx := context.WithTimeout(context.Background(), 90*time.Second)
+	tenant, err := tenantresolve.Single(tenantCtx, store)
+	cancelTenantCtx()
+	if err != nil {
+		logger.Error("could not resolve the tenant registry", slog.Any("error", err))
+		os.Exit(1)
+	}
+	idpConfig, err := idpprovider.ConfigFromTenant(os.LookupEnv, idpprovider.Tenant{
+		Realm:               tenant.Realm,
+		Issuer:              tenant.Issuer,
+		BrowserClientID:     tenant.BrowserClientID,
+		ServiceClientID:     tenant.ServiceClientID,
+		CredentialSecretRef: tenant.CredentialSecretRef,
+	})
 	if err != nil {
 		logger.Error("could not read the identity provider configuration", slog.Any("error", err))
 		os.Exit(1)
+	}
+	if cfg.OIDCIssuer == "" {
+		cfg.OIDCIssuer = idpConfig.Issuer
+	}
+	if cfg.OIDCClientID == "" {
+		cfg.OIDCClientID = idpConfig.ClientID
 	}
 	verifier, err := idpprovider.NewVerifier(idpConfig)
 	if err != nil {

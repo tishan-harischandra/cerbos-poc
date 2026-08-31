@@ -6,7 +6,7 @@ resources:
 configMapGenerator:
   - name: keycloak-realms
     files:
-      - realm-cerbos-poc.json=../../../keycloak/realm-cerbos-poc.json
+      - realm-tenant-a.json=../../../keycloak/realm-tenant-a.json
       - realm-other-issuer.json=../../../keycloak/realm-other-issuer.json
 secretGenerator:
   - name: keycloak-credentials

@@ -91,7 +91,7 @@ func TestTheRuntimeEnvironmentIsServedToTheBrowser(t *testing.T) {
 	if response.Code != http.StatusOK {
 		t.Fatalf("status = %d, want 200", response.Code)
 	}
-	if body := response.Body.String(); !strings.Contains(body, "cerbos-poc") {
+	if body := response.Body.String(); !strings.Contains(body, "tenant-a") {
 		t.Errorf("body = %q, want the configured issuer", body)
 	}
 }
@@ -124,7 +124,7 @@ func consoleHandler(t *testing.T, adsAddr string) http.Handler {
 			Dir:     dir,
 			ADSAddr: adsAddr,
 			Environment: console.Environment{
-				OIDCIssuer:   "http://localhost:8081/realms/cerbos-poc",
+				OIDCIssuer:   "http://localhost:8081/realms/tenant-a",
 				OIDCClientID: "patient-app",
 			},
 		},

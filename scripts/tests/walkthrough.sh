@@ -33,7 +33,7 @@ ADS_URL="${BASE}/api/ads"
 
 # The demo installation, as seeded by libs/assignmentstore/demoseed.
 TENANT="${WALKTHROUGH_TENANT:-tenant-a}"
-ROLE="${WALKTHROUGH_ROLE:-kc:cerbos-poc:patient-app:doctor}"
+ROLE="${WALKTHROUGH_ROLE:-kc:tenant-a:patient-app:doctor}"
 # The permission the walkthrough grants. The demo matrix deliberately leaves
 # it off, so patient.route.details - which needs it - starts denied and the
 # grant is visible rather than a no-op.

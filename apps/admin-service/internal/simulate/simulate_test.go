@@ -16,7 +16,7 @@ import (
 func adminOf(tenant, hospital string) tokenauth.Identity {
 	return tokenauth.Identity{
 		PrincipalID: "admin-1", TenantID: tenant, HospitalID: hospital,
-		Roles: []string{"kc:cerbos-poc:patient-app:administrator"}, RawToken: "admin-token",
+		Roles: []string{"kc:tenant-a:patient-app:administrator"}, RawToken: "admin-token",
 	}
 }
 
@@ -54,7 +54,7 @@ const accessBody = `{
   "tenantId": "tenant-a",
   "hospitalId": "hospital-1",
   "principalId": "user-doctor",
-  "idpRoles": ["kc:cerbos-poc:patient-app:doctor"],
+  "idpRoles": ["kc:tenant-a:patient-app:doctor"],
   "resource": {"kind": "patient_record", "id": "patient-456", "attributes": {"status": "ACTIVE"}},
   "action": "read"
 }`
@@ -139,7 +139,7 @@ const capabilitiesBody = `{
   "tenantId": "tenant-a",
   "hospitalId": "hospital-1",
   "principalId": "user-doctor",
-  "idpRoles": ["kc:cerbos-poc:patient-app:doctor"],
+  "idpRoles": ["kc:tenant-a:patient-app:doctor"],
   "sampleAttributes": {"patient": {"status": "ACTIVE"}}
 }`
 

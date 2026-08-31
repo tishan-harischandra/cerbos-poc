@@ -21,6 +21,8 @@ require (
 
 replace github.com/tishan-harischandra/cerbos-poc/libs/assignmentstore => ../../../assignmentstore
 
+replace github.com/tishan-harischandra/cerbos-poc/libs/tenantregistry => ../../../tenantregistry
+
 replace github.com/tishan-harischandra/cerbos-poc/libs/keycloakbulkload => ../..
 
 replace github.com/tishan-harischandra/cerbos-poc/libs/loadmodel => ../../../loadmodel

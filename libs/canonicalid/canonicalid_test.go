@@ -17,13 +17,13 @@ func TestTheCanonicalFormatsAreTheOnesSection75Specifies(t *testing.T) {
 	}{
 		{
 			name: "a Keycloak realm role",
-			got:  canonicalid.KeycloakRealmRole("cerbos-poc", "auditor"),
-			want: "kc:cerbos-poc:realm:auditor",
+			got:  canonicalid.KeycloakRealmRole("tenant-a", "auditor"),
+			want: "kc:tenant-a:realm:auditor",
 		},
 		{
 			name: "a Keycloak client role",
-			got:  canonicalid.KeycloakClientRole("cerbos-poc", "patient-app", "doctor"),
-			want: "kc:cerbos-poc:patient-app:doctor",
+			got:  canonicalid.KeycloakClientRole("tenant-a", "patient-app", "doctor"),
+			want: "kc:tenant-a:patient-app:doctor",
 		},
 		{
 			name: "a WSO2 role or group",
@@ -57,8 +57,8 @@ func TestReservedRolesAreRecognisedWhateverTheirCase(t *testing.T) {
 
 func TestAnOrdinaryRoleIsNotReserved(t *testing.T) {
 	ordinary := []string{
-		"kc:cerbos-poc:patient-app:doctor",
-		"kc:cerbos-poc:realm:auditor",
+		"kc:tenant-a:patient-app:doctor",
+		"kc:tenant-a:realm:auditor",
 		"wso2:carbon.super:doctor",
 		"doctor",
 		"",

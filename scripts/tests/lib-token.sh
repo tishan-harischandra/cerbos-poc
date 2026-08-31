@@ -9,7 +9,7 @@
 # Source this file; it defines KEYCLOAK_URL, REALM and the helpers below.
 
 KEYCLOAK_URL="${KEYCLOAK_URL:-http://127.0.0.1:${KEYCLOAK_PORT:-8081}}"
-REALM="${IDP_REALM:-cerbos-poc}"
+REALM="${IDP_REALM:-tenant-a}"
 DEMO_PASSWORD="${KEYCLOAK_DEMO_PASSWORD:-demo-password}"
 
 # token_for <username> [client-id] [realm]

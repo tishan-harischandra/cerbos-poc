@@ -21,6 +21,7 @@ use (
 ./libs/permissioncontext
 ./libs/permissionevents
 ./libs/policyrelease
+./libs/tenantregistry
 ./libs/tokenverifier
 ./tests/architecture
 )

@@ -77,7 +77,7 @@ Then follow it in the browser:
 1. **Open the Admin Console** at <http://localhost:4200> and log in as
    `user-admin` / `demo-password`. The landing screen is the role matrix.
 2. **Find the role.** Search for `doctor` and select it. Its canonical
-   identifier is `kc:cerbos-poc:patient-app:doctor` - the same string the
+   identifier is `kc:tenant-a:patient-app:doctor` - the same string the
    authorization database is keyed by and a token normalises to (§7.5).
 3. **Open the Business UI** at <http://localhost:4201> in a second tab and
    click into patient `patient-456`. The patient detail route is denied: the

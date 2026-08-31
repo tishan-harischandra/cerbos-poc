@@ -137,9 +137,67 @@ func FromEnv(lookup LookupFunc) (Config, error) {
 	if !ok || reference == "" {
 		return Config{}, fmt.Errorf("%s is required: it names the file the service account secret is mounted at", EnvCredentialsSecretRef)
 	}
-	contents, err := os.ReadFile(reference)
+	return finish(cfg, reference)
+}
+
+// Tenant is the identity fields the provider package needs for one tenant
+// registry row (issue #76): what libs/tenantregistry validates and
+// assignmentstore.Store.Tenant reads back. Defined here rather than
+// importing assignmentstore, so this package - the composition root for
+// adapters - never becomes a database client too.
+type Tenant struct {
+	Realm               string
+	Issuer              string
+	BrowserClientID     string
+	ServiceClientID     string
+	CredentialSecretRef string
+}
+
+// ConfigFromTenant builds a Config from one tenant registry row (issue
+// #76) instead of IDP_REALM/IDP_TENANT_ID/IDP_ISSUER/IDP_CLIENT_ID/
+// IDP_SERVICE_CLIENT_ID/IDP_CREDENTIALS_SECRET_REF. Adapter-level settings
+// that describe how this installation talks to the identity provider
+// product - Type, BaseURL, TenantMappingMode, RoleSource,
+// WSO2TenantDomain - still come from the environment: they are not who the
+// tenant is, so they do not belong in the registry.
+//
+// TenantID is the realm verbatim (§7.1): there is no separate tenant_id
+// column and no mapping layer.
+func ConfigFromTenant(lookup LookupFunc, tenant Tenant) (Config, error) {
+	cfg := Config{
+		Type:              Type(valueOr(lookup, EnvType, string(TypeKeycloak))),
+		BaseURL:           strings.TrimRight(valueOr(lookup, EnvBaseURL, ""), "/"),
+		Realm:             tenant.Realm,
+		TenantID:          idpdirectory.TenantID(tenant.Realm),
+		TenantMappingMode: tokenverifier.TenantMappingMode(valueOr(lookup, EnvTenantMappingMode, string(tokenverifier.TenantMappingClaim))),
+		RoleSource:        tokenverifier.RoleSource(valueOr(lookup, EnvRoleSource, string(tokenverifier.RoleSourceClient))),
+		ClientID:          tenant.BrowserClientID,
+		ServiceClientID:   tenant.ServiceClientID,
+		Issuer:            strings.TrimRight(tenant.Issuer, "/"),
+		WSO2TenantDomain:  valueOr(lookup, EnvWSO2TenantDomain, ""),
+	}
+
+	switch {
+	case cfg.BaseURL == "":
+		return Config{}, fmt.Errorf("%s is required", EnvBaseURL)
+	case cfg.Realm == "":
+		return Config{}, errors.New("the tenant registry row has no realm")
+	case cfg.ClientID == "":
+		return Config{}, errors.New("the tenant registry row has no browser client id")
+	}
+
+	if tenant.CredentialSecretRef == "" {
+		return Config{}, errors.New("the tenant registry row has no credential secret ref")
+	}
+	return finish(cfg, tenant.CredentialSecretRef)
+}
+
+// finish reads the service account secret and applies the defaults common
+// to both FromEnv and ConfigFromTenant.
+func finish(cfg Config, credentialSecretRef string) (Config, error) {
+	contents, err := os.ReadFile(credentialSecretRef)
 	if err != nil {
-		return Config{}, fmt.Errorf("reading the identity provider credentials from %s: %w", EnvCredentialsSecretRef, err)
+		return Config{}, fmt.Errorf("reading the identity provider credentials from %s: %w", credentialSecretRef, err)
 	}
 	// Trailing whitespace is what an editor or `echo` leaves behind, and a
 	// secret that fails only when written by hand is an unfindable bug.

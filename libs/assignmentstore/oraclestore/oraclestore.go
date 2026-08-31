@@ -962,6 +962,72 @@ func (s *Store) InstallationConfig(ctx context.Context, installationID string) (
 	return config, true, nil
 }
 
+// SaveTenant inserts or updates one tenant registry row.
+func (s *Store) SaveTenant(ctx context.Context, tenant assignmentstore.Tenant) error {
+	const statement = `
+		MERGE INTO tenant_registry t
+		USING (SELECT :1 AS realm FROM dual) s
+		ON (t.realm = s.realm)
+		WHEN MATCHED THEN UPDATE SET
+			issuer = :2, browser_client_id = :3, service_client_id = :4, credential_secret_ref = :5
+		WHEN NOT MATCHED THEN INSERT (
+			realm, issuer, browser_client_id, service_client_id, credential_secret_ref)
+		VALUES (s.realm, :6, :7, :8, :9)`
+
+	_, err := s.db.ExecContext(ctx, statement,
+		tenant.Realm,
+		tenant.Issuer, tenant.BrowserClientID, tenant.ServiceClientID, tenant.CredentialSecretRef,
+		tenant.Issuer, tenant.BrowserClientID, tenant.ServiceClientID, tenant.CredentialSecretRef)
+	if err != nil {
+		return fmt.Errorf("oraclestore: saving the tenant registry row: %w", err)
+	}
+	return nil
+}
+
+// Tenant reads one tenant registry row by realm.
+func (s *Store) Tenant(ctx context.Context, realm string) (assignmentstore.Tenant, bool, error) {
+	const query = `
+		SELECT issuer, browser_client_id, service_client_id, credential_secret_ref
+		FROM tenant_registry WHERE realm = :1`
+
+	tenant := assignmentstore.Tenant{Realm: realm}
+	err := s.db.QueryRowContext(ctx, query, realm).Scan(
+		&tenant.Issuer, &tenant.BrowserClientID, &tenant.ServiceClientID, &tenant.CredentialSecretRef)
+	if errors.Is(err, sql.ErrNoRows) {
+		return assignmentstore.Tenant{}, false, nil
+	}
+	if err != nil {
+		return assignmentstore.Tenant{}, false, fmt.Errorf("oraclestore: reading the tenant registry row: %w", err)
+	}
+	return tenant, true, nil
+}
+
+// Tenants lists every registered realm.
+func (s *Store) Tenants(ctx context.Context) ([]assignmentstore.Tenant, error) {
+	const query = `
+		SELECT realm, issuer, browser_client_id, service_client_id, credential_secret_ref
+		FROM tenant_registry ORDER BY realm`
+
+	rows, err := s.db.QueryContext(ctx, query)
+	if err != nil {
+		return nil, fmt.Errorf("oraclestore: listing the tenant registry: %w", err)
+	}
+	defer rows.Close()
+
+	var tenants []assignmentstore.Tenant
+	for rows.Next() {
+		var tenant assignmentstore.Tenant
+		if err := rows.Scan(&tenant.Realm, &tenant.Issuer, &tenant.BrowserClientID, &tenant.ServiceClientID, &tenant.CredentialSecretRef); err != nil {
+			return nil, fmt.Errorf("oraclestore: scanning a tenant registry row: %w", err)
+		}
+		tenants = append(tenants, tenant)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("oraclestore: listing the tenant registry: %w", err)
+	}
+	return tenants, nil
+}
+
 // SaveResource inserts or updates one business resource.
 func (s *Store) SaveResource(ctx context.Context, resource assignmentstore.Resource) error {
 	const statement = `

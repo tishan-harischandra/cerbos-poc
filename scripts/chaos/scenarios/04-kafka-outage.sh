@@ -10,7 +10,7 @@ source "${repo_root}/scripts/chaos/lib.sh"
 source "${repo_root}/scripts/tests/lib-token.sh"
 
 admin_url="http://127.0.0.1:${ADMIN_CONSOLE_PORT}/api/admin/authz/tenants/tenant-a"
-role="kc:cerbos-poc:patient-app:auditor"
+role="kc:tenant-a:patient-app:auditor"
 result=0
 
 token="$(token_for user-admin)"

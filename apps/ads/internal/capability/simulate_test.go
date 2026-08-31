@@ -51,7 +51,7 @@ const simulateCapabilitiesRequest = `{
   "tenantId": "tenant-a",
   "hospitalId": "hospital-1",
   "principalId": "user-doctor",
-  "idpRoles": ["kc:cerbos-poc:patient-app:doctor"],
+  "idpRoles": ["kc:tenant-a:patient-app:doctor"],
   "sampleAttributes": {
     "patient": {"status": "ACTIVE"}
   }
@@ -184,7 +184,7 @@ func TestSimulateCapabilitiesRejectsASimulatedReservedRole(t *testing.T) {
 	})
 
 	req := strings.Replace(simulateCapabilitiesRequest,
-		`["kc:cerbos-poc:patient-app:doctor"]`, `["sys:permission-evaluator"]`, 1)
+		`["kc:tenant-a:patient-app:doctor"]`, `["sys:permission-evaluator"]`, 1)
 
 	rec := httptest.NewRecorder()
 	handler.ServeHTTP(rec, simulateCapabilitiesPost(t, req))

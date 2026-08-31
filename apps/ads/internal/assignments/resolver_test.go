@@ -107,12 +107,12 @@ func doctorQuery(roles ...string) authz.AssignmentQuery {
 func TestASeededRoleGrantResolvesToARoleGrantedAction(t *testing.T) {
 	matrix := &recordingMatrix{
 		permissions: []assignmentstore.RolePermission{
-			grant("tenant-a", "kc:cerbos-poc:patient-app:doctor", "read", true),
+			grant("tenant-a", "kc:tenant-a:patient-app:doctor", "read", true),
 		},
 	}
 
 	input, err := newResolver(matrix).For(context.Background(),
-		doctorQuery("kc:cerbos-poc:patient-app:doctor"))
+		doctorQuery("kc:tenant-a:patient-app:doctor"))
 	if err != nil {
 		t.Fatalf("For: %v", err)
 	}
@@ -129,12 +129,12 @@ func TestASeededRoleGrantResolvesToARoleGrantedAction(t *testing.T) {
 func TestADisabledRolePermissionGrantsNothingAndRevokesNothing(t *testing.T) {
 	matrix := &recordingMatrix{
 		permissions: []assignmentstore.RolePermission{
-			grant("tenant-a", "kc:cerbos-poc:patient-app:doctor", "delete", false),
+			grant("tenant-a", "kc:tenant-a:patient-app:doctor", "delete", false),
 		},
 	}
 
 	input, err := newResolver(matrix).For(context.Background(),
-		doctorQuery("kc:cerbos-poc:patient-app:doctor"))
+		doctorQuery("kc:tenant-a:patient-app:doctor"))
 	if err != nil {
 		t.Fatalf("For: %v", err)
 	}
@@ -158,7 +158,7 @@ func TestTheValidityWindowIsJudgedAtTheInstantOfTheDecision(t *testing.T) {
 	matrix := &recordingMatrix{}
 
 	if _, err := newResolver(matrix).For(context.Background(),
-		doctorQuery("kc:cerbos-poc:patient-app:doctor")); err != nil {
+		doctorQuery("kc:tenant-a:patient-app:doctor")); err != nil {
 		t.Fatalf("For: %v", err)
 	}
 
@@ -175,12 +175,12 @@ func TestTheValidityWindowIsJudgedAtTheInstantOfTheDecision(t *testing.T) {
 func TestTheMatrixIsQueriedForTheCallersTenantAndResourceOnly(t *testing.T) {
 	matrix := &recordingMatrix{
 		permissions: []assignmentstore.RolePermission{
-			grant("tenant-b", "kc:cerbos-poc:patient-app:doctor", "read", true),
+			grant("tenant-b", "kc:tenant-a:patient-app:doctor", "read", true),
 		},
 	}
 
 	input, err := newResolver(matrix).For(context.Background(),
-		doctorQuery("kc:cerbos-poc:patient-app:doctor"))
+		doctorQuery("kc:tenant-a:patient-app:doctor"))
 	if err != nil {
 		t.Fatalf("For: %v", err)
 	}
@@ -202,7 +202,7 @@ func TestManyRolesCostABoundedNumberOfQueries(t *testing.T) {
 	roles := make([]string, 0, 70)
 	permissions := make([]assignmentstore.RolePermission, 0, 70)
 	for index := range 70 {
-		role := fmt.Sprintf("kc:cerbos-poc:patient-app:role-%02d", index)
+		role := fmt.Sprintf("kc:tenant-a:patient-app:role-%02d", index)
 		roles = append(roles, role)
 		permissions = append(permissions, grant("tenant-a", role, fmt.Sprintf("action-%02d", index), true))
 	}
@@ -236,7 +236,7 @@ func TestTheResolvedRevisionIsTheTenantsCurrentRevision(t *testing.T) {
 	}
 
 	input, err := newResolver(matrix).For(context.Background(),
-		doctorQuery("kc:cerbos-poc:patient-app:doctor"))
+		doctorQuery("kc:tenant-a:patient-app:doctor"))
 	if err != nil {
 		t.Fatalf("For: %v", err)
 	}
@@ -251,7 +251,7 @@ func TestATenantWithNoSavedMatrixResolvesToRevisionZero(t *testing.T) {
 	matrix := &recordingMatrix{}
 
 	input, err := newResolver(matrix).For(context.Background(),
-		doctorQuery("kc:cerbos-poc:patient-app:doctor"))
+		doctorQuery("kc:tenant-a:patient-app:doctor"))
 	if err != nil {
 		t.Fatalf("For: %v", err)
 	}
@@ -265,7 +265,7 @@ func TestATenantWithNoSavedMatrixResolvesToRevisionZero(t *testing.T) {
 func TestAPrincipalWithNoRolesResolvesToNoPermissions(t *testing.T) {
 	matrix := &recordingMatrix{
 		permissions: []assignmentstore.RolePermission{
-			grant("tenant-a", "kc:cerbos-poc:patient-app:doctor", "read", true),
+			grant("tenant-a", "kc:tenant-a:patient-app:doctor", "read", true),
 		},
 	}
 
@@ -286,13 +286,13 @@ func TestAPrincipalWithNoRolesResolvesToNoPermissions(t *testing.T) {
 func TestABlankOrRepeatedRoleClaimNeverReachesTheQuery(t *testing.T) {
 	matrix := &recordingMatrix{}
 
-	query := doctorQuery("kc:cerbos-poc:patient-app:doctor", "", "kc:cerbos-poc:patient-app:doctor")
+	query := doctorQuery("kc:tenant-a:patient-app:doctor", "", "kc:tenant-a:patient-app:doctor")
 	if _, err := newResolver(matrix).For(context.Background(), query); err != nil {
 		t.Fatalf("For: %v", err)
 	}
 
 	asked := matrix.queries[0].RoleExternalIDs
-	if len(asked) != 1 || asked[0] != "kc:cerbos-poc:patient-app:doctor" {
+	if len(asked) != 1 || asked[0] != "kc:tenant-a:patient-app:doctor" {
 		t.Errorf("the matrix was asked for %v, want the one role once", asked)
 	}
 }
@@ -304,7 +304,7 @@ func TestAnUnreachableMatrixIsAnErrorRatherThanAnEmptyResult(t *testing.T) {
 	matrix := &recordingMatrix{err: errors.New("connection refused")}
 
 	if _, err := newResolver(matrix).For(context.Background(),
-		doctorQuery("kc:cerbos-poc:patient-app:doctor")); err == nil {
+		doctorQuery("kc:tenant-a:patient-app:doctor")); err == nil {
 		t.Fatal("For returned no error when the matrix was unreachable")
 	}
 }

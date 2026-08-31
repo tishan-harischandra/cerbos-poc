@@ -19,7 +19,7 @@ func TestAVerifiedTokenPutsTheIdentityInTheRequestContext(t *testing.T) {
 		Subject:    "user-doctor",
 		TenantID:   "tenant-a",
 		HospitalID: "hospital-1",
-		Roles:      []string{"kc:cerbos-poc:patient-app:doctor"},
+		Roles:      []string{"kc:tenant-a:patient-app:doctor"},
 	}}}, http.HandlerFunc(func(_ http.ResponseWriter, r *http.Request) {
 		identity, ok := tokenauth.From(r.Context())
 		if !ok {
@@ -40,7 +40,7 @@ func TestAVerifiedTokenPutsTheIdentityInTheRequestContext(t *testing.T) {
 	if seen.TenantID != "tenant-a" || seen.HospitalID != "hospital-1" {
 		t.Errorf("tenant/hospital = %q/%q, want tenant-a/hospital-1", seen.TenantID, seen.HospitalID)
 	}
-	if len(seen.Roles) != 1 || seen.Roles[0] != "kc:cerbos-poc:patient-app:doctor" {
+	if len(seen.Roles) != 1 || seen.Roles[0] != "kc:tenant-a:patient-app:doctor" {
 		t.Errorf("Roles = %v, want the token's canonical roles", seen.Roles)
 	}
 }

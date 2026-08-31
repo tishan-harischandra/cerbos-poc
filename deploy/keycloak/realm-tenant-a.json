@@ -1,5 +1,5 @@
 {
-  "realm": "cerbos-poc",
+  "realm": "tenant-a",
   "enabled": true,
   "sslRequired": "none",
   "registrationAllowed": false,
@@ -88,7 +88,7 @@
     {
       "clientId": "reporting-app",
       "name": "Reporting application",
-      "description": "A second client, present so the audience check has something real to reject. A token minted here is valid, signed by this realm, and still not for the ADS.",
+      "description": "A second client, present so the audience check has something real to reject. fullScopeAllowed is pinned false so the roles scope's audience-resolve mapper cannot fold patient-app into this token too.",
       "enabled": true,
       "publicClient": true,
       "standardFlowEnabled": true,
@@ -96,6 +96,7 @@
       "serviceAccountsEnabled": false,
       "redirectUris": [],
       "webOrigins": [],
+      "fullScopeAllowed": false,
       "defaultClientScopes": ["basic", "web-origins", "profile", "roles", "email"],
       "protocolMappers": [
         {

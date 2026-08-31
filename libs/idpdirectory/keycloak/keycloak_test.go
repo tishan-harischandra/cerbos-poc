@@ -19,7 +19,7 @@ import (
 )
 
 const (
-	realm    = "cerbos-poc"
+	realm    = "tenant-a"
 	clientID = "patient-app"
 	tenant   = idpdirectory.TenantID("tenant-a")
 )
@@ -59,12 +59,12 @@ func TestUserSearchAsksKeycloakForTheRequestedWindowAndReportsMore(t *testing.T)
 	if !page.HasMore {
 		t.Error("HasMore = false, want true: 90 users remain after this window")
 	}
-	if got := fake.lastQuery("/admin/realms/cerbos-poc/users"); got.Get("first") != "20" || got.Get("max") != "11" {
+	if got := fake.lastQuery("/admin/realms/tenant-a/users"); got.Get("first") != "20" || got.Get("max") != "11" {
 		// max is one more than the window: the extra row is how HasMore is
 		// answered without a second count query on the hot path.
 		t.Errorf("user query = %v, want first=20 and max=11", got)
 	}
-	if got := fake.lastQuery("/admin/realms/cerbos-poc/users").Get("search"); got != "doctor" {
+	if got := fake.lastQuery("/admin/realms/tenant-a/users").Get("search"); got != "doctor" {
 		t.Errorf("search = %q, want the caller's query", got)
 	}
 }
@@ -264,12 +264,12 @@ func TestRuntimeRolesComeFromTheVerifiedTokenWithoutCallingKeycloak(t *testing.T
 	roles, err := fake.directory(t).ResolveRuntimeRoles(context.Background(), tokenverifier.VerifiedToken{
 		Subject:  "user-doctor",
 		TenantID: "tenant-a",
-		Roles:    []string{"kc:cerbos-poc:patient-app:doctor"},
+		Roles:    []string{"kc:tenant-a:patient-app:doctor"},
 	}, tenant)
 	if err != nil {
 		t.Fatalf("ResolveRuntimeRoles: %v", err)
 	}
-	if len(roles) != 1 || roles[0] != "kc:cerbos-poc:patient-app:doctor" {
+	if len(roles) != 1 || roles[0] != "kc:tenant-a:patient-app:doctor" {
 		t.Errorf("roles = %v, want the token's canonical roles", roles)
 	}
 	if got := fake.adminRequests.Load(); got != 0 {
@@ -285,7 +285,7 @@ func TestRuntimeRolesForATokenFromAnotherTenantAreRefused(t *testing.T) {
 	_, err := fake.directory(t).ResolveRuntimeRoles(context.Background(), tokenverifier.VerifiedToken{
 		Subject:  "user-doctor",
 		TenantID: "tenant-b",
-		Roles:    []string{"kc:cerbos-poc:patient-app:doctor"},
+		Roles:    []string{"kc:tenant-a:patient-app:doctor"},
 	}, tenant)
 	if !errors.Is(err, idpdirectory.ErrUnknownTenant) {
 		t.Errorf("ResolveRuntimeRoles error = %v, want %v", err, idpdirectory.ErrUnknownTenant)

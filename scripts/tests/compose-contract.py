@@ -84,7 +84,7 @@ def check_identity_provider(services: dict) -> None:
     check("keycloak imports a realm rather than being configured by hand",
           "--import-realm" in (keycloak.get("command") or []))
 
-    realm_import = REPO_ROOT / "deploy" / "keycloak" / "realm-cerbos-poc.json"
+    realm_import = REPO_ROOT / "deploy" / "keycloak" / "realm-tenant-a.json"
     check("the realm import exists", realm_import.exists())
     if realm_import.exists():
         realm = json.loads(realm_import.read_text())
@@ -112,10 +112,13 @@ def check_identity_provider(services: dict) -> None:
           (ads.get("depends_on") or {}).get("keycloak", {}).get("condition") == "service_healthy")
     check("the ads is told which identity provider to use", "IDP_TYPE" in environment)
 
-    # §7.1's credentialsSecretRef. A secret passed by value would be readable
-    # through `docker inspect` and inherited by every child process.
+    # §7.1's credentialSecretRef, now the tenant registry's own column
+    # (issue #76): the path travels as a bind mount, and the ads reads the
+    # secret from that path at runtime, never from its own environment. A
+    # secret passed by value in the environment would be readable through
+    # `docker inspect` and inherited by every child process.
     check("the ads reads the service account secret by reference, not by value",
-          "IDP_CREDENTIALS_SECRET_REF" in environment
+          any("idp-admin-credentials" in str(volume) for volume in (ads.get("volumes") or []))
           and not any(key.endswith("CLIENT_SECRET") for key in environment))
 
     # The Administration Service is the browser-facing surface now (ADR-008):
@@ -183,9 +186,15 @@ def main() -> int:
         "the admin console is published to the host",
         bool(services["admin-service"].get("ports")),
     )
+    # The console's login configuration defaults to the tenant registry's
+    # own issuer and browser client (issue #76): OIDC_ISSUER is now an
+    # optional override for a browser reaching this deployment by an
+    # address the registry does not know about, so the compose-level
+    # contract is that the service can reach the registry, not that the
+    # override is set.
     check(
-        "the administration service is told how to log a human in",
-        "OIDC_ISSUER" in (services["admin-service"].get("environment") or {}),
+        "the administration service can resolve login configuration from the tenant registry",
+        console_deps.get("postgres", {}).get("condition") == "service_healthy",
     )
     check(
         "postgres data lives on a named volume so 'make clean' can remove it",

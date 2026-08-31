@@ -98,12 +98,14 @@ func FromEnv(lookup LookupFunc) Config {
 		HighRiskOverrideValidity: durationOr(lookup, "USER_OVERRIDE_HIGH_RISK_VALIDITY", 90*24*time.Hour),
 
 		ConsoleDir: valueOr(lookup, "ADMIN_CONSOLE_DIR", "/admin-console"),
-		// The issuer the browser is redirected to, which is the
-		// published address rather than the compose-internal one - the
-		// same distinction IDP_ISSUER already draws for token
-		// verification, and the same value.
-		OIDCIssuer:   valueOr(lookup, "OIDC_ISSUER", valueOr(lookup, "IDP_ISSUER", "http://localhost:8081/realms/cerbos-poc")),
-		OIDCClientID: valueOr(lookup, "OIDC_CLIENT_ID", valueOr(lookup, "IDP_CLIENT_ID", "patient-app")),
+		// The issuer the browser is redirected to, which is the published
+		// address rather than the compose-internal one. Left empty here
+		// means the tenant registry's issuer and browser client (issue
+		// #76) apply, unchanged: an explicit OIDC_ISSUER/OIDC_CLIENT_ID
+		// override is for a browser reaching this deployment by an
+		// address the registry does not know about.
+		OIDCIssuer:   valueOr(lookup, "OIDC_ISSUER", ""),
+		OIDCClientID: valueOr(lookup, "OIDC_CLIENT_ID", ""),
 	}
 }
 

@@ -80,7 +80,7 @@ func run() error {
 	if dbDSN == "" {
 		return fmt.Errorf("KEYCLOAK_LOADTEST_DB_DSN is not set")
 	}
-	realm := envOr("KEYCLOAK_LOADTEST_REALM", "cerbos-poc-loadtest")
+	realm := envOr("KEYCLOAK_LOADTEST_REALM", "tenant-a-loadtest")
 	clientID := envOr("KEYCLOAK_LOADTEST_CLIENT_ID", "patient-app")
 	password := envOr("LOADSEED_PASSWORD", "Load-Test-Only-P@ss1")
 
