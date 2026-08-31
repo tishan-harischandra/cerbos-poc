@@ -84,6 +84,66 @@ func TestTheTenantSearchedIsTheOneInTheToken(t *testing.T) {
 	}
 }
 
+// A deployment serving more than one realm (issue #77) routes each request
+// to its own tenant's directory client, never a different tenant's.
+func TestASecondTenantIsRoutedToItsOwnDirectory(t *testing.T) {
+	tenantA := &recordingDirectory{}
+	tenantB := &recordingDirectory{
+		users: idpdirectory.Page[idpdirectory.UserRef]{
+			Items: []idpdirectory.UserRef{{ExternalID: "user-b", Username: "b-user"}},
+		},
+	}
+	handler := directoryapi.NewUsersHandler(directoryapi.Config{
+		Directories: map[string]idpdirectory.IdentityDirectory{
+			"tenant-a": tenantA,
+			"tenant-b": tenantB,
+		},
+	})
+
+	request := httptest.NewRequest(http.MethodGet, "/internal/directory/users", nil)
+	request = request.WithContext(tokenauth.WithIdentity(request.Context(), tokenauth.Identity{
+		PrincipalID: "user-admin",
+		TenantID:    "tenant-b",
+	}))
+
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, request)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, want %d: %s", rec.Code, http.StatusOK, rec.Body)
+	}
+	if tenantA.calls != 0 {
+		t.Error("tenant a's directory was searched for a tenant b request")
+	}
+	if tenantB.calls != 1 {
+		t.Errorf("tenant b's directory was searched %d times, want 1", tenantB.calls)
+	}
+}
+
+// A verified tenant with no configured directory is a server-side gap, not
+// a caller mistake: it fails the same way an unreachable directory would,
+// rather than leaking which tenants exist.
+func TestATenantWithNoConfiguredDirectoryFailsCleanly(t *testing.T) {
+	handler := directoryapi.NewUsersHandler(directoryapi.Config{
+		Directories: map[string]idpdirectory.IdentityDirectory{
+			"tenant-a": &recordingDirectory{},
+		},
+	})
+
+	request := httptest.NewRequest(http.MethodGet, "/internal/directory/users", nil)
+	request = request.WithContext(tokenauth.WithIdentity(request.Context(), tokenauth.Identity{
+		PrincipalID: "user-admin",
+		TenantID:    "tenant-c",
+	}))
+
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, request)
+
+	if rec.Code != http.StatusServiceUnavailable {
+		t.Fatalf("status = %d, want %d", rec.Code, http.StatusServiceUnavailable)
+	}
+}
+
 func TestTheTenantComesFromTheVerifiedIdentity(t *testing.T) {
 	directory := &recordingDirectory{}
 	handler := directoryapi.NewUsersHandler(directoryapi.Config{Directory: directory})

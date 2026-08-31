@@ -20,8 +20,26 @@ import (
 
 // Config holds the handlers' collaborators.
 type Config struct {
+	// Directory is the single-tenant directory client, kept for an
+	// installation with only one realm.
 	Directory idpdirectory.IdentityDirectory
-	Logger    *slog.Logger
+	// Directories is one directory client per realm (issue #77): a
+	// deployment serving more than one realm looks the caller's own
+	// verified tenant up here rather than reaching a directory bound to a
+	// different realm's service account. Directory is ignored when this is
+	// set.
+	Directories map[string]idpdirectory.IdentityDirectory
+	Logger      *slog.Logger
+}
+
+// directoryFor resolves the identity directory for the caller's own
+// verified tenant, never one named by request input.
+func directoryFor(cfg Config, tenantID string) (idpdirectory.IdentityDirectory, bool) {
+	if cfg.Directories != nil {
+		directory, ok := cfg.Directories[tenantID]
+		return directory, ok
+	}
+	return cfg.Directory, cfg.Directory != nil
 }
 
 type userPayload struct {
@@ -56,8 +74,13 @@ func NewUsersHandler(cfg Config) http.Handler {
 		if !ok {
 			return
 		}
+		directory, ok := directoryFor(cfg, identity.TenantID)
+		if !ok {
+			fail(w, logger, r, "searching users", errNoDirectoryForTenant(identity.TenantID))
+			return
+		}
 
-		found, err := cfg.Directory.SearchUsers(r.Context(),
+		found, err := directory.SearchUsers(r.Context(),
 			idpdirectory.TenantID(identity.TenantID),
 			idpdirectory.UserSearch{Query: r.URL.Query().Get("query"), Page: page})
 		if err != nil {
@@ -89,8 +112,13 @@ func NewRolesHandler(cfg Config) http.Handler {
 		if !ok {
 			return
 		}
+		directory, ok := directoryFor(cfg, identity.TenantID)
+		if !ok {
+			fail(w, logger, r, "searching roles", errNoDirectoryForTenant(identity.TenantID))
+			return
+		}
 
-		found, err := cfg.Directory.SearchRoles(r.Context(),
+		found, err := directory.SearchRoles(r.Context(),
 			idpdirectory.TenantID(identity.TenantID),
 			idpdirectory.RoleSearch{Query: r.URL.Query().Get("query"), Page: page})
 		if err != nil {
@@ -127,8 +155,14 @@ func NewUserRolesHandler(cfg Config) http.Handler {
 			return
 		}
 
+		directory, ok := directoryFor(cfg, identity.TenantID)
+		if !ok {
+			fail(w, logger, r, "reading a user's roles", errNoDirectoryForTenant(identity.TenantID))
+			return
+		}
+
 		externalID := r.PathValue("externalId")
-		roles, err := cfg.Directory.GetUserRoles(r.Context(),
+		roles, err := directory.GetUserRoles(r.Context(),
 			idpdirectory.TenantID(identity.TenantID), externalID)
 		if err != nil {
 			fail(w, logger, r, "reading a user's roles", err)
@@ -194,6 +228,14 @@ func pageOf(r *http.Request) (idpdirectory.PageRequest, error) {
 		page.Limit = limit
 	}
 	return page, nil
+}
+
+// errNoDirectoryForTenant means the caller's own verified tenant has no
+// configured directory client. This should not happen for a token that
+// verified at all, since every registered realm gets one, but it is a
+// server-side gap to log rather than a caller mistake to explain.
+func errNoDirectoryForTenant(tenantID string) error {
+	return errors.New("no identity directory is configured for tenant " + tenantID)
 }
 
 // fail logs the provider's own error and tells the caller nothing about it. The
