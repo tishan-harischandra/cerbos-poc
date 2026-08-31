@@ -7,6 +7,7 @@ configMapGenerator:
   - name: keycloak-realms
     files:
       - realm-tenant-a.json=../../../keycloak/realm-tenant-a.json
+      - realm-tenant-b.json=../../../keycloak/realm-tenant-b.json
       - realm-other-issuer.json=../../../keycloak/realm-other-issuer.json
 secretGenerator:
   - name: keycloak-credentials

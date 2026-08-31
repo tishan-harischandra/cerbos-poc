@@ -27,6 +27,10 @@ spec:
               mountPath: /run/secrets/idp-admin-credentials
               subPath: idp-admin-credentials
               readOnly: true
+            - name: idp-admin-credentials-tenant-b
+              mountPath: /run/secrets/idp-admin-credentials-tenant-b
+              subPath: idp-admin-credentials-tenant-b
+              readOnly: true
           ports:
             - name: http
               containerPort: 8080
@@ -55,3 +59,6 @@ spec:
         - name: idp-admin-credentials
           secret:
             secretName: idp-admin-credentials
+        - name: idp-admin-credentials-tenant-b
+          secret:
+            secretName: idp-admin-credentials-tenant-b

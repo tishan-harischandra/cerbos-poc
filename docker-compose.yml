@@ -98,6 +98,7 @@ services:
       KC_HEALTH_ENABLED: "true"
     volumes:
       - ./deploy/keycloak/realm-tenant-a.json:/opt/keycloak/data/import/realm-tenant-a.json:ro
+      - ./deploy/keycloak/realm-tenant-b.json:/opt/keycloak/data/import/realm-tenant-b.json:ro
       - ./deploy/keycloak/realm-other-issuer.json:/opt/keycloak/data/import/realm-other-issuer.json:ro
     ports:
       - "${KEYCLOAK_PORT:-8081}:8080"
@@ -231,7 +232,6 @@ services:
       IDP_TYPE: "${IDP_TYPE:-KEYCLOAK}"
       IDP_BASE_URL: "http://keycloak:8080"
       IDP_ADDR: "keycloak:8080"
-      IDP_TENANT_MAPPING_MODE: "${IDP_TENANT_MAPPING_MODE:-REALM}"
       IDP_ROLE_SOURCE: "${IDP_ROLE_SOURCE:-CLIENT}"
       # The capability snapshot endpoint (§12.3, issue #11) reads the same
       # committed capability catalog Cerbos itself reads its policies from.
@@ -239,7 +239,10 @@ services:
       CAPABILITY_CATALOG_REVISION: "${CAPABILITY_CATALOG_REVISION:-1}"
       ROOT_POLICY_REVISION: "${ROOT_POLICY_REVISION:-root-v1.4.0}"
     volumes:
+      # One mount per realm the tenant registry names (issue #77): each
+      # realm's own service account secret, never shared with another's.
       - ./deploy/secrets/idp-admin-credentials:/run/secrets/idp-admin-credentials:ro
+      - ./deploy/secrets/idp-admin-credentials-tenant-b:/run/secrets/idp-admin-credentials-tenant-b:ro
       - ./deploy/cerbos/catalog/ui-capabilities:/capability-catalog:ro
     depends_on:
       cerbos:
@@ -273,7 +276,6 @@ services:
       IDP_TYPE: "${IDP_TYPE:-KEYCLOAK}"
       IDP_BASE_URL: "http://keycloak:8080"
       IDP_ADDR: "keycloak:8080"
-      IDP_TENANT_MAPPING_MODE: "${IDP_TENANT_MAPPING_MODE:-REALM}"
       IDP_ROLE_SOURCE: "${IDP_ROLE_SOURCE:-CLIENT}"
       AUTHORIZATION_CATALOG_DIR: "/authorization-catalog"
       # The capability impact endpoint (§9.1, issue #18) reads the same
@@ -311,6 +313,7 @@ services:
       POLICY_ARCHIVE_STORE_DIR: "/var/lib/policy-controller/archives"
     volumes:
       - ./deploy/secrets/idp-admin-credentials:/run/secrets/idp-admin-credentials:ro
+      - ./deploy/secrets/idp-admin-credentials-tenant-b:/run/secrets/idp-admin-credentials-tenant-b:ro
       - ./deploy/cerbos/catalog/resources:/authorization-catalog:ro
       - ./deploy/cerbos/catalog/ui-capabilities:/capability-catalog:ro
       - policy-release-archives:/var/lib/policy-controller/archives:ro
@@ -353,10 +356,10 @@ services:
       IDP_TYPE: "${IDP_TYPE:-KEYCLOAK}"
       IDP_BASE_URL: "http://keycloak:8080"
       IDP_ADDR: "keycloak:8080"
-      IDP_TENANT_MAPPING_MODE: "${IDP_TENANT_MAPPING_MODE:-REALM}"
       IDP_ROLE_SOURCE: "${IDP_ROLE_SOURCE:-CLIENT}"
     volumes:
       - ./deploy/secrets/idp-admin-credentials:/run/secrets/idp-admin-credentials:ro
+      - ./deploy/secrets/idp-admin-credentials-tenant-b:/run/secrets/idp-admin-credentials-tenant-b:ro
     depends_on:
       ads:
         condition: service_healthy
