@@ -18,13 +18,21 @@ help: ## List the available targets
 
 .PHONY: up
 up: ## Build and start the whole control plane, waiting for health
-	$(COMPOSE) up --build --detach
-	bash scripts/compose-wait.sh
-	# The ADS reads the role matrix from the database, so the schema and the
-	# demo matrix have to be there before the stack can answer anything. Both
-	# steps are idempotent, so `make up` on a running stack is a no-op.
+	# Infrastructure first: the ADS, Admin Service and Resource Service now
+	# resolve their tenant from the tenant registry at startup (issue #76)
+	# and block until it is seeded, so they must not be waited on for
+	# health before migrate/seed/seed-tenants have had a chance to run.
+	$(COMPOSE) up --build --detach postgres keycloak cerbos redpanda
+	bash scripts/compose-wait.sh postgres keycloak cerbos redpanda
+	# The ADS reads the role matrix and the tenant registry from the
+	# database, so the schema and both seeds have to be there before the
+	# stack can answer anything. All three steps are idempotent, so `make
+	# up` on a running stack is a no-op.
 	$(MAKE) migrate
 	$(MAKE) seed
+	$(MAKE) seed-tenants
+	$(COMPOSE) up --build --detach
+	bash scripts/compose-wait.sh
 
 .PHONY: down
 down: ## Stop the control plane and remove its containers
@@ -134,6 +142,10 @@ loadtest: ## Full §15.3 k6 run at 1,000 VUs from a clean state (issue #25); LOA
 .PHONY: seed
 seed: ## Write the demo role matrix into the authorization database
 	bash scripts/seed.sh postgres
+
+.PHONY: seed-tenants
+seed-tenants: ## Write the tenant registry file into the authorization database (issue #76)
+	bash scripts/seed-tenants.sh postgres
 
 .PHONY: db-test
 db-test: ## Run the store contract against PostgreSQL

@@ -30,6 +30,7 @@ var Tables = []string{
 	"permission_audit_event",
 	"permission_revision",
 	"role_permission",
+	"tenant_registry",
 	"ui_capability_definition",
 	"user_permission_override",
 }
@@ -143,6 +144,12 @@ func Run(t *testing.T, newStore Factory) {
 	})
 	t.Run("SaveUserOverrideWrite stamps its audit event with the target user and the resource:action key", func(t *testing.T) {
 		assertSaveUserOverrideWriteAuditCarriesSearchDimensions(t, newStore(t))
+	})
+	t.Run("SaveTenant upserts a tenant registry row idempotently", func(t *testing.T) {
+		assertSaveTenantUpserts(t, newStore(t))
+	})
+	t.Run("Tenants lists every registered realm", func(t *testing.T) {
+		assertTenantsLists(t, newStore(t))
 	})
 }
 
@@ -2020,6 +2027,91 @@ func assertSaveUserOverrideWriteAuditCarriesSearchDimensions(t *testing.T, store
 		TenantID: "tenant-a", TargetUserID: "user-1", ActionKey: "delete",
 	}); err != nil || len(page) != 1 || page[0].EventID != "audit-dimensions-override-1" {
 		t.Errorf("searching by target user and action = %+v (err=%v), want exactly the event just written", page, err)
+	}
+}
+
+// SaveTenant (issue #76) has to be idempotent: seeding the registry file
+// runs every time this installation starts, not only on the first, so
+// calling it twice with a changed field must leave one row with the new
+// values rather than a duplicate or a stale one.
+func assertSaveTenantUpserts(t *testing.T, store assignmentstore.Store) {
+	t.Helper()
+	defer closeStore(t, store)
+	ctx := context.Background()
+	truncate(t, store, "tenant_registry")
+
+	if err := store.SaveTenant(ctx, assignmentstore.Tenant{
+		Realm:               "tenant-a",
+		Issuer:              "http://localhost:8081/realms/tenant-a",
+		BrowserClientID:     "patient-app",
+		ServiceClientID:     "authorization-admin-service",
+		CredentialSecretRef: "/secrets/tenant-a",
+	}); err != nil {
+		t.Fatalf("SaveTenant (insert): %v", err)
+	}
+
+	if err := store.SaveTenant(ctx, assignmentstore.Tenant{
+		Realm:               "tenant-a",
+		Issuer:              "http://localhost:8081/realms/tenant-a",
+		BrowserClientID:     "patient-app",
+		ServiceClientID:     "authorization-admin-service-v2",
+		CredentialSecretRef: "/secrets/tenant-a-v2",
+	}); err != nil {
+		t.Fatalf("SaveTenant (update): %v", err)
+	}
+
+	tenant, found, err := store.Tenant(ctx, "tenant-a")
+	if err != nil || !found {
+		t.Fatalf("reading the tenant back: found=%t err=%v", found, err)
+	}
+	if tenant.ServiceClientID != "authorization-admin-service-v2" || tenant.CredentialSecretRef != "/secrets/tenant-a-v2" {
+		t.Errorf("tenant = %+v, want the second SaveTenant's values in place, not a duplicate row", tenant)
+	}
+
+	tenants, err := store.Tenants(ctx)
+	if err != nil {
+		t.Fatalf("Tenants: %v", err)
+	}
+	if len(tenants) != 1 {
+		t.Errorf("Tenants = %+v, want exactly one row after two saves of the same realm", tenants)
+	}
+}
+
+// A realm that was never saved reads back not-found rather than a zero-value
+// tenant that could be mistaken for a real, empty registration.
+func assertTenantsLists(t *testing.T, store assignmentstore.Store) {
+	t.Helper()
+	defer closeStore(t, store)
+	ctx := context.Background()
+	truncate(t, store, "tenant_registry")
+
+	if _, found, err := store.Tenant(ctx, "tenant-nonexistent"); err != nil || found {
+		t.Fatalf("Tenant on an unsaved realm: found=%t err=%v, want found=false", found, err)
+	}
+
+	for _, realm := range []string{"tenant-a", "tenant-b"} {
+		if err := store.SaveTenant(ctx, assignmentstore.Tenant{
+			Realm:               realm,
+			Issuer:              "http://localhost:8081/realms/" + realm,
+			BrowserClientID:     "patient-app",
+			ServiceClientID:     "patient-app",
+			CredentialSecretRef: "/secrets/" + realm,
+		}); err != nil {
+			t.Fatalf("SaveTenant(%s): %v", realm, err)
+		}
+	}
+
+	tenants, err := store.Tenants(ctx)
+	if err != nil {
+		t.Fatalf("Tenants: %v", err)
+	}
+	var realms []string
+	for _, tenant := range tenants {
+		realms = append(realms, tenant.Realm)
+	}
+	sort.Strings(realms)
+	if !slices.Equal(realms, []string{"tenant-a", "tenant-b"}) {
+		t.Errorf("Tenants realms = %v, want [tenant-a tenant-b]", realms)
 	}
 }
 

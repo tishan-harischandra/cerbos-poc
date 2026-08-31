@@ -9,6 +9,11 @@
 # database contract suite reaches Postgres and Oracle: neither is published to
 # the host, so a test process outside the compose network cannot see them.
 # GO_ENV_PASS names extra environment variables to forward, space separated.
+# GO_EXTRA_MOUNTS names extra `-v` bind mounts, newline separated, each in
+# docker's own "host:container[:opts]" form. seed-tenants uses this so the
+# service account secret is readable at the exact path the tenant registry
+# row will name for the ADS/Admin Service/Resource Service containers to
+# read it back at (issue #76), not at this sandbox's own /workspace.
 set -euo pipefail
 
 GO_IMAGE="${GO_IMAGE:-docker.io/library/golang:1.25-alpine}"
@@ -59,10 +64,18 @@ for name in ${GO_ENV_PASS:-}; do
   fi
 done
 
+mount_args=()
+if [[ -n "${GO_EXTRA_MOUNTS:-}" ]]; then
+  while IFS= read -r mount; do
+    [[ -n "${mount}" ]] && mount_args+=(-v "${mount}")
+  done <<<"${GO_EXTRA_MOUNTS}"
+fi
+
 exec "${DOCKER}" run --rm \
   "${user_args[@]}" \
   "${network_args[@]}" \
   "${env_args[@]}" \
+  "${mount_args[@]}" \
   -v "${repo_root}:/workspace:z" \
   -v "${cache_dir}/build:/gocache:z" \
   -v "${cache_dir}/mod:/gomodcache:z" \

@@ -1,0 +1,43 @@
+databaseChangeLog:
+  - changeSet:
+      id: 012-tenant-registry
+      author: cerbos-poc
+      comment: >-
+        The tenant registry (§7.1, issue #76): every realm this installation
+        trusts, file-seeded and then the database of record. The realm is
+        the tenant identifier verbatim, so there is no separate tenant_id
+        column and no mapping layer.
+      changes:
+        - createTable:
+            tableName: tenant_registry
+            columns:
+              - column:
+                  name: realm
+                  type: VARCHAR(64)
+                  constraints:
+                    primaryKey: true
+                    primaryKeyName: pk_tenant_registry
+                    nullable: false
+              - column:
+                  name: issuer
+                  type: VARCHAR(255)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: browser_client_id
+                  type: VARCHAR(128)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: service_client_id
+                  type: VARCHAR(128)
+                  constraints:
+                    nullable: false
+              # By reference, never by value: this names where the service
+              # client's secret is mounted, the same as IDP_CREDENTIALS_SECRET_REF
+              # already does, so a row in this table is never itself a secret.
+              - column:
+                  name: credential_secret_ref
+                  type: VARCHAR(255)
+                  constraints:
+                    nullable: false

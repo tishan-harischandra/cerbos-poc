@@ -876,6 +876,70 @@ func (s *Store) InstallationConfig(ctx context.Context, installationID string) (
 	return config, true, nil
 }
 
+// SaveTenant inserts or updates one tenant registry row.
+func (s *Store) SaveTenant(ctx context.Context, tenant assignmentstore.Tenant) error {
+	const statement = `
+		INSERT INTO tenant_registry (
+			realm, issuer, browser_client_id, service_client_id, credential_secret_ref)
+		VALUES ($1, $2, $3, $4, $5)
+		ON CONFLICT (realm) DO UPDATE SET
+			issuer = EXCLUDED.issuer,
+			browser_client_id = EXCLUDED.browser_client_id,
+			service_client_id = EXCLUDED.service_client_id,
+			credential_secret_ref = EXCLUDED.credential_secret_ref`
+
+	_, err := s.pool.Exec(ctx, statement,
+		tenant.Realm, tenant.Issuer, tenant.BrowserClientID, tenant.ServiceClientID, tenant.CredentialSecretRef)
+	if err != nil {
+		return fmt.Errorf("postgresstore: saving the tenant registry row: %w", err)
+	}
+	return nil
+}
+
+// Tenant reads one tenant registry row by realm.
+func (s *Store) Tenant(ctx context.Context, realm string) (assignmentstore.Tenant, bool, error) {
+	const query = `
+		SELECT issuer, browser_client_id, service_client_id, credential_secret_ref
+		FROM tenant_registry WHERE realm = $1`
+
+	tenant := assignmentstore.Tenant{Realm: realm}
+	err := s.pool.QueryRow(ctx, query, realm).Scan(
+		&tenant.Issuer, &tenant.BrowserClientID, &tenant.ServiceClientID, &tenant.CredentialSecretRef)
+	if isNoRows(err) {
+		return assignmentstore.Tenant{}, false, nil
+	}
+	if err != nil {
+		return assignmentstore.Tenant{}, false, fmt.Errorf("postgresstore: reading the tenant registry row: %w", err)
+	}
+	return tenant, true, nil
+}
+
+// Tenants lists every registered realm.
+func (s *Store) Tenants(ctx context.Context) ([]assignmentstore.Tenant, error) {
+	const query = `
+		SELECT realm, issuer, browser_client_id, service_client_id, credential_secret_ref
+		FROM tenant_registry ORDER BY realm`
+
+	rows, err := s.pool.Query(ctx, query)
+	if err != nil {
+		return nil, fmt.Errorf("postgresstore: listing the tenant registry: %w", err)
+	}
+	defer rows.Close()
+
+	var tenants []assignmentstore.Tenant
+	for rows.Next() {
+		var tenant assignmentstore.Tenant
+		if err := rows.Scan(&tenant.Realm, &tenant.Issuer, &tenant.BrowserClientID, &tenant.ServiceClientID, &tenant.CredentialSecretRef); err != nil {
+			return nil, fmt.Errorf("postgresstore: scanning a tenant registry row: %w", err)
+		}
+		tenants = append(tenants, tenant)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("postgresstore: listing the tenant registry: %w", err)
+	}
+	return tenants, nil
+}
+
 // SaveResource inserts or updates one business resource.
 func (s *Store) SaveResource(ctx context.Context, resource assignmentstore.Resource) error {
 	const statement = `

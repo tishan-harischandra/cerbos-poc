@@ -280,6 +280,17 @@ type InstallationConfig struct {
 	ActiveRootTag  string
 }
 
+// Tenant is one row of the tenant registry (§7.1, issue #76): a realm this
+// installation trusts. The realm is the tenant identifier verbatim - there
+// is no separate tenant_id column and no mapping layer.
+type Tenant struct {
+	Realm               string
+	Issuer              string
+	BrowserClientID     string
+	ServiceClientID     string
+	CredentialSecretRef string
+}
+
 // Resource is one business resource the mandatory rules evaluate against.
 //
 // One polymorphic table rather than a table per FHIR type: the catalog runs to
@@ -405,6 +416,17 @@ type Store interface {
 
 	SaveInstallationConfig(ctx context.Context, config InstallationConfig) error
 	InstallationConfig(ctx context.Context, installationID string) (InstallationConfig, bool, error)
+
+	// SaveTenant upserts a tenant registry row (issue #76): calling it twice
+	// with the same Tenant leaves the same row, which is what lets seeding
+	// from the registry file run every time this installation starts rather
+	// than only on the first.
+	SaveTenant(ctx context.Context, tenant Tenant) error
+	Tenant(ctx context.Context, realm string) (Tenant, bool, error)
+	// Tenants lists every registered realm, in no particular order. A
+	// service that has not been told which realm to serve resolves it by
+	// reading this list rather than an environment variable.
+	Tenants(ctx context.Context) ([]Tenant, error)
 
 	SaveResource(ctx context.Context, resource Resource) error
 	Resource(ctx context.Context, resourceType, resourceID string) (Resource, bool, error)

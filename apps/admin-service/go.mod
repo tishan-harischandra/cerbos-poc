@@ -95,6 +95,8 @@ require (
 
 replace github.com/tishan-harischandra/cerbos-poc/libs/assignmentstore => ../../libs/assignmentstore
 
+replace github.com/tishan-harischandra/cerbos-poc/libs/tenantregistry => ../../libs/tenantregistry
+
 replace github.com/tishan-harischandra/cerbos-poc/libs/capabilitycatalog => ../../libs/capabilitycatalog
 
 replace github.com/tishan-harischandra/cerbos-poc/libs/cataloggen => ../../libs/cataloggen
