@@ -86,3 +86,48 @@ func TestSingleRejectsMoreThanOneTenantOnceContextExpires(t *testing.T) {
 		t.Fatal("Single accepted a registry with more than one tenant")
 	}
 }
+
+// A deployment that serves more than one realm (issue #77) reads every row,
+// rather than refusing to start the way Single does.
+func TestAllReturnsEveryTenant(t *testing.T) {
+	want := []assignmentstore.Tenant{{Realm: "tenant-a"}, {Realm: "tenant-b"}}
+	got, err := tenantresolve.All(context.Background(), &fakeLister{tenants: want})
+	if err != nil {
+		t.Fatalf("All: %v", err)
+	}
+	if len(got) != len(want) {
+		t.Fatalf("All = %+v, want %+v", got, want)
+	}
+}
+
+func TestAllRetriesUntilTheRegistryIsSeeded(t *testing.T) {
+	original := tenantresolve.PollInterval
+	tenantresolve.PollInterval = 5 * time.Millisecond
+	defer func() { tenantresolve.PollInterval = original }()
+
+	lister := &fakeLister{}
+	want := []assignmentstore.Tenant{{Realm: "tenant-a"}, {Realm: "tenant-b"}}
+	go func() {
+		time.Sleep(20 * time.Millisecond)
+		lister.set(want)
+	}()
+
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
+	got, err := tenantresolve.All(ctx, lister)
+	if err != nil {
+		t.Fatalf("All: %v", err)
+	}
+	if len(got) != len(want) {
+		t.Fatalf("All = %+v, want %+v", got, want)
+	}
+}
+
+func TestAllRejectsZeroTenantsOnceContextExpires(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Millisecond)
+	defer cancel()
+	_, err := tenantresolve.All(ctx, &fakeLister{})
+	if err == nil {
+		t.Fatal("All accepted an empty tenant registry")
+	}
+}

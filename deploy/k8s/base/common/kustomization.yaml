@@ -8,7 +8,10 @@
 # not here: it comes from the tenant registry (issue #76,
 # deploy/tenant-registry.yaml, seeded by scripts/seed-tenants.sh) instead
 # of IDP_REALM/IDP_TENANT_ID/IDP_ISSUER/IDP_CLIENT_ID/
-# IDP_SERVICE_CLIENT_ID/IDP_CREDENTIALS_SECRET_REF.
+# IDP_SERVICE_CLIENT_ID/IDP_CREDENTIALS_SECRET_REF, and every realm the
+# registry names is served by this same set of workloads (issue #77): there
+# is no installation-wide tenant mapping mode either, since every realm
+# derives its own tenant from itself.
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 configMapGenerator:
@@ -17,7 +20,6 @@ configMapGenerator:
       - IDP_TYPE=KEYCLOAK
       - IDP_BASE_URL=http://keycloak:8080
       - IDP_ADDR=keycloak:8080
-      - IDP_TENANT_MAPPING_MODE=REALM
       - IDP_ROLE_SOURCE=CLIENT
   # Which mechanism elects the singleton workloads (ADR-009). K8S_LEASE is
   # the natural choice here: the control plane already keeps Leases
@@ -37,6 +39,12 @@ secretGenerator:
   - name: idp-admin-credentials
     files:
       - idp-admin-credentials=../../../secrets/idp-admin-credentials
+  # tenant-b's own service-account credential (issue #77): a second,
+  # genuinely registered realm needs a secret distinct from tenant-a's, not
+  # a reused one.
+  - name: idp-admin-credentials-tenant-b
+    files:
+      - idp-admin-credentials-tenant-b=../../../secrets/idp-admin-credentials-tenant-b
   # The dev-only fixture credential compose defaults every DSN to
   # (POSTGRES_PASSWORD=change-me). A real deployment overlay would source
   # this from a cluster secret manager instead of a literal here.

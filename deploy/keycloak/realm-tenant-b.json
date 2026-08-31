@@ -1,0 +1,82 @@
+{
+  "realm": "tenant-b",
+  "displayName": "A second, genuinely registered tenant (issue #77): proves isolation from tenant-a is real, not merely the only realm ever tried",
+  "enabled": true,
+  "sslRequired": "none",
+  "registrationAllowed": false,
+  "loginWithEmailAllowed": true,
+  "accessTokenLifespan": 900,
+  "clients": [
+    {
+      "clientId": "patient-app",
+      "name": "Patient application",
+      "description": "The browser-facing client. Public, so it holds no secret, and it has no administrative permission of any kind.",
+      "enabled": true,
+      "publicClient": true,
+      "standardFlowEnabled": true,
+      "directAccessGrantsEnabled": true,
+      "serviceAccountsEnabled": false,
+      "redirectUris": ["http://localhost:4200/*", "http://127.0.0.1:4200/*"],
+      "webOrigins": ["http://localhost:4200", "http://127.0.0.1:4200"],
+      "defaultClientScopes": ["basic", "web-origins", "profile", "roles", "email"],
+      "protocolMappers": [
+        {
+          "name": "audience",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-audience-mapper",
+          "config": {
+            "included.client.audience": "patient-app",
+            "access.token.claim": "true"
+          }
+        }
+      ]
+    },
+    {
+      "clientId": "authorization-admin-service",
+      "name": "Authorization admin service",
+      "description": "tenant-b's own confidential service account, distinct from tenant-a's (issue #77's acceptance criterion that the second realm has its own service-account credentials). It is never used by a browser and never issued to one (7.3).",
+      "enabled": true,
+      "publicClient": false,
+      "standardFlowEnabled": false,
+      "directAccessGrantsEnabled": false,
+      "serviceAccountsEnabled": true,
+      "secret": "admin-service-secret-tenant-b",
+      "redirectUris": [],
+      "webOrigins": []
+    }
+  ],
+  "roles": {
+    "client": {
+      "patient-app": [
+        {
+          "name": "doctor",
+          "description": "Treating clinician"
+        }
+      ]
+    }
+  },
+  "users": [
+    {
+      "id": "user-doctor-b",
+      "username": "user-doctor-b",
+      "enabled": true,
+      "emailVerified": true,
+      "firstName": "Bailey",
+      "lastName": "Doctor",
+      "email": "bailey.doctor@tenant-b.example.test",
+      "attributes": {
+        "hospital_id": ["hospital-1"]
+      },
+      "credentials": [{ "type": "password", "value": "demo-password", "temporary": false }],
+      "clientRoles": { "patient-app": ["doctor"] }
+    },
+    {
+      "username": "service-account-authorization-admin-service",
+      "enabled": true,
+      "serviceAccountClientId": "authorization-admin-service",
+      "clientRoles": {
+        "realm-management": ["view-users", "query-users", "view-clients", "view-realm"]
+      }
+    }
+  ]
+}

@@ -32,8 +32,10 @@ import (
 	"github.com/tishan-harischandra/cerbos-poc/libs/assignmentstore/postgresstore"
 	"github.com/tishan-harischandra/cerbos-poc/libs/assignmentstore/tenantresolve"
 	"github.com/tishan-harischandra/cerbos-poc/libs/cerbosclient"
+	"github.com/tishan-harischandra/cerbos-poc/libs/idpdirectory"
 	"github.com/tishan-harischandra/cerbos-poc/libs/idpdirectory/provider"
 	"github.com/tishan-harischandra/cerbos-poc/libs/permissioncontext"
+	"github.com/tishan-harischandra/cerbos-poc/libs/tokenverifier"
 )
 
 // invalidationCaches presents the role-permission and user-override caches
@@ -135,43 +137,44 @@ func main() {
 	// handler below sees only the port, so switching provider is a change to
 	// IDP_TYPE rather than to any of this.
 	//
-	// The tenant (realm, issuer, client) is resolved from the tenant
-	// registry (issue #76) rather than IDP_REALM/IDP_TENANT_ID/IDP_ISSUER,
-	// so which tenant this installation serves is a database row, not a
-	// value that could disagree between this service and the registry.
+	// A deployment serves every realm the tenant registry names (issue
+	// #77), not just one: each realm gets its own directory client and its
+	// own token verifier, and a token's issuer - never a claim, never
+	// request input - selects which realm's verifier checks it.
 	tenantCtx, cancelTenantCtx := context.WithTimeout(context.Background(), 90*time.Second)
-	tenant, err := tenantresolve.Single(tenantCtx, store)
+	tenants, err := tenantresolve.All(tenantCtx, store)
 	cancelTenantCtx()
 	if err != nil {
 		logger.Error("could not resolve the tenant registry", slog.Any("error", err))
 		os.Exit(1)
 	}
-	idpConfig, err := provider.ConfigFromTenant(os.LookupEnv, provider.Tenant{
-		Realm:               tenant.Realm,
-		Issuer:              tenant.Issuer,
-		BrowserClientID:     tenant.BrowserClientID,
-		ServiceClientID:     tenant.ServiceClientID,
-		CredentialSecretRef: tenant.CredentialSecretRef,
-	})
+	providerTenants := make([]provider.Tenant, 0, len(tenants))
+	for _, tenant := range tenants {
+		providerTenants = append(providerTenants, provider.Tenant{
+			Realm:               tenant.Realm,
+			Issuer:              tenant.Issuer,
+			BrowserClientID:     tenant.BrowserClientID,
+			ServiceClientID:     tenant.ServiceClientID,
+			CredentialSecretRef: tenant.CredentialSecretRef,
+		})
+	}
+	installations, err := provider.InstallationsFromTenants(os.LookupEnv, providerTenants)
 	if err != nil {
 		logger.Error("could not read the identity provider configuration", slog.Any("error", err))
 		os.Exit(1)
 	}
-	directory, err := provider.New(idpConfig)
-	if err != nil {
-		logger.Error("could not prepare the identity directory", slog.Any("error", err))
-		os.Exit(1)
-	}
-	verifier, err := provider.NewVerifier(idpConfig)
-	if err != nil {
-		logger.Error("could not prepare token verification", slog.Any("error", err))
-		os.Exit(1)
+
+	verifiers := tokenverifier.NewRegistry()
+	directories := make(map[string]idpdirectory.IdentityDirectory, len(installations))
+	for realm, installation := range installations {
+		verifiers.Register(installation.Config.Issuer, installation.Verifier)
+		directories[realm] = installation.Directory
 	}
 
 	// One middleware, applied to every route that acts on a caller's behalf.
 	// Nothing downstream reads an identity from a request body.
 	authenticated := func(next http.Handler) http.Handler {
-		return tokenauth.Require(tokenauth.Config{Verifier: verifier, Logger: logger}, next)
+		return tokenauth.Require(tokenauth.Config{Verifier: verifiers, Logger: logger}, next)
 	}
 
 	// One shared cache behind both the authz and capability handlers
@@ -310,16 +313,16 @@ func main() {
 			RootPolicyRevision: cfg.RootPolicyRevision,
 		})),
 		DirectoryUsersHandler: authenticated(directoryapi.NewUsersHandler(directoryapi.Config{
-			Directory: directory,
-			Logger:    logger,
+			Directories: directories,
+			Logger:      logger,
 		})),
 		DirectoryRolesHandler: authenticated(directoryapi.NewRolesHandler(directoryapi.Config{
-			Directory: directory,
-			Logger:    logger,
+			Directories: directories,
+			Logger:      logger,
 		})),
 		DirectoryUserRolesHandler: authenticated(directoryapi.NewUserRolesHandler(directoryapi.Config{
-			Directory: directory,
-			Logger:    logger,
+			Directories: directories,
+			Logger:      logger,
 		})),
 		CapabilityHandler: authenticated(capability.NewHandler(capability.Config{
 			PDP:               pdp,
@@ -372,12 +375,15 @@ func main() {
 		}
 	}()
 
+	realms := make([]string, 0, len(installations))
+	for realm := range installations {
+		realms = append(realms, realm)
+	}
 	logger.Info("ads listening",
 		slog.String("addr", cfg.HTTPAddr),
 		slog.String("cerbos", cfg.CerbosGRPCAddr),
 		slog.String("postgres", cfg.PostgresAddr),
-		slog.String("idpType", string(idpConfig.Type)),
-		slog.String("idpIssuer", idpConfig.Issuer),
+		slog.Any("realms", realms),
 		slog.Duration("roleMatrixCacheTtl", cfg.RoleMatrixCacheTTL),
 	)
 

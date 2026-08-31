@@ -7,12 +7,22 @@
 # tenant_id column and no mapping layer.
 #
 # issuer and credentialSecretRef are substituted at seed time (see
-# libs/assignmentstore/cmd/seed-tenants) from TENANT_ISSUER and
-# TENANT_CREDENTIAL_SECRET_REF, so that a locally overridden Keycloak
-# hostname/port and the seeder's own mount path never require editing this
-# committed file.
+# libs/assignmentstore/cmd/seed-tenants) from TENANT_<REALM>_ISSUER and
+# TENANT_<REALM>_CREDENTIAL_SECRET_REF, so that a locally overridden
+# Keycloak hostname/port and the seeder's own mount path never require
+# editing this committed file.
+#
+# Two realms (issue #77): one deployment serves both, each with its own
+# issuer and service-account credential, so the isolation between them is
+# something this installation actually exercises rather than a claim that
+# has only ever had one realm to be true of.
 - realm: tenant-a
-  issuer: "${TENANT_ISSUER}"
+  issuer: "${TENANT_A_ISSUER}"
   browserClientId: patient-app
   serviceClientId: authorization-admin-service
-  credentialSecretRef: "${TENANT_CREDENTIAL_SECRET_REF}"
+  credentialSecretRef: "${TENANT_A_CREDENTIAL_SECRET_REF}"
+- realm: tenant-b
+  issuer: "${TENANT_B_ISSUER}"
+  browserClientId: patient-app
+  serviceClientId: authorization-admin-service
+  credentialSecretRef: "${TENANT_B_CREDENTIAL_SECRET_REF}"

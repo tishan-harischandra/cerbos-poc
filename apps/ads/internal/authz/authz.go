@@ -226,15 +226,33 @@ func NewHandler(cfg Config) http.Handler {
 			for _, action := range resource.Actions {
 				// A leaf the PDP did not answer for stays denied.
 				decision := result.Decisions[cerbosclient.Leaf{Resource: ref, Action: action}]
+				firedRules := result.FiredRules[ref]
 				actions[action] = Decision{
 					Allowed: decision.Allowed,
-					Source:  DecisionSource(action, decision.Allowed, result.FiredRules[ref]),
+					Source:  DecisionSource(action, decision.Allowed, firedRules),
 				}
 				outcome := "deny"
 				if decision.Allowed {
 					outcome = "allow"
 				}
 				metrics.Observe(resource.Kind, action, outcome, latency)
+
+				// A cross-tenant or cross-hospital attempt is refused the
+				// same 403 as any other deny, but it is logged as its own
+				// alertable fact (issue #77): "no permission granted" and
+				// "you reached for another tenant's data" call for
+				// different operator responses. No resource attribute or
+				// clinical value is logged here (§16.2).
+				if IsolationFired(firedRules) {
+					logger.WarnContext(r.Context(), "cross-tenant or cross-hospital access attempt refused",
+						slog.String("correlationId", correlationID(r)),
+						slog.String("cerbosCallId", result.CallID),
+						slog.String("principalId", identity.PrincipalID),
+						slog.String("callerTenantId", identity.TenantID),
+						slog.String("callerHospitalId", identity.HospitalID),
+						slog.String("resourceKind", resource.Kind),
+						slog.String("action", action))
+				}
 			}
 			response.Resources = append(response.Resources, ResourceDecision{
 				Kind:               resource.Kind,

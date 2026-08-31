@@ -50,6 +50,22 @@ func TestAWellFormedTokenYieldsTheIdentityItCarries(t *testing.T) {
 	}
 }
 
+// The tenant is the realm that signed the token (issue #77), never a claim
+// inside it: a token carrying a forged tenant_id claim still resolves to the
+// realm the Verifier was built for.
+func TestTheTenantComesFromTheRealmNeverFromAClaim(t *testing.T) {
+	fixture := newFixture(t)
+
+	verified, err := fixture.verifier(t).Verify(context.Background(),
+		fixture.sign(t, fixture.valid(claims{"tenant_id": "some-other-tenant"})))
+	if err != nil {
+		t.Fatalf("Verify: %v", err)
+	}
+	if verified.TenantID != realm {
+		t.Errorf("TenantID = %q, want %q (the realm, not the forged claim)", verified.TenantID, realm)
+	}
+}
+
 // The four mandatory §16.1 checks, each proven by the token that fails only it.
 // The valid token above is the control: every case below differs from it in one
 // respect, so a pass here cannot come from some unrelated rejection.
@@ -112,15 +128,6 @@ func TestTheMandatoryIdentityChecksEachRejectATokenThatFailsThem(t *testing.T) {
 			name:  "something that is not a token at all",
 			token: func() string { return "not-a-token" },
 			want:  tokenverifier.ErrMalformedToken,
-		},
-		{
-			name: "no tenant to derive a server-side context from",
-			token: func() string {
-				payload := fixture.valid(nil)
-				delete(payload, "tenant_id")
-				return fixture.sign(t, payload)
-			},
-			want: tokenverifier.ErrMissingTenant,
 		},
 	}
 

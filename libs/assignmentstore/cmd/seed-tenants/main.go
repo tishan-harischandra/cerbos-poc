@@ -12,6 +12,8 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"regexp"
+	"strings"
 	"time"
 
 	"github.com/tishan-harischandra/cerbos-poc/libs/assignmentstore/postgresstore"
@@ -42,24 +44,22 @@ func run() error {
 		return fmt.Errorf("reading %s: %w", registryFile, err)
 	}
 
-	// The committed file names its issuer and credential secret path as
-	// ${TENANT_ISSUER} / ${TENANT_CREDENTIAL_SECRET_REF} rather than a fixed
-	// value: a locally overridden Keycloak hostname/port, or this seeder's
-	// own container mounting the repository at a different path than the
-	// ADS and Admin Service do, must not require editing the checked-in
-	// file. Substituting before Parse (rather than after) means the
-	// credential secret ref validation Parse performs always checks the
-	// path this process will actually read.
-	issuer := os.Getenv("TENANT_ISSUER")
-	if issuer == "" {
-		issuer = "http://localhost:8081/realms/tenant-a"
-	}
-	credentialSecretRef := os.Getenv("TENANT_CREDENTIAL_SECRET_REF")
-	if credentialSecretRef == "" {
-		credentialSecretRef = "/run/secrets/idp-admin-credentials"
-	}
-	raw = bytes.ReplaceAll(raw, []byte("${TENANT_ISSUER}"), []byte(issuer))
-	raw = bytes.ReplaceAll(raw, []byte("${TENANT_CREDENTIAL_SECRET_REF}"), []byte(credentialSecretRef))
+	// The committed file names each realm's issuer and credential secret
+	// path as ${TENANT_<REALM>_ISSUER} / ${TENANT_<REALM>_CREDENTIAL_SECRET_REF}
+	// rather than a fixed value: a locally overridden Keycloak
+	// hostname/port, or this seeder's own container mounting the
+	// repository at a different path than the ADS and Admin Service do,
+	// must not require editing the checked-in file. Substituting before
+	// Parse (rather than after) means the credential secret ref validation
+	// Parse performs always checks the path this process will actually
+	// read.
+	//
+	// One deployment serves every realm the file names (issue #77), so the
+	// substitution is generic rather than naming tenant-a specifically:
+	// every TENANT_<REALM>_ISSUER in the environment is substituted for
+	// its own ${TENANT_<REALM>_ISSUER} placeholder, and likewise for
+	// _CREDENTIAL_SECRET_REF.
+	raw = substituteTenantPlaceholders(raw)
 
 	entries, err := tenantregistry.Parse(raw)
 	if err != nil {
@@ -80,4 +80,38 @@ func run() error {
 	}
 
 	return tenantseed.Apply(ctx, store, entries)
+}
+
+// tenantEnvVar matches TENANT_<REALM>_ISSUER and TENANT_<REALM>_CREDENTIAL_SECRET_REF,
+// capturing the realm portion so its value substitutes the placeholder of
+// the same shape in the registry file.
+var tenantEnvVar = regexp.MustCompile(`^TENANT_(.+)_(ISSUER|CREDENTIAL_SECRET_REF)$`)
+
+// substituteTenantPlaceholders replaces every ${TENANT_<REALM>_ISSUER} and
+// ${TENANT_<REALM>_CREDENTIAL_SECRET_REF} placeholder in raw with the value
+// of the environment variable of the same name. tenant-a's placeholders
+// fall back to the values compose has always defaulted them to, so a
+// registry file with no environment overrides at all still seeds.
+func substituteTenantPlaceholders(raw []byte) []byte {
+	defaults := map[string]string{
+		"TENANT_A_ISSUER":                "http://localhost:8081/realms/tenant-a",
+		"TENANT_A_CREDENTIAL_SECRET_REF": "/run/secrets/idp-admin-credentials",
+	}
+
+	seen := make(map[string]bool, len(defaults))
+	for _, env := range os.Environ() {
+		name, value, ok := strings.Cut(env, "=")
+		if !ok || !tenantEnvVar.MatchString(name) {
+			continue
+		}
+		seen[name] = true
+		raw = bytes.ReplaceAll(raw, []byte("${"+name+"}"), []byte(value))
+	}
+	for name, value := range defaults {
+		if seen[name] {
+			continue
+		}
+		raw = bytes.ReplaceAll(raw, []byte("${"+name+"}"), []byte(value))
+	}
+	return raw
 }

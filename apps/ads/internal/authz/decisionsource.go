@@ -55,3 +55,17 @@ func DecisionSource(action string, allowed bool, firedRules []string) Source {
 	// outcome in the sense that nothing granted the action.
 	return SourceMandatory
 }
+
+// IsolationFired reports whether the tenant_and_hospital_isolation rule
+// denied a leaf. It is exported so the decision endpoint (issue #77) can log
+// a cross-tenant or cross-hospital refusal distinguishably from an ordinary
+// deny - "no permission granted" and "you tried to reach another tenant's
+// data" are different facts an operator alerts on differently.
+func IsolationFired(firedRules []string) bool {
+	for _, name := range firedRules {
+		if name == "tenant_and_hospital_isolation" {
+			return true
+		}
+	}
+	return false
+}

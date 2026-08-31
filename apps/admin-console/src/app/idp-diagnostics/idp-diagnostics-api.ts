@@ -9,7 +9,6 @@ import { ADMIN_BASE_URL } from '../admin-base-url';
 export interface IdPDiagnosticsResult {
   provider: string;
   roleSource: string;
-  tenantMappingMode: string;
   connectivity: 'ok' | 'degraded';
 }
 

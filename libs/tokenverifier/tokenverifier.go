@@ -53,9 +53,6 @@ var (
 	// ErrReservedRole means the token claimed a role only the platform may
 	// assign.
 	ErrReservedRole = errors.New("the token carries a role reserved for the platform")
-	// ErrMissingTenant means the token carries no tenant, so no server-side
-	// tenant context could be derived.
-	ErrMissingTenant = errors.New("the token carries no tenant")
 )
 
 // RoleSource names which Keycloak role claim is authoritative (§7.3).
@@ -68,20 +65,11 @@ const (
 	RoleSourceRealm RoleSource = "REALM"
 )
 
-// TenantMappingMode names where the tenant comes from (§7.1).
-type TenantMappingMode string
-
+// Default claim names. Keycloak emits hospital through a user attribute
+// mapper, so the name is configurable rather than fixed. The tenant carries
+// no such claim (issue #77): it is always the realm that signed the token,
+// which is not something a caller's claim set can express.
 const (
-	// TenantMappingClaim reads the configured tenant claim from the token.
-	TenantMappingClaim TenantMappingMode = "CLAIM"
-	// TenantMappingRealm uses the realm name as the tenant identifier.
-	TenantMappingRealm TenantMappingMode = "REALM"
-)
-
-// Default claim names. Keycloak emits tenant and hospital through user
-// attribute mappers, so the names are configurable rather than fixed.
-const (
-	DefaultTenantClaim   = "tenant_id"
 	DefaultHospitalClaim = "hospital_id"
 )
 
@@ -99,16 +87,19 @@ type KeySource interface {
 type Config struct {
 	Issuer   string
 	Audience string
-	Realm    string
+	// Realm is both a signature-verification input and the tenant this
+	// verifier's tokens belong to (issue #77): the identity adapter that
+	// builds this Config is the one place that decides what a realm is for
+	// its product, and every verified token's tenant is this value, never a
+	// claim the token itself carries.
+	Realm string
 
 	RoleSource RoleSource
 	// ClientID is the client whose roles are authoritative when RoleSource is
 	// CLIENT. It is also the audience Keycloak stamps on the token.
 	ClientID string
 
-	TenantMappingMode TenantMappingMode
-	TenantClaim       string
-	HospitalClaim     string
+	HospitalClaim string
 
 	Keys   KeySource
 	Now    func() time.Time
@@ -141,6 +132,8 @@ func New(cfg Config) (*Verifier, error) {
 		return nil, errors.New("tokenverifier: an issuer is required")
 	case cfg.Audience == "":
 		return nil, errors.New("tokenverifier: an audience is required")
+	case cfg.Realm == "":
+		return nil, errors.New("tokenverifier: a realm is required: it is the tenant every verified token carries")
 	case cfg.Keys == nil:
 		return nil, errors.New("tokenverifier: a key source is required")
 	}
@@ -150,15 +143,6 @@ func New(cfg Config) (*Verifier, error) {
 	}
 	if cfg.RoleSource == RoleSourceClient && cfg.ClientID == "" {
 		return nil, errors.New("tokenverifier: a client id is required when roles come from a client")
-	}
-	if cfg.TenantMappingMode == "" {
-		cfg.TenantMappingMode = TenantMappingClaim
-	}
-	if cfg.TenantMappingMode == TenantMappingRealm && cfg.Realm == "" {
-		return nil, errors.New("tokenverifier: a realm is required when the tenant is mapped from the realm")
-	}
-	if cfg.TenantClaim == "" {
-		cfg.TenantClaim = DefaultTenantClaim
 	}
 	if cfg.HospitalClaim == "" {
 		cfg.HospitalClaim = DefaultHospitalClaim
@@ -297,16 +281,14 @@ func (v *Verifier) Verify(ctx context.Context, raw string) (VerifiedToken, error
 		return VerifiedToken{}, err
 	}
 
-	tenant, err := v.tenantOf(claims)
-	if err != nil {
-		return VerifiedToken{}, err
-	}
-
 	verified := VerifiedToken{
-		Subject:    claims.Subject,
-		Username:   claims.Username,
-		Issuer:     claims.Issuer,
-		TenantID:   tenant,
+		Subject:  claims.Subject,
+		Username: claims.Username,
+		Issuer:   claims.Issuer,
+		// The tenant is the realm that signed the token (issue #77), never a
+		// claim inside it: a caller who could put any value in a claim could
+		// put any tenant in it too.
+		TenantID:   v.cfg.Realm,
 		HospitalID: stringClaim(claims.rest, v.cfg.HospitalClaim),
 		Roles:      roles,
 		ExpiresAt:  expiresAt,
@@ -360,17 +342,6 @@ func CanonicalRoles(cfg Config, names []string) []string {
 		roles = append(roles, canonicalid.KeycloakClientRole(cfg.Realm, cfg.ClientID, role))
 	}
 	return roles
-}
-
-func (v *Verifier) tenantOf(claims jwtClaims) (string, error) {
-	if v.cfg.TenantMappingMode == TenantMappingRealm {
-		return v.cfg.Realm, nil
-	}
-	tenant := stringClaim(claims.rest, v.cfg.TenantClaim)
-	if tenant == "" {
-		return "", ErrMissingTenant
-	}
-	return tenant, nil
 }
 
 func allRoles(claims jwtClaims) []string {

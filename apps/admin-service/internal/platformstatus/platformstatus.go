@@ -46,13 +46,13 @@ type Handler struct {
 	PolicyStore PolicyStore
 	ADS         ADS
 
-	// IdPType, IdPRoleSource and IdPTenantMappingMode are the installation's
-	// §7.1 identity configuration, the same one the token verifier and
-	// directory adapter were built from - reported here as installation
-	// facts, never as a live credential (§16.1).
-	IdPType              string
-	IdPRoleSource        string
-	IdPTenantMappingMode string
+	// IdPType and IdPRoleSource are the console's own home realm's §7.1
+	// identity configuration - reported here as installation facts, never
+	// as a live credential (§16.1). The tenant mapping itself is no longer
+	// a setting to report: every realm derives its tenant from itself
+	// (issue #77), not from a mode that could disagree between realms.
+	IdPType       string
+	IdPRoleSource string
 }
 
 type releasePayload struct {
@@ -144,10 +144,9 @@ func (h *Handler) IdPDiagnostics(w http.ResponseWriter, r *http.Request) {
 	}
 
 	writeJSON(w, http.StatusOK, map[string]any{
-		"provider":          h.IdPType,
-		"roleSource":        h.IdPRoleSource,
-		"tenantMappingMode": h.IdPTenantMappingMode,
-		"connectivity":      connectivity,
+		"provider":     h.IdPType,
+		"roleSource":   h.IdPRoleSource,
+		"connectivity": connectivity,
 	})
 }
 
