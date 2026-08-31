@@ -1,0 +1,18 @@
+# The tenant registry (§7.1, issue #76): every Keycloak realm this
+# installation trusts. File-seeded, database of record - libs/tenantregistry
+# parses and validates this file, and libs/assignmentstore/tenantseed writes
+# it into the tenant_registry table on every start.
+#
+# The realm is the tenant identifier verbatim: there is no separate
+# tenant_id column and no mapping layer.
+#
+# issuer and credentialSecretRef are substituted at seed time (see
+# libs/assignmentstore/cmd/seed-tenants) from TENANT_ISSUER and
+# TENANT_CREDENTIAL_SECRET_REF, so that a locally overridden Keycloak
+# hostname/port and the seeder's own mount path never require editing this
+# committed file.
+- realm: tenant-a
+  issuer: "${TENANT_ISSUER}"
+  browserClientId: patient-app
+  serviceClientId: authorization-admin-service
+  credentialSecretRef: "${TENANT_CREDENTIAL_SECRET_REF}"
