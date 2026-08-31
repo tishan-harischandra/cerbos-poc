@@ -3,7 +3,6 @@
 @if (diagnostics(); as status) {
   <p data-testid="idp-provider">Provider: {{ status.provider }}</p>
   <p>Role source: {{ status.roleSource }}</p>
-  <p>Tenant mapping mode: {{ status.tenantMappingMode }}</p>
   <p data-testid="idp-connectivity" [attr.data-status]="status.connectivity">
     Connectivity: {{ status.connectivity }}
     @if (status.connectivity === 'degraded') {

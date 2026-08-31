@@ -20,7 +20,7 @@ describe('IdPDiagnostics', () => {
     const httpMock = setUp();
     const fixture = TestBed.createComponent(IdPDiagnostics);
     httpMock.expectOne('/api/admin/idp/diagnostics').flush({
-      provider: 'KEYCLOAK', roleSource: 'CLIENT', tenantMappingMode: 'CLAIM', connectivity: 'ok',
+      provider: 'KEYCLOAK', roleSource: 'CLIENT', connectivity: 'ok',
     });
     await Promise.resolve();
     fixture.detectChanges();
@@ -41,7 +41,7 @@ describe('IdPDiagnostics', () => {
     const httpMock = setUp();
     const fixture = TestBed.createComponent(IdPDiagnostics);
     httpMock.expectOne('/api/admin/idp/diagnostics').flush({
-      provider: 'KEYCLOAK', roleSource: 'CLIENT', tenantMappingMode: 'CLAIM', connectivity: 'degraded',
+      provider: 'KEYCLOAK', roleSource: 'CLIENT', connectivity: 'degraded',
     });
     await Promise.resolve();
     fixture.detectChanges();
