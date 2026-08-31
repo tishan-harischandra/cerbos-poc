@@ -109,6 +109,58 @@ expect_status "a request naming its own tenant is refused" 400 \
   "$(decide_with "${doctor_token}" "${smuggled}")"
 
 echo
+echo "--- cross-tenant isolation (issue #77) ---"
+
+# Two genuinely registered realms served by the same deployment. tenant-b
+# mints its own token from its own issuer, verified by the tenant registry's
+# own Verifier for that realm - not tenant-a's, and not a claim either
+# token could have carried on its own.
+doctor_b_token="$(token_for user-doctor-b patient-app tenant-b)" || exit 1
+
+issuer_b="$(claim_of "${doctor_b_token}" '.iss')"
+if [[ "${issuer_b}" == *"/realms/tenant-b" ]]; then
+  pass "tenant-b mints its own token from its own issuer"
+else
+  fail "tenant-b mints its own token from its own issuer (issuer was '${issuer_b}')"
+fi
+
+expect_status "tenant-b's token is accepted by the same deployment tenant-a's is" 200 \
+  "$(decide_with "${doctor_b_token}")" "$(cat /tmp/identity-body)"
+
+# tenant-a's own genuine, correctly-verified token, asked about a resource
+# whose stored tenant (as resource-service would have fetched it from the
+# database, never from request input) is tenant-b's: the isolation rule
+# denies it, so the identity check passing is not what stands between a
+# caller and another tenant's data - the policy is.
+cross_tenant_request='{"resources":[{"kind":"patient_record","id":"patient-456","attributes":{"tenantId":"tenant-b","hospitalId":"hospital-1","status":"ACTIVE"},"actions":["read"]}]}'
+decide_with "${doctor_token}" "${cross_tenant_request}" >/dev/null
+cross_tenant_allowed="$(jq -r '.resources[0].actions.read.allowed' /tmp/identity-body)"
+if [[ "${cross_tenant_allowed}" == "false" ]]; then
+  pass "a valid tenant-a token is refused against tenant-b's data"
+else
+  fail "a valid tenant-a token is refused against tenant-b's data (allowed was '${cross_tenant_allowed}')"
+fi
+
+# The reverse direction proves the boundary runs both ways, not just
+# because tenant-a happens to be what every other case in this suite uses.
+reverse_cross_tenant_request='{"resources":[{"kind":"patient_record","id":"patient-456","attributes":{"tenantId":"tenant-a","hospitalId":"hospital-1","status":"ACTIVE"},"actions":["read"]}]}'
+decide_with "${doctor_b_token}" "${reverse_cross_tenant_request}" >/dev/null
+reverse_allowed="$(jq -r '.resources[0].actions.read.allowed' /tmp/identity-body)"
+if [[ "${reverse_allowed}" == "false" ]]; then
+  pass "a valid tenant-b token is refused against tenant-a's data"
+else
+  fail "a valid tenant-b token is refused against tenant-a's data (allowed was '${reverse_allowed}')"
+fi
+
+# §77's other half of the acceptance criterion: the refusal is logged
+# distinguishably from an ordinary deny, so it is alertable on its own.
+if docker compose logs ads 2>/dev/null | grep -q "cross-tenant or cross-hospital access attempt refused"; then
+  pass "the cross-tenant refusal is logged distinguishably"
+else
+  fail "the cross-tenant refusal is logged distinguishably (no matching ADS log line found)"
+fi
+
+echo
 echo "--- the identity directory ---"
 
 admin_token="$(token_for user-admin)" || exit 1
