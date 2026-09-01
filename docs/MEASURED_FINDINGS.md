@@ -209,6 +209,46 @@ Keycloak's token endpoint will not do that refusing for it. Slice #78 and the
 decision-service tests must check for the *absence* of a usable organization
 claim, not for a non-200 status from Keycloak.
 
+## A different organization scope always forces re-authentication (issue #84)
+
+Issue #84 assumes a hospital switch is a fresh authorization request, made
+silently against the browser's existing SSO session with `prompt=none`
+(PRD: "silently... discards the old one"). Spiked with
+`scripts/tests/hospital-switch-e2e.sh` against the real `make up` stack
+(Keycloak 26.4, Organizations Preview, the same `browser-with-org-selector`
+flow issue #79 added), using `user-doctor-multi`'s two real memberships.
+
+| Question | Answer |
+|---|---|
+| Does an SSO cookie let a second `/auth` request with **no** organization scope skip straight to a code? | **Yes.** A repeat request naming no `organization:<alias>` scope reuses the session and redirects with a code immediately, no form. |
+| Does an SSO cookie let a second `/auth` request naming a **different** organization scope skip the form? | **No.** Confirmed on a real membership (`south-hospital`, switching from `north-hospital`), and even on the **identical** scope the session was already authenticated with - Keycloak restarts the authentication step and serves the login form again, credentials and all. The organization-selector authenticator (issue #79) never runs; the request never gets that far. |
+| What does `prompt=none` do with a different organization scope, given the same valid SSO cookie? | Refuses outright: `302` to the redirect URI with `error=login_required`, exactly what a browser's silent-renew iframe treats as "cannot be satisfied silently" - never a token, never a screen. |
+| Does a `refresh_token` grant widen scope to a hospital not in the original grant instead? | **No**, and not with an error either: `200`, a fresh access token, but its `scope` has silently dropped `organization:south-hospital` and its `organization` claim is absent - the same "enforced by omission" shape issue #75 already found for a direct grant naming a non-membership. |
+
+**Finding: a hospital switch cannot be truly silent against this Keycloak
+version's Organizations feature as configured.** Every avenue tried - a
+plain repeat authorization request, `prompt=none`, and a `refresh_token`
+grant - either forces the interactive flow back open or drops the requested
+organization rather than granting it. This held even when the target
+organization was the caller's real, current membership, so it is not the
+membership check failing; something in Organizations' scope handling treats
+any `organization:<alias>` value as one that reopens authentication rather
+than one an existing session can satisfy on its own.
+
+**Consequence for issue #84's acceptance criteria.** `HospitalSwitcher`
+(`libs/web/auth`) implements exactly the silent request the PRD describes -
+a PKCE authorization request through a hidden iframe with `prompt=none` -
+and, per the table above, correctly treats Keycloak's `login_required`
+response as a failure that leaves the existing session untouched (issue
+#84's own "fails and leaves the existing session intact" criterion, which
+this finding means is reachable on *every* switch attempt in this
+environment, not only a membership mismatch). The "no re-entry of
+credentials" criterion is not met end-to-end pending either a Keycloak
+configuration this investigation did not find, or a product decision to
+accept a full interactive round trip for a hospital switch. Recorded here
+rather than silently declared done; see the issue #84 pull request for the
+resulting scope decision.
+
 ## What has not been measured
 
 Stated plainly, so nobody mistakes an absence for a pass:
