@@ -43,7 +43,11 @@ export class Callback implements OnInit {
       this.failed.set(true);
       return;
     }
-    await this.router.navigateByUrl('/');
+    // A deep link the auth guard redirected away from survives here
+    // (issue #82); a login started from nowhere in particular - the
+    // login button, a stale bookmark to /callback - falls back to the
+    // shell's default route.
+    await this.router.navigateByUrl(this.auth.consumeReturnTo() ?? '/');
   }
 
   retry(): void {

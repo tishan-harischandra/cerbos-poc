@@ -28,7 +28,9 @@ describe('Shell', () => {
               hospitalId: 'hospital-1',
               roles: [],
               expiresAt: 0,
+              isAdministrator: false,
             }),
+            keycloakConsoleUrl: () => 'http://localhost:8081/admin/tenant-a/console/',
             logout,
           },
         },
@@ -47,6 +49,78 @@ describe('Shell', () => {
 
     (fixture.nativeElement.querySelector('[data-testid="logout"]') as HTMLButtonElement).click();
     expect(logout).toHaveBeenCalledTimes(1);
+  });
+
+  it('shows a link to Keycloak\'s administration console for an administrator', () => {
+    TestBed.configureTestingModule({
+      imports: [Shell],
+      providers: [
+        provideRouter([]),
+        provideHttpClient(),
+        provideHttpClientTesting(),
+        {
+          provide: AuthService,
+          useValue: {
+            claims: () => ({
+              subject: 'admin-1',
+              username: 'admin',
+              tenantId: 'tenant-a',
+              hospitalId: '',
+              roles: [],
+              expiresAt: 0,
+              isAdministrator: true,
+            }),
+            keycloakConsoleUrl: () => 'http://localhost:8081/admin/tenant-a/console/',
+            logout: vi.fn(),
+          },
+        },
+      ],
+    });
+
+    const fixture = TestBed.createComponent(Shell);
+    fixture.detectChanges();
+    TestBed.inject(HttpTestingController).expectOne('/api/ads/healthz').flush({ status: 'ok' });
+
+    const link = fixture.nativeElement.querySelector(
+      '[data-testid="keycloak-console-link"]',
+    ) as HTMLAnchorElement;
+    expect(link).toBeTruthy();
+    expect(link.href).toEqual('http://localhost:8081/admin/tenant-a/console/');
+  });
+
+  it('shows no Keycloak console link for a user who is not an administrator', () => {
+    TestBed.configureTestingModule({
+      imports: [Shell],
+      providers: [
+        provideRouter([]),
+        provideHttpClient(),
+        provideHttpClientTesting(),
+        {
+          provide: AuthService,
+          useValue: {
+            claims: () => ({
+              subject: 'doctor-1',
+              username: 'doctor',
+              tenantId: 'tenant-a',
+              hospitalId: 'north-hospital',
+              roles: [],
+              expiresAt: 0,
+              isAdministrator: false,
+            }),
+            keycloakConsoleUrl: () => 'http://localhost:8081/admin/tenant-a/console/',
+            logout: vi.fn(),
+          },
+        },
+      ],
+    });
+
+    const fixture = TestBed.createComponent(Shell);
+    fixture.detectChanges();
+    TestBed.inject(HttpTestingController).expectOne('/api/ads/healthz').flush({ status: 'ok' });
+
+    expect(
+      fixture.nativeElement.querySelector('[data-testid="keycloak-console-link"]'),
+    ).toBeNull();
   });
 
   it('shows no identity block before login completes', () => {

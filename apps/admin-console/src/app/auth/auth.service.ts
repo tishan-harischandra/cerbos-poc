@@ -9,6 +9,7 @@ import { TokenClaims, decodeAccessToken } from './token-claims';
 
 const VERIFIER_KEY = 'admin-console:pkce-verifier';
 const STATE_KEY = 'admin-console:pkce-state';
+const RETURN_TO_KEY = 'admin-console:return-to';
 
 /**
  * The Admin Console's OIDC login (§9's "Admin Console shell, navigation
@@ -35,18 +36,37 @@ export class AuthService {
   readonly isAuthenticated = computed(() => this.accessTokenSignal() !== null);
   readonly claims = this.claimsSignal.asReadonly();
 
+  /**
+   * Keycloak's own administration console for this realm (issue #82): the
+   * two consoles are clients of the same realm sharing one SSO session, so
+   * this is a plain link, not a second login.
+   */
+  readonly keycloakConsoleUrl = computed(() => {
+    const issuerUrl = new URL(this.config.issuer);
+    const realm = issuerUrl.pathname.replace(/^\/realms\//, '');
+    return `${issuerUrl.origin}/admin/${realm}/console/`;
+  });
+
   accessToken(): string | null {
     return this.accessTokenSignal();
   }
 
-  /** Redirects the browser to Keycloak's authorization endpoint. */
-  async login(): Promise<void> {
+  /**
+   * Redirects the browser to Keycloak's authorization endpoint. returnTo,
+   * when given, is the in-app path to land on once login completes - a
+   * deep link into the console must survive the round trip rather than
+   * always landing on the shell's default route (issue #82).
+   */
+  async login(returnTo?: string): Promise<void> {
     const verifier = generateCodeVerifier();
     const state = generateState();
     const challenge = await deriveCodeChallenge(verifier);
 
     sessionStorage.setItem(VERIFIER_KEY, verifier);
     sessionStorage.setItem(STATE_KEY, state);
+    if (returnTo) {
+      sessionStorage.setItem(RETURN_TO_KEY, returnTo);
+    }
 
     const params = new URLSearchParams({
       response_type: 'code',
@@ -98,6 +118,17 @@ export class AuthService {
     } catch {
       return false;
     }
+  }
+
+  /**
+   * Reads and clears the path stashed by {@link login}, if any - the deep
+   * link a guarded route redirected away from. Read once: a stale value
+   * from an abandoned login attempt must not resurface on a later one.
+   */
+  consumeReturnTo(): string | null {
+    const returnTo = sessionStorage.getItem(RETURN_TO_KEY);
+    sessionStorage.removeItem(RETURN_TO_KEY);
+    return returnTo;
   }
 
   logout(): void {
