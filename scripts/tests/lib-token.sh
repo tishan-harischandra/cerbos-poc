@@ -16,32 +16,37 @@ DEMO_PASSWORD="${KEYCLOAK_DEMO_PASSWORD:-demo-password}"
 # Echoes the demo organization alias a realm's members belong to (issue
 # #78): the hospital now comes only from a real, Keycloak-confirmed
 # organization claim, never a free-form attribute, so every token this
-# suite mints requests one.
+# suite mints for a realm that has one requests it. Empty means the realm
+# is a hostile fixture (other-issuer) with nothing to gain from one: its
+# tests only care that the issuer check refuses it.
 organization_for_realm() {
   case "$1" in
+    tenant-a) echo "north-hospital" ;;
     tenant-b) echo "hospital-b1" ;;
-    *) echo "north-hospital" ;;
+    *) echo "" ;;
   esac
 }
 
 # token_for <username> [client-id] [realm]
 # Echoes an access token, or exits non-zero with the provider's message.
 #
-# Every grant requests the realm's demo organization scope (issue #78). A
-# principal who is not a member - user-admin, the hostile fixture users -
-# simply has it silently dropped by Keycloak (§75's spike finding), which is
-# exactly the "no active organization" case the tenant-wide marker or the
-# unscoped-token refusal then decides between.
+# Every grant against a realm with a demo organization requests its scope
+# (issue #78). A principal who is not a member - user-admin, the hostile
+# fixture users - simply has it silently dropped by Keycloak (§75's spike
+# finding), which is exactly the "no active organization" case the
+# tenant-wide marker or the unscoped-token refusal then decides between.
 token_for() {
   local username="$1" client="${2:-patient-app}" realm="${3:-${REALM}}"
   local org; org="$(organization_for_realm "${realm}")"
+  local scope="openid"
+  [[ -n "${org}" ]] && scope="openid organization:${org}"
   local response
   response="$(curl -sS --max-time 10 \
     -d "grant_type=password" \
     -d "client_id=${client}" \
     -d "username=${username}" \
     -d "password=${DEMO_PASSWORD}" \
-    -d "scope=openid organization:${org}" \
+    -d "scope=${scope}" \
     "${KEYCLOAK_URL}/realms/${realm}/protocol/openid-connect/token")" || return 1
 
   local token

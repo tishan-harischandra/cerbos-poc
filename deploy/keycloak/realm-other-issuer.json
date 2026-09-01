@@ -3,7 +3,6 @@
   "displayName": "Wrong issuer fixture: genuine tokens the ADS must still refuse",
   "enabled": true,
   "sslRequired": "none",
-  "organizationsEnabled": true,
   "clients": [
     {
       "clientId": "patient-app",
@@ -17,7 +16,6 @@
       "redirectUris": [],
       "webOrigins": [],
       "defaultClientScopes": ["basic", "web-origins", "profile", "roles", "email"],
-      "optionalClientScopes": ["organization"],
       "protocolMappers": [
         {
           "name": "audience",
