@@ -2,8 +2,16 @@ import { HttpClient } from '@angular/common/http';
 import { Injectable, computed, inject, signal } from '@angular/core';
 import { firstValueFrom } from 'rxjs';
 
+import {
+  HospitalSwitcher,
+  TokenClaims,
+  decodeAccessToken,
+  deriveCodeChallenge,
+  generateCodeVerifier,
+  generateState,
+} from '@cerbos-poc/auth';
+
 import { OIDC_CONFIG } from './oidc-config';
-import { deriveCodeChallenge, generateCodeVerifier, generateState } from './pkce';
 import { REDIRECT } from './redirect';
 
 const VERIFIER_KEY = 'business-ui:pkce-verifier';
@@ -30,10 +38,13 @@ export class AuthService {
   private readonly http = inject(HttpClient);
   private readonly config = inject(OIDC_CONFIG);
   private readonly redirect = inject(REDIRECT);
+  private readonly hospitalSwitcher = inject(HospitalSwitcher);
 
   private readonly accessTokenSignal = signal<string | null>(null);
+  private readonly claimsSignal = signal<TokenClaims | null>(null);
 
   readonly isAuthenticated = computed(() => this.accessTokenSignal() !== null);
+  readonly claims = this.claimsSignal.asReadonly();
 
   accessToken(): string | null {
     return this.accessTokenSignal();
@@ -98,7 +109,7 @@ export class AuthService {
           { headers: { 'Content-Type': 'application/x-www-form-urlencoded' } },
         ),
       );
-      this.accessTokenSignal.set(response.access_token);
+      this.setAccessToken(response.access_token);
       return true;
     } catch {
       return false;
@@ -112,12 +123,37 @@ export class AuthService {
     return returnTo || '/';
   }
 
+  /**
+   * Switches to a different hospital with no re-entry of credentials
+   * (issue #84): a fresh authorization request against the browser's
+   * existing SSO session, scoped to organization. Returns false, leaving
+   * whatever token was already active untouched, when the user does not
+   * belong to that organization or the silent request otherwise cannot
+   * be satisfied - the caller sees no partial or inconsistent state
+   * either way.
+   */
+  async switchHospital(organization: string): Promise<boolean> {
+    try {
+      const token = await this.hospitalSwitcher.switchTo(this.config, organization);
+      this.setAccessToken(token);
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
   logout(): void {
     this.accessTokenSignal.set(null);
+    this.claimsSignal.set(null);
     const params = new URLSearchParams({
       client_id: this.config.clientId,
       post_logout_redirect_uri: window.location.origin,
     });
     this.redirect(`${this.config.issuer}/protocol/openid-connect/logout?${params}`);
+  }
+
+  private setAccessToken(token: string): void {
+    this.accessTokenSignal.set(token);
+    this.claimsSignal.set(decodeAccessToken(token, this.config.clientId));
   }
 }

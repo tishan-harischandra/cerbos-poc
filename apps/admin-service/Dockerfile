@@ -47,6 +47,7 @@ COPY apps/ads/go.mod apps/ads/go.sum ./apps/ads/
 COPY libs/cerbosclient/go.mod libs/cerbosclient/go.sum ./libs/cerbosclient/
 COPY libs/permissioncontext/go.mod ./libs/permissioncontext/
 COPY tests/architecture/go.mod ./tests/architecture/
+COPY libs/web/auth/ ./libs/web/auth/
 COPY apps/admin-console/ ./apps/admin-console/
 RUN npx nx build admin-console --configuration=production
 

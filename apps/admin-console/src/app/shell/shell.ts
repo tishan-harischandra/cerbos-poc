@@ -23,4 +23,20 @@ export class Shell {
   logout(): void {
     this.auth.logout();
   }
+
+  /**
+   * Switches hospital from the switcher's own select element (issue #84).
+   * A failed switch - the target is not one of the user's memberships, or
+   * the silent request otherwise cannot be satisfied - leaves the active
+   * hospital exactly where it was; the select resets to reflect that
+   * rather than showing a choice that never took effect.
+   */
+  async onSwitchHospital(event: Event): Promise<void> {
+    const select = event.target as HTMLSelectElement;
+    const organization = select.value;
+    select.value = '';
+    if (organization) {
+      await this.auth.switchHospital(organization);
+    }
+  }
 }

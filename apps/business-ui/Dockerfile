@@ -19,6 +19,7 @@ COPY libs/cerbosclient/go.mod libs/cerbosclient/go.sum ./libs/cerbosclient/
 COPY libs/permissioncontext/go.mod ./libs/permissioncontext/
 COPY tests/architecture/go.mod ./tests/architecture/
 COPY libs/web/capability/ ./libs/web/capability/
+COPY libs/web/auth/ ./libs/web/auth/
 COPY apps/business-ui/ ./apps/business-ui/
 RUN npx nx build business-ui --configuration=production
 

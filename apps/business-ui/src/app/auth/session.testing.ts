@@ -20,8 +20,10 @@ export function provideEstablishedSession(): Provider[] {
       useValue: {
         isAuthenticated: () => true,
         accessToken: () => 'a-token',
+        claims: () => null,
         login: () => Promise.resolve(),
         takeReturnTo: () => '/',
+        switchHospital: () => Promise.resolve(true),
         logout: () => undefined,
       },
     },

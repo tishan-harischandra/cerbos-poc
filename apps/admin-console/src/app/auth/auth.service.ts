@@ -2,10 +2,17 @@ import { HttpClient } from '@angular/common/http';
 import { Injectable, computed, inject, signal } from '@angular/core';
 import { firstValueFrom } from 'rxjs';
 
+import {
+  HospitalSwitcher,
+  TokenClaims,
+  decodeAccessToken,
+  deriveCodeChallenge,
+  generateCodeVerifier,
+  generateState,
+} from '@cerbos-poc/auth';
+
 import { OIDC_CONFIG } from './oidc-config';
-import { deriveCodeChallenge, generateCodeVerifier, generateState } from './pkce';
 import { REDIRECT } from './redirect';
-import { TokenClaims, decodeAccessToken } from './token-claims';
 
 const VERIFIER_KEY = 'admin-console:pkce-verifier';
 const STATE_KEY = 'admin-console:pkce-state';
@@ -29,6 +36,7 @@ export class AuthService {
   private readonly http = inject(HttpClient);
   private readonly config = inject(OIDC_CONFIG);
   private readonly redirect = inject(REDIRECT);
+  private readonly hospitalSwitcher = inject(HospitalSwitcher);
 
   private readonly accessTokenSignal = signal<string | null>(null);
   private readonly claimsSignal = signal<TokenClaims | null>(null);
@@ -129,6 +137,25 @@ export class AuthService {
     const returnTo = sessionStorage.getItem(RETURN_TO_KEY);
     sessionStorage.removeItem(RETURN_TO_KEY);
     return returnTo;
+  }
+
+  /**
+   * Switches to a different hospital with no re-entry of credentials
+   * (issue #84): a fresh authorization request against the browser's
+   * existing SSO session, scoped to organization. Returns false, leaving
+   * whatever token was already active untouched, when the user does not
+   * belong to that organization or the silent request otherwise cannot
+   * be satisfied - the caller sees no partial or inconsistent state
+   * either way.
+   */
+  async switchHospital(organization: string): Promise<boolean> {
+    try {
+      const token = await this.hospitalSwitcher.switchTo(this.config, organization);
+      this.setAccessToken(token);
+      return true;
+    } catch {
+      return false;
+    }
   }
 
   logout(): void {

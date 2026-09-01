@@ -61,4 +61,30 @@ describe('decodeAccessToken', () => {
 
     expect(decodeAccessToken(token, 'patient-app').isAdministrator).toBe(false);
   });
+
+  it('reports no other hospitals when the memberships claim is absent (issue #84)', () => {
+    const token = fakeJwt({ hospital_id: 'north-hospital' });
+
+    expect(decodeAccessToken(token, 'patient-app').otherHospitals).toEqual([]);
+  });
+
+  it('excludes the active hospital from otherHospitals even though Keycloak includes it', () => {
+    const token = fakeJwt({
+      hospital_id: 'north-hospital',
+      organization_memberships: ['north-hospital', 'south-hospital'],
+    });
+
+    expect(decodeAccessToken(token, 'patient-app').otherHospitals).toEqual(['south-hospital']);
+  });
+
+  it('reports every membership when there is no active hospital (a tenant-wide session)', () => {
+    const token = fakeJwt({
+      organization_memberships: ['north-hospital', 'south-hospital'],
+    });
+
+    expect(decodeAccessToken(token, 'patient-app').otherHospitals).toEqual([
+      'north-hospital',
+      'south-hospital',
+    ]);
+  });
 });
