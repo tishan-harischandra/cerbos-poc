@@ -27,4 +27,15 @@ describe('authGuard', () => {
     expect(result).toBe(false);
     expect(auth.login).toHaveBeenCalledTimes(1);
   });
+
+  it('carries the requested URL into login, so a deep link survives (issue #82)', () => {
+    const auth = { isAuthenticated: () => false, login: vi.fn().mockResolvedValue(undefined) };
+    TestBed.configureTestingModule({ providers: [{ provide: AuthService, useValue: auth }] });
+
+    TestBed.runInInjectionContext(() =>
+      authGuard({} as never, { url: '/role-matrix' } as never),
+    );
+
+    expect(auth.login).toHaveBeenCalledWith('/role-matrix');
+  });
 });

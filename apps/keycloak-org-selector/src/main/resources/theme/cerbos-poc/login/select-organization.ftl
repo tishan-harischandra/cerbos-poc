@@ -1,5 +1,5 @@
 <#import "template.ftl" as layout>
-<@layout.registrationLayout displayMessage=true; section>
+<@layout.registrationLayout displayMessage=true displayInfo=true; section>
     <#if section = "header">
         Select your hospital
     <#elseif section = "form">
@@ -36,5 +36,9 @@
                        type="submit" value="${msg("doSubmit")}"/>
             </div>
         </form>
+    <#elseif section = "info">
+        <#-- issue #82: the two consoles share one SSO session, so this is
+             a plain navigation, not a second login. -->
+        <a id="kc-back-to-admin-console" href="${properties.adminConsoleUrl!}">Back to the Admin Console</a>
     </#if>
 </@layout.registrationLayout>

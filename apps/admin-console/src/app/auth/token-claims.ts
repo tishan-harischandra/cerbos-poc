@@ -12,6 +12,13 @@ export interface TokenClaims {
   hospitalId: string;
   roles: string[];
   expiresAt: number;
+  /**
+   * Whether the token carries the tenant-wide realm role (issue #78's
+   * `admin`), read for display purposes only - e.g. issue #82's link to
+   * Keycloak's own administration console. Every administrative call
+   * still goes through the server, which verifies this independently.
+   */
+  isAdministrator: boolean;
 }
 
 /** Decodes a JWT's payload without verifying its signature. */
@@ -26,6 +33,7 @@ export function decodeAccessToken(token: string, clientId: string): TokenClaims 
     string,
     { roles?: string[] }
   >;
+  const realmAccess = (payload['realm_access'] ?? {}) as { roles?: string[] };
 
   return {
     subject: String(payload['sub'] ?? ''),
@@ -34,6 +42,7 @@ export function decodeAccessToken(token: string, clientId: string): TokenClaims 
     hospitalId: String(payload['hospital_id'] ?? ''),
     roles: resourceAccess[clientId]?.roles ?? [],
     expiresAt: Number(payload['exp'] ?? 0),
+    isAdministrator: (realmAccess.roles ?? []).includes('admin'),
   };
 }
 

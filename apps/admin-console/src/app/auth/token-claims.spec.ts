@@ -43,4 +43,22 @@ describe('decodeAccessToken', () => {
   it('rejects a value that is not a three-segment JWT', () => {
     expect(() => decodeAccessToken('not-a-jwt', 'patient-app')).toThrow();
   });
+
+  it('reads the tenant-wide realm role as isAdministrator (issue #78/#82)', () => {
+    const token = fakeJwt({ realm_access: { roles: ['admin'] } });
+
+    expect(decodeAccessToken(token, 'patient-app').isAdministrator).toBe(true);
+  });
+
+  it('is not an administrator when the realm role is absent', () => {
+    const token = fakeJwt({ realm_access: { roles: ['some-other-role'] } });
+
+    expect(decodeAccessToken(token, 'patient-app').isAdministrator).toBe(false);
+  });
+
+  it('is not an administrator when realm_access is absent entirely', () => {
+    const token = fakeJwt({});
+
+    expect(decodeAccessToken(token, 'patient-app').isAdministrator).toBe(false);
+  });
 });
