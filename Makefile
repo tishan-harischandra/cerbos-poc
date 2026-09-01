@@ -173,6 +173,7 @@ smoke: ## Verify a running stack end to end
 	bash scripts/tests/stack-smoke.sh
 	bash scripts/tests/identity-e2e.sh
 	bash scripts/tests/decision-e2e.sh
+	bash scripts/tests/org-selector-e2e.sh
 
 .PHONY: walkthrough
 walkthrough: ## Execute the README's guided walkthrough against a running deployment

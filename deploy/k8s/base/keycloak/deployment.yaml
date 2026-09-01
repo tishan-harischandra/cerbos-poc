@@ -19,7 +19,10 @@ spec:
     spec:
       containers:
         - name: keycloak
-          image: quay.io/keycloak/keycloak:26.4
+          # The organization selector authenticator (issue #79) is baked
+          # into this image at build time (apps/keycloak-org-selector/
+          # Dockerfile), the same custom image docker-compose.yml builds.
+          image: cerbos-poc/keycloak:dev
           # `organization` is a preview feature in 26.4: Keycloak Organizations
           # (issue #75/#78) is disabled by default and every organization
           # import 400s without it, matching docker-compose.yml's keycloak

@@ -49,9 +49,20 @@ FORBIDDEN_IN_IMAGES = {
     "liquibase": "Liquibase, which belongs in its own container",
 }
 
+# Keycloak itself is a JVM application, and its organization selector
+# (issue #79) is a Keycloak provider, built and shipped inside Keycloak's
+# own image rather than a Go service's. It is the one Dockerfile in
+# apps/*/ this check does not apply to, named here rather than left as an
+# unexplained gap.
+JVM_APPLICATIONS = {"apps/keycloak-org-selector/Dockerfile"}
+
 
 def check_images_carry_no_native_clients() -> None:
-    dockerfiles = sorted(REPO_ROOT.glob("apps/*/Dockerfile"))
+    dockerfiles = sorted(
+        path
+        for path in REPO_ROOT.glob("apps/*/Dockerfile")
+        if path.relative_to(REPO_ROOT).as_posix() not in JVM_APPLICATIONS
+    )
     check("there is at least one service Dockerfile to inspect", bool(dockerfiles))
 
     for dockerfile in dockerfiles:
