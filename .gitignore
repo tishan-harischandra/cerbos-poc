@@ -7,6 +7,8 @@ tmp/
 .angular/
 .gocache/
 .agentloop/
+# Devin CLI's local skill cache, populated per session - never repo content.
+.devin/skills/
 .code-review-graph/
 .chaos-tools/
 .chaos-kubeconfig
