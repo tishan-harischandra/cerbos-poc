@@ -1,5 +1,6 @@
 package org.cerbospoc.keycloak.orgselector;
 
+import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
@@ -62,15 +63,29 @@ final class OrganizationSupport {
      * confirmed Keycloak's own token-minting pipeline honours. This is
      * deliberately not a second, bespoke mechanism - the fewer places that
      * decide "which organization won", the fewer places that can disagree.
+     *
+     * <p>Any organization scope already present is replaced, not left
+     * alone: a caller who asked for an alias that turned out not to be a
+     * membership still reaches this method when the auto-select rule picks
+     * a different one, and leaving their mismatched request in the note
+     * would have Keycloak's own pipeline silently drop it again (§75),
+     * undoing the very selection this method exists to apply.
      */
     static void selectOrganization(AuthenticationFlowContext context, String alias) {
         String scopeParam = context.getAuthenticationSession().getClientNote(OAuth2Constants.SCOPE);
-        if (organizationScopeValue(scopeParam).isPresent()) {
-            return;
-        }
-        String updated = (scopeParam == null || scopeParam.isBlank())
+        String withoutOrganization = withoutOrganizationScope(scopeParam);
+        String updated = withoutOrganization.isEmpty()
                 ? ORGANIZATION_SCOPE_PREFIX + alias
-                : scopeParam + " " + ORGANIZATION_SCOPE_PREFIX + alias;
+                : withoutOrganization + " " + ORGANIZATION_SCOPE_PREFIX + alias;
         context.getAuthenticationSession().setClientNote(OAuth2Constants.SCOPE, updated);
+    }
+
+    private static String withoutOrganizationScope(String scopeParam) {
+        if (scopeParam == null || scopeParam.isBlank()) {
+            return "";
+        }
+        return Arrays.stream(scopeParam.split("\\s+"))
+                .filter(scope -> !scope.startsWith(ORGANIZATION_SCOPE_PREFIX))
+                .collect(Collectors.joining(" "));
     }
 }
