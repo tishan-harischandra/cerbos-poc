@@ -41,6 +41,12 @@
             "included.client.audience": "patient-app",
             "access.token.claim": "true"
           }
+        },
+        {
+          "name": "organization-memberships",
+          "protocol": "openid-connect",
+          "protocolMapper": "cerbos-poc-organization-memberships-mapper",
+          "config": { "access.token.claim": "true" }
         }
       ]
     },
