@@ -324,6 +324,18 @@ func main() {
 			Directories: directories,
 			Logger:      logger,
 		})),
+		DirectoryOrganizationsHandler: authenticated(directoryapi.NewOrganizationsHandler(directoryapi.Config{
+			Directories: directories,
+			Logger:      logger,
+		})),
+		DirectoryOrganizationMembersHandler: authenticated(directoryapi.NewOrganizationMembersHandler(directoryapi.Config{
+			Directories: directories,
+			Logger:      logger,
+		})),
+		DirectoryUserOrganizationsHandler: authenticated(directoryapi.NewUserOrganizationsHandler(directoryapi.Config{
+			Directories: directories,
+			Logger:      logger,
+		})),
 		CapabilityHandler: authenticated(capability.NewHandler(capability.Config{
 			PDP:               pdp,
 			CapabilityCatalog: capability.NewFSCatalog(cfg.CapabilityCatalogDir, cfg.CapabilityCatalogRevision, nil),

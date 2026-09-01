@@ -185,6 +185,98 @@ func TestRoleSearchReportsCanonicalIdentifiers(t *testing.T) {
 	}
 }
 
+func TestOrganizationsReturnsOnePageAndSaysWhetherThereIsAnother(t *testing.T) {
+	directory := &recordingDirectory{
+		organizations: idpdirectory.Page[idpdirectory.OrganizationRef]{
+			Items: []idpdirectory.OrganizationRef{
+				{ExternalID: "org-north", Alias: "north-hospital", Name: "North Hospital"},
+			},
+			Offset: 0, Limit: 50, HasMore: true,
+		},
+	}
+	handler := directoryapi.NewOrganizationsHandler(directoryapi.Config{Directory: directory})
+
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, get("/internal/directory/organizations"))
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, want %d: %s", rec.Code, http.StatusOK, rec.Body)
+	}
+	if !strings.Contains(rec.Body.String(), "north-hospital") {
+		t.Errorf("response carries no organization alias: %s", rec.Body)
+	}
+	if directory.tenant != "tenant-a" {
+		t.Errorf("tenant = %q, want the caller's own tenant", directory.tenant)
+	}
+}
+
+func TestOrganizationMembersReportsOneWindowOfMembers(t *testing.T) {
+	directory := &recordingDirectory{
+		organizationMembers: idpdirectory.Page[idpdirectory.UserRef]{
+			Items: []idpdirectory.UserRef{{ExternalID: "user-doctor", Username: "doctor"}},
+			Limit: 50,
+		},
+	}
+	handler := directoryapi.NewOrganizationMembersHandler(directoryapi.Config{Directory: directory})
+
+	req := get("/internal/directory/organizations/org-north/members")
+	req.SetPathValue("externalId", "org-north")
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, want %d: %s", rec.Code, http.StatusOK, rec.Body)
+	}
+	if directory.organizationMembersFor != "org-north" {
+		t.Errorf("organization queried = %q, want org-north", directory.organizationMembersFor)
+	}
+	if !strings.Contains(rec.Body.String(), "user-doctor") {
+		t.Errorf("response carries no member: %s", rec.Body)
+	}
+}
+
+func TestUserOrganizationsReportsTheOrganizationsThatUserBelongsTo(t *testing.T) {
+	directory := &recordingDirectory{
+		userOrganizations: []idpdirectory.OrganizationRef{
+			{ExternalID: "org-north", Alias: "north-hospital"},
+			{ExternalID: "org-south", Alias: "south-hospital"},
+		},
+	}
+	handler := directoryapi.NewUserOrganizationsHandler(directoryapi.Config{Directory: directory})
+
+	req := get("/internal/directory/users/user-doctor-multi/organizations")
+	req.SetPathValue("externalId", "user-doctor-multi")
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, want %d: %s", rec.Code, http.StatusOK, rec.Body)
+	}
+	if directory.userOrganizationsFor != "user-doctor-multi" {
+		t.Errorf("user queried = %q, want user-doctor-multi", directory.userOrganizationsFor)
+	}
+	if !strings.Contains(rec.Body.String(), "north-hospital") || !strings.Contains(rec.Body.String(), "south-hospital") {
+		t.Errorf("response is missing a membership: %s", rec.Body)
+	}
+}
+
+func TestUserOrganizationsRequiresAuthentication(t *testing.T) {
+	directory := &recordingDirectory{}
+	handler := directoryapi.NewUserOrganizationsHandler(directoryapi.Config{Directory: directory})
+
+	req := httptest.NewRequest(http.MethodGet, "/internal/directory/users/user-doctor/organizations", nil)
+	req.SetPathValue("externalId", "user-doctor")
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusUnauthorized {
+		t.Errorf("status = %d, want %d", rec.Code, http.StatusUnauthorized)
+	}
+	if directory.calls != 0 {
+		t.Error("the directory was queried for an unauthenticated request")
+	}
+}
+
 // §16.1 and §7.4: the IdP machine credential must never reach a browser. The
 // realistic leak is an error path, so the failing case is the one asserted.
 func TestADirectoryFailureNeverEchoesTheAdminCredential(t *testing.T) {
@@ -287,16 +379,23 @@ func get(target string) *http.Request {
 }
 
 type recordingDirectory struct {
-	calls        int
-	tenant       idpdirectory.TenantID
-	userSearch   idpdirectory.UserSearch
-	roleSearch   idpdirectory.RoleSearch
-	userRolesFor string
+	calls                   int
+	tenant                  idpdirectory.TenantID
+	userSearch              idpdirectory.UserSearch
+	roleSearch              idpdirectory.RoleSearch
+	userRolesFor            string
+	organizationSearch      idpdirectory.OrganizationSearch
+	userOrganizationsFor    string
+	organizationMembersFor  string
+	organizationMembersPage idpdirectory.PageRequest
 
-	users     idpdirectory.Page[idpdirectory.UserRef]
-	roles     idpdirectory.Page[idpdirectory.RoleRef]
-	userRoles []idpdirectory.RoleRef
-	err       error
+	users               idpdirectory.Page[idpdirectory.UserRef]
+	roles               idpdirectory.Page[idpdirectory.RoleRef]
+	userRoles           []idpdirectory.RoleRef
+	organizations       idpdirectory.Page[idpdirectory.OrganizationRef]
+	userOrganizations   []idpdirectory.OrganizationRef
+	organizationMembers idpdirectory.Page[idpdirectory.UserRef]
+	err                 error
 }
 
 func (d *recordingDirectory) SearchUsers(_ context.Context, tenant idpdirectory.TenantID, query idpdirectory.UserSearch) (idpdirectory.Page[idpdirectory.UserRef], error) {
@@ -323,6 +422,24 @@ func (d *recordingDirectory) GetUserRoles(_ context.Context, tenant idpdirectory
 	d.calls++
 	d.tenant, d.userRolesFor = tenant, userExternalID
 	return d.userRoles, d.err
+}
+
+func (d *recordingDirectory) OrganizationsOfTenant(_ context.Context, tenant idpdirectory.TenantID, query idpdirectory.OrganizationSearch) (idpdirectory.Page[idpdirectory.OrganizationRef], error) {
+	d.calls++
+	d.tenant, d.organizationSearch = tenant, query
+	return d.organizations, d.err
+}
+
+func (d *recordingDirectory) OrganizationsOfUser(_ context.Context, tenant idpdirectory.TenantID, userExternalID string) ([]idpdirectory.OrganizationRef, error) {
+	d.calls++
+	d.tenant, d.userOrganizationsFor = tenant, userExternalID
+	return d.userOrganizations, d.err
+}
+
+func (d *recordingDirectory) MembersOfOrganization(_ context.Context, tenant idpdirectory.TenantID, organizationExternalID string, page idpdirectory.PageRequest) (idpdirectory.Page[idpdirectory.UserRef], error) {
+	d.calls++
+	d.tenant, d.organizationMembersFor, d.organizationMembersPage = tenant, organizationExternalID, page
+	return d.organizationMembers, d.err
 }
 
 func (d *recordingDirectory) ResolveRuntimeRoles(_ context.Context, token tokenverifier.VerifiedToken, _ idpdirectory.TenantID) ([]string, error) {
