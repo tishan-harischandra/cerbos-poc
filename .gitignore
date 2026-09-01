@@ -14,6 +14,9 @@ tmp/
 .chaos-port-forward.log
 __screenshots__/
 libs/keycloakbulkload/cmd/loadseed/loadseed
+# Maven build output (apps/keycloak-org-selector), built inside the Docker
+# image's own Maven stage - never expected to be present on the host.
+target/
 
 .angular
 
