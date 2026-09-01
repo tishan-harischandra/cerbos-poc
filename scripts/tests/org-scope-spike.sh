@@ -42,7 +42,9 @@ echo "--- the realm fixture ---"
 
 # The realm fixture (deploy/keycloak/realm-tenant-a.json) declares
 # organizationsEnabled, two organizations - north-hospital and
-# south-hospital - and user-doctor as a member of north-hospital only, via
+# south-hospital - and user-doctor as a member of north-hospital (issue #78
+# adds the rest of the demo principals north-hospital needs to take a
+# decision, but user-doctor is the one this spike asserts on), via
 # Keycloak's own realm import. Declarative membership import works with a
 # "username" reference in the member object; an "id" reference silently fails
 # import with a null-pointer deep in Keycloak's organization importer (tried
@@ -62,10 +64,10 @@ admin_org_members() {
 }
 
 north_members="$(admin_org_members north-hospital)"
-if [[ "${north_members}" == "user-doctor" ]]; then
-  pass "north-hospital has exactly the one member the fixture declares"
+if grep -qx "user-doctor" <<<"${north_members}"; then
+  pass "north-hospital has the member the fixture declares"
 else
-  fail "north-hospital has exactly the one member the fixture declares (was '${north_members}')"
+  fail "north-hospital has the member the fixture declares (was '${north_members}')"
 fi
 
 south_members="$(admin_org_members south-hospital)"

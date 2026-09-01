@@ -3,6 +3,7 @@ package tokenauth_test
 import (
 	"context"
 	"encoding/json"
+	"log/slog"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -106,6 +107,33 @@ func TestATokenClaimingTheSyntheticRoleIsForbiddenRatherThanUnauthorized(t *test
 
 	if rec.Code != http.StatusForbidden {
 		t.Errorf("status = %d, want %d", rec.Code, http.StatusForbidden)
+	}
+}
+
+// §78: an unscoped token is refused distinguishably, logged separately from
+// an ordinary rejection, even though the caller still only learns that the
+// token was refused.
+func TestAnUnscopedTokenIsLoggedDistinguishably(t *testing.T) {
+	for _, err := range []error{tokenverifier.ErrUnscopedToken, tokenverifier.ErrAmbiguousOrganization} {
+		t.Run(err.Error(), func(t *testing.T) {
+			var logged strings.Builder
+			handler := tokenauth.Require(
+				tokenauth.Config{
+					Verifier: verifier{err: err},
+					Logger:   slog.New(slog.NewJSONHandler(&logged, nil)),
+				},
+				refuseToRun(t))
+
+			rec := httptest.NewRecorder()
+			handler.ServeHTTP(rec, authorized("an-unscoped-token"))
+
+			if rec.Code != http.StatusUnauthorized {
+				t.Errorf("status = %d, want %d", rec.Code, http.StatusUnauthorized)
+			}
+			if !strings.Contains(logged.String(), "unscoped") {
+				t.Errorf("no log record named an unscoped token; log was:\n%s", logged.String())
+			}
+		})
 	}
 }
 

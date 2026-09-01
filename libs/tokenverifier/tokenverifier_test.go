@@ -189,6 +189,96 @@ func TestATokenCarryingAReservedRoleIsRejectedOutright(t *testing.T) {
 	}
 }
 
+// The hospital identifier is the organization alias, taken from the
+// verified organization claim (§75, issue #78) - never a free-form
+// attribute, never request input. This covers every shape the claim can
+// take: present, absent, an unexpected shape, and more than one
+// organization at once.
+func TestHospitalIsDerivedFromTheVerifiedOrganizationClaim(t *testing.T) {
+	fixture := newFixture(t)
+	adminRole := map[string]any{"roles": []string{"admin"}}
+
+	tests := []struct {
+		name           string
+		overrides      claims
+		wantHospitalID string
+		wantErr        error
+	}{
+		{
+			name:           "a present organization",
+			overrides:      claims{"organization": []string{"north-hospital"}},
+			wantHospitalID: "north-hospital",
+		},
+		{
+			name:      "an absent organization with the tenant-wide marker",
+			overrides: claims{"organization": nil, "realm_access": adminRole},
+		},
+		{
+			name:      "an absent organization with no tenant-wide marker",
+			overrides: claims{"organization": nil},
+			wantErr:   tokenverifier.ErrUnscopedToken,
+		},
+		{
+			name:      "an unexpected claim shape: a map instead of an array",
+			overrides: claims{"organization": map[string]any{"north-hospital": true}},
+			wantErr:   tokenverifier.ErrUnscopedToken,
+		},
+		{
+			name:      "an unexpected claim shape: a bare scalar",
+			overrides: claims{"organization": "north-hospital"},
+			wantErr:   tokenverifier.ErrUnscopedToken,
+		},
+		{
+			name:      "an unexpected claim shape: an empty array",
+			overrides: claims{"organization": []string{}},
+			wantErr:   tokenverifier.ErrUnscopedToken,
+		},
+		{
+			name:      "an unexpected claim shape and the tenant-wide marker still applies",
+			overrides: claims{"organization": "north-hospital", "realm_access": adminRole},
+		},
+		{
+			name:      "multiple organizations in the claim",
+			overrides: claims{"organization": []string{"north-hospital", "south-hospital"}},
+			wantErr:   tokenverifier.ErrAmbiguousOrganization,
+		},
+		{
+			// The invariant is "exactly one, or none" - ambiguity is not
+			// resolved by also being an administrator.
+			name:      "multiple organizations even with the tenant-wide marker",
+			overrides: claims{"organization": []string{"north-hospital", "south-hospital"}, "realm_access": adminRole},
+			wantErr:   tokenverifier.ErrAmbiguousOrganization,
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			payload := fixture.valid(nil)
+			for name, value := range test.overrides {
+				if value == nil {
+					delete(payload, name)
+					continue
+				}
+				payload[name] = value
+			}
+
+			verified, err := fixture.verifier(t).Verify(context.Background(), fixture.sign(t, payload))
+			if test.wantErr != nil {
+				if !errors.Is(err, test.wantErr) {
+					t.Fatalf("Verify error = %v, want %v", err, test.wantErr)
+				}
+				return
+			}
+			if err != nil {
+				t.Fatalf("Verify: %v", err)
+			}
+			if verified.HospitalID != test.wantHospitalID {
+				t.Errorf("HospitalID = %q, want %q", verified.HospitalID, test.wantHospitalID)
+			}
+		})
+	}
+}
+
 // §16.1 says normalise *only* the configured role claims. An installation
 // reading client roles must not silently pick up realm roles as well, or a role
 // granted for an unrelated application becomes an authorization input.
@@ -281,8 +371,7 @@ func (f *fixture) valid(overrides claims) claims {
 		"preferred_username": "doctor",
 		"exp":                f.now.Add(time.Hour).Unix(),
 		"iat":                f.now.Unix(),
-		"tenant_id":          "tenant-a",
-		"hospital_id":        "hospital-1",
+		"organization":       []string{"hospital-1"},
 		"resource_access": map[string]any{
 			"patient-app": map[string]any{"roles": []string{"doctor"}},
 		},

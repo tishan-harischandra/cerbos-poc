@@ -132,6 +132,7 @@ func (f *realmFixture) valid(overrides claims) claims {
 		"preferred_username": f.realm + "-user",
 		"exp":                f.now.Add(time.Hour).Unix(),
 		"iat":                f.now.Unix(),
+		"organization":       []string{"hospital-1"},
 		"resource_access": map[string]any{
 			"patient-app": map[string]any{"roles": []string{"doctor"}},
 		},

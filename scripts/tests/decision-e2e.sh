@@ -43,7 +43,7 @@ wait_for_decisions() {
   local required=3 streak=0 code token
   token="$(token_of user-unassigned)"
   local probe='{"resources":[{"kind":"patient_record","id":"patient-000",
-    "attributes":{"tenantId":"tenant-a","hospitalId":"hospital-1","status":"ACTIVE"},
+    "attributes":{"tenantId":"tenant-a","hospitalId":"north-hospital","status":"ACTIVE"},
     "actions":["read"]}]}'
 
   for _ in $(seq 1 60); do
@@ -83,7 +83,7 @@ decide() {
       resources: [{
         kind: "patient_record",
         id: "patient-456",
-        attributes: {tenantId: $resourceTenant, hospitalId: "hospital-1", status: $status},
+        attributes: {tenantId: $resourceTenant, hospitalId: "north-hospital", status: $status},
         actions: $actions
       }]
     }' \
@@ -132,7 +132,7 @@ decide_on() {
       resources: [{
         kind: "patient_record",
         id: $id,
-        attributes: {tenantId: "tenant-a", hospitalId: "hospital-1", status: "ACTIVE"},
+        attributes: {tenantId: "tenant-a", hospitalId: "north-hospital", status: "ACTIVE"},
         actions: [$action]
       }]
     }' \
@@ -218,8 +218,8 @@ expect_decision "a locked record still allows read" \
 expect_decision "a record in another tenant is denied" \
   user-doctor ACTIVE tenant-b read false
 
-# The seed also writes a live grant for user-doctor-revoked in hospital-2. The
-# token's hospital is hospital-1, so that grant must never be read: this is
+# The seed also writes a live grant for user-doctor-revoked in south-hospital. The
+# token's hospital is north-hospital, so that grant must never be read: this is
 # the same principal, same action, only the hospital differs.
 expect_decision "an override in another hospital does not reach this decision" \
   user-doctor-revoked ACTIVE tenant-a delete false

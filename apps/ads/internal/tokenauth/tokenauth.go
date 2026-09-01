@@ -83,6 +83,16 @@ func Require(cfg Config, next http.Handler) http.Handler {
 				writeError(w, http.StatusForbidden, "the token carries a role reserved for the platform")
 				return
 			}
+			// An unscoped token (issue #78) is a distinct, logged reason
+			// too: it is not a forgery attempt, but it is not an ordinary
+			// expired-or-malformed rejection either, and an operator
+			// watching for organization-selection gaps should not have to
+			// pattern-match the generic message to find it.
+			if errors.Is(err, tokenverifier.ErrUnscopedToken) || errors.Is(err, tokenverifier.ErrAmbiguousOrganization) {
+				logger.WarnContext(r.Context(), "rejected an unscoped token", slog.Any("error", err))
+				writeError(w, http.StatusUnauthorized, "the token names no usable hospital scope")
+				return
+			}
 			// Which check failed goes to the log, not to the caller: telling
 			// an unauthenticated caller whether the signature or the audience
 			// was wrong is telling them how to get closer.

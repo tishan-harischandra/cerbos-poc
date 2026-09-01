@@ -6,6 +6,16 @@
   "registrationAllowed": false,
   "loginWithEmailAllowed": true,
   "accessTokenLifespan": 900,
+  "organizationsEnabled": true,
+  "organizations": [
+    {
+      "name": "Hospital B1",
+      "alias": "hospital-b1",
+      "enabled": true,
+      "domains": [{ "name": "hospital-b1.example.test", "verified": false }],
+      "members": [{ "username": "user-doctor-b" }]
+    }
+  ],
   "clients": [
     {
       "clientId": "patient-app",
@@ -19,6 +29,7 @@
       "redirectUris": ["http://localhost:4200/*", "http://127.0.0.1:4200/*"],
       "webOrigins": ["http://localhost:4200", "http://127.0.0.1:4200"],
       "defaultClientScopes": ["basic", "web-origins", "profile", "roles", "email"],
+      "optionalClientScopes": ["organization"],
       "protocolMappers": [
         {
           "name": "audience",
@@ -64,9 +75,6 @@
       "firstName": "Bailey",
       "lastName": "Doctor",
       "email": "bailey.doctor@tenant-b.example.test",
-      "attributes": {
-        "hospital_id": ["hospital-1"]
-      },
       "credentials": [{ "type": "password", "value": "demo-password", "temporary": false }],
       "clientRoles": { "patient-app": ["doctor"] }
     },

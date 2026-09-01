@@ -31,7 +31,7 @@ expect_status() {
   fi
 }
 
-READ_REQUEST='{"resources":[{"kind":"patient_record","id":"patient-456","attributes":{"tenantId":"tenant-a","hospitalId":"hospital-1","status":"ACTIVE"},"actions":["read"]}]}'
+READ_REQUEST='{"resources":[{"kind":"patient_record","id":"patient-456","attributes":{"tenantId":"tenant-a","hospitalId":"north-hospital","status":"ACTIVE"},"actions":["read"]}]}'
 
 # decide_with <token> [body]
 # Echoes the HTTP status of a decision call, leaving the body in /tmp/identity-body.
@@ -66,17 +66,42 @@ else
   fail "the token's subject is the identifier the authorization database keys on (was '${subject}')"
 fi
 
-tenant="$(claim_of "${doctor_token}" '.tenant_id')"
-if [[ "${tenant}" == "tenant-a" ]]; then
-  pass "the token carries the tenant the ADS will derive its context from"
+issuer="$(claim_of "${doctor_token}" '.iss')"
+if [[ "${issuer}" == *"/realms/tenant-a" ]]; then
+  pass "the token's issuer is the realm the ADS derives the tenant from (issue #77)"
 else
-  fail "the token carries the tenant (was '${tenant}')"
+  fail "the token's issuer names the realm (was '${issuer}')"
+fi
+
+organization="$(claim_of "${doctor_token}" '.organization | tojson')"
+if [[ "${organization}" == '["north-hospital"]' ]]; then
+  pass "the token carries the organization the ADS derives the hospital from (issue #78)"
+else
+  fail "the token carries the organization claim (was '${organization}')"
 fi
 
 echo
 echo "--- what the ADS accepts ---"
 
 expect_status "a valid token is accepted" 200 "$(decide_with "${doctor_token}")" "$(cat /tmp/identity-body)"
+
+# §78: the decision just taken used a hospital that came from the verified
+# organization claim, not a free-form attribute - proven by changing only the
+# resource's hospital and watching the decision flip, still through the real
+# ADS and PDP.
+own_hospital_request='{"resources":[{"kind":"patient_record","id":"patient-456","attributes":{"tenantId":"tenant-a","hospitalId":"north-hospital","status":"ACTIVE"},"actions":["read"]}]}'
+decide_with "${doctor_token}" "${own_hospital_request}" >/dev/null
+own_hospital_allowed="$(jq -r '.resources[0].actions.read.allowed' /tmp/identity-body)"
+
+other_hospital_request='{"resources":[{"kind":"patient_record","id":"patient-456","attributes":{"tenantId":"tenant-a","hospitalId":"south-hospital","status":"ACTIVE"},"actions":["read"]}]}'
+decide_with "${doctor_token}" "${other_hospital_request}" >/dev/null
+other_hospital_allowed="$(jq -r '.resources[0].actions.read.allowed' /tmp/identity-body)"
+
+if [[ "${own_hospital_allowed}" == "true" && "${other_hospital_allowed}" == "false" ]]; then
+  pass "a real decision takes its hospital from the organization claim, not a fixed value"
+else
+  fail "a real decision takes its hospital from the organization claim (north-hospital allowed=${own_hospital_allowed}, south-hospital allowed=${other_hospital_allowed})"
+fi
 
 echo
 echo "--- what the ADS refuses ---"
@@ -104,7 +129,7 @@ expect_status "a token carrying a sys: role is refused outright" 403 "$(decide_w
 echo
 echo "--- the browser cannot name itself ---"
 
-smuggled='{"tenantId":"tenant-b","resources":[{"kind":"patient_record","id":"patient-456","attributes":{"tenantId":"tenant-b","hospitalId":"hospital-1","status":"ACTIVE"},"actions":["read"]}]}'
+smuggled='{"tenantId":"tenant-b","resources":[{"kind":"patient_record","id":"patient-456","attributes":{"tenantId":"tenant-b","hospitalId":"north-hospital","status":"ACTIVE"},"actions":["read"]}]}'
 expect_status "a request naming its own tenant is refused" 400 \
   "$(decide_with "${doctor_token}" "${smuggled}")"
 
@@ -132,7 +157,7 @@ expect_status "tenant-b's token is accepted by the same deployment tenant-a's is
 # database, never from request input) is tenant-b's: the isolation rule
 # denies it, so the identity check passing is not what stands between a
 # caller and another tenant's data - the policy is.
-cross_tenant_request='{"resources":[{"kind":"patient_record","id":"patient-456","attributes":{"tenantId":"tenant-b","hospitalId":"hospital-1","status":"ACTIVE"},"actions":["read"]}]}'
+cross_tenant_request='{"resources":[{"kind":"patient_record","id":"patient-456","attributes":{"tenantId":"tenant-b","hospitalId":"north-hospital","status":"ACTIVE"},"actions":["read"]}]}'
 decide_with "${doctor_token}" "${cross_tenant_request}" >/dev/null
 cross_tenant_allowed="$(jq -r '.resources[0].actions.read.allowed' /tmp/identity-body)"
 if [[ "${cross_tenant_allowed}" == "false" ]]; then
@@ -143,7 +168,7 @@ fi
 
 # The reverse direction proves the boundary runs both ways, not just
 # because tenant-a happens to be what every other case in this suite uses.
-reverse_cross_tenant_request='{"resources":[{"kind":"patient_record","id":"patient-456","attributes":{"tenantId":"tenant-a","hospitalId":"hospital-1","status":"ACTIVE"},"actions":["read"]}]}'
+reverse_cross_tenant_request='{"resources":[{"kind":"patient_record","id":"patient-456","attributes":{"tenantId":"tenant-a","hospitalId":"north-hospital","status":"ACTIVE"},"actions":["read"]}]}'
 decide_with "${doctor_b_token}" "${reverse_cross_tenant_request}" >/dev/null
 reverse_allowed="$(jq -r '.resources[0].actions.read.allowed' /tmp/identity-body)"
 if [[ "${reverse_allowed}" == "false" ]]; then

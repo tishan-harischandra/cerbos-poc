@@ -53,6 +53,17 @@ var (
 	// ErrReservedRole means the token claimed a role only the platform may
 	// assign.
 	ErrReservedRole = errors.New("the token carries a role reserved for the platform")
+	// ErrUnscopedToken means the token names no active organization and
+	// carries no tenant-wide marker either, so no server-side hospital
+	// context could be derived (issue #78). It is refused rather than
+	// treated as tenant-wide by default: silently widening an unscoped
+	// token's reach is the failure mode this check exists to prevent.
+	ErrUnscopedToken = errors.New("the token carries neither an active organization nor the administrator's tenant-wide marker")
+	// ErrAmbiguousOrganization means the organization claim named more than
+	// one alias. A session has exactly one active hospital, or none (§75);
+	// more than one is not a hospital to guess among, it is a claim this
+	// verifier does not trust.
+	ErrAmbiguousOrganization = errors.New("the token's organization claim names more than one active organization")
 )
 
 // RoleSource names which Keycloak role claim is authoritative (§7.3).
@@ -65,13 +76,19 @@ const (
 	RoleSourceRealm RoleSource = "REALM"
 )
 
-// Default claim names. Keycloak emits hospital through a user attribute
-// mapper, so the name is configurable rather than fixed. The tenant carries
-// no such claim (issue #77): it is always the realm that signed the token,
-// which is not something a caller's claim set can express.
-const (
-	DefaultHospitalClaim = "hospital_id"
-)
+// OrganizationClaim is Keycloak's own claim name for organization scope
+// selection. Unlike the retired free-form hospital attribute, this is not
+// configurable: it is Keycloak's organization feature's claim, not a
+// convention this installation invented (§75, issue #78).
+const OrganizationClaim = "organization"
+
+// TenantWideRealmRole is the realm role that lets a token carry no active
+// organization and still be usable: an administrator's deliberate
+// tenant-wide choice (issue #78), not a default anything else falls back
+// to. It is a realm role rather than a client role because it names who the
+// principal is to the identity provider, not what one application lets them
+// do.
+const TenantWideRealmRole = "admin"
 
 // DefaultLeeway absorbs clock drift between the identity provider and this
 // service. Without it a correctly issued token is intermittently rejected on
@@ -98,8 +115,6 @@ type Config struct {
 	// ClientID is the client whose roles are authoritative when RoleSource is
 	// CLIENT. It is also the audience Keycloak stamps on the token.
 	ClientID string
-
-	HospitalClaim string
 
 	Keys   KeySource
 	Now    func() time.Time
@@ -143,9 +158,6 @@ func New(cfg Config) (*Verifier, error) {
 	}
 	if cfg.RoleSource == RoleSourceClient && cfg.ClientID == "" {
 		return nil, errors.New("tokenverifier: a client id is required when roles come from a client")
-	}
-	if cfg.HospitalClaim == "" {
-		cfg.HospitalClaim = DefaultHospitalClaim
 	}
 	if cfg.Now == nil {
 		cfg.Now = time.Now
@@ -281,6 +293,11 @@ func (v *Verifier) Verify(ctx context.Context, raw string) (VerifiedToken, error
 		return VerifiedToken{}, err
 	}
 
+	hospital, err := hospitalOf(claims)
+	if err != nil {
+		return VerifiedToken{}, err
+	}
+
 	verified := VerifiedToken{
 		Subject:  claims.Subject,
 		Username: claims.Username,
@@ -289,7 +306,7 @@ func (v *Verifier) Verify(ctx context.Context, raw string) (VerifiedToken, error
 		// claim inside it: a caller who could put any value in a claim could
 		// put any tenant in it too.
 		TenantID:   v.cfg.Realm,
-		HospitalID: stringClaim(claims.rest, v.cfg.HospitalClaim),
+		HospitalID: hospital,
 		Roles:      roles,
 		ExpiresAt:  expiresAt,
 	}
@@ -352,12 +369,67 @@ func allRoles(claims jwtClaims) []string {
 	return roles
 }
 
-func stringClaim(rest map[string]any, name string) string {
-	value, ok := rest[name].(string)
+// hospitalOf derives the active hospital from the verified organization
+// claim (issue #78, §75): the hospital identifier is the organization
+// alias, and there is no other path to it - not a free-form attribute, not
+// request input. A token naming no active organization is only usable when
+// it also carries the administrator's tenant-wide marker; otherwise it is
+// refused rather than defaulted to tenant-wide.
+func hospitalOf(claims jwtClaims) (string, error) {
+	aliases, ok := organizationAliases(claims.rest)
 	if !ok {
-		return ""
+		if hasTenantWideMarker(claims) {
+			return "", nil
+		}
+		return "", ErrUnscopedToken
 	}
-	return value
+	if len(aliases) > 1 {
+		return "", ErrAmbiguousOrganization
+	}
+	return aliases[0], nil
+}
+
+// organizationAliases decodes the organization claim into its alias list
+// (§75's spike: a JSON array of alias strings, e.g.
+// "organization": ["north-hospital"]). Any other shape - absent, a map, a
+// bare scalar, an empty array - reports false: it is not a shape Keycloak's
+// own organization scope ever produces, so it is treated the same as no
+// organization at all rather than trusted to mean something.
+func organizationAliases(rest map[string]any) ([]string, bool) {
+	raw, ok := rest[OrganizationClaim]
+	if !ok {
+		return nil, false
+	}
+	items, ok := raw.([]any)
+	if !ok {
+		return nil, false
+	}
+	aliases := make([]string, 0, len(items))
+	for _, item := range items {
+		alias, ok := item.(string)
+		if !ok {
+			return nil, false
+		}
+		aliases = append(aliases, alias)
+	}
+	if len(aliases) == 0 {
+		return nil, false
+	}
+	return aliases, true
+}
+
+// hasTenantWideMarker reports whether the token carries the administrator's
+// tenant-wide realm role. It reads realm_access.roles directly rather than
+// the configured RoleSource: the marker names who the principal is to the
+// identity provider, not which application-facing role claim this
+// installation happens to treat as authoritative.
+func hasTenantWideMarker(claims jwtClaims) bool {
+	for _, role := range claims.RealmAccess.Roles {
+		if role == TenantWideRealmRole {
+			return true
+		}
+	}
+	return false
 }
 
 func decodeSegment[T any](segment string) (T, error) {
