@@ -17,6 +17,16 @@
           >Keycloak administration console</a
         >
       }
+      @if (claims.otherHospitals.length) {
+        <select (change)="onSwitchHospital($event)" data-testid="hospital-switcher">
+          <option value="" selected disabled>Switch hospital&hellip;</option>
+          @for (hospital of claims.otherHospitals; track hospital) {
+            <option [value]="hospital" [attr.data-testid]="'hospital-option-' + hospital">
+              {{ hospital }}
+            </option>
+          }
+        </select>
+      }
       <button type="button" (click)="logout()" data-testid="logout">Log out</button>
     </div>
   }

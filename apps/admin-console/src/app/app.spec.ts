@@ -23,7 +23,12 @@ describe('App', () => {
           provide: AuthService,
           useValue: {
             isAuthenticated: () => true,
-            claims: () => ({ tenantId: 'tenant-a', hospitalId: 'hospital-1', username: 'admin' }),
+            claims: () => ({
+              tenantId: 'tenant-a',
+              hospitalId: 'hospital-1',
+              username: 'admin',
+              otherHospitals: [],
+            }),
             login: vi.fn(),
             logout: vi.fn(),
           },
