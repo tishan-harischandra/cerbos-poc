@@ -81,3 +81,22 @@ func (d *Directory) GetUserRoles(context.Context, idpdirectory.TenantID, string)
 func (d *Directory) ResolveRuntimeRoles(context.Context, tokenverifier.VerifiedToken, idpdirectory.TenantID) ([]string, error) {
 	return nil, unimplemented("runtime role resolution", "SCIM2 /Roles")
 }
+
+// OrganizationsOfTenant is not implemented (issue #85). WSO2 Identity
+// Server's shape for this is organizations under SCIM2, which this stub
+// does not model.
+func (d *Directory) OrganizationsOfTenant(context.Context, idpdirectory.TenantID, idpdirectory.OrganizationSearch) (idpdirectory.Page[idpdirectory.OrganizationRef], error) {
+	return idpdirectory.Page[idpdirectory.OrganizationRef]{}, unimplemented("organization search", "SCIM2 organizations")
+}
+
+// OrganizationsOfUser is not implemented. It would use SCIM2's own
+// organization membership representation for a user.
+func (d *Directory) OrganizationsOfUser(context.Context, idpdirectory.TenantID, string) ([]idpdirectory.OrganizationRef, error) {
+	return nil, unimplemented("a user's organizations", "SCIM2 organizations")
+}
+
+// MembersOfOrganization is not implemented. It would use SCIM2's own
+// organization membership representation.
+func (d *Directory) MembersOfOrganization(context.Context, idpdirectory.TenantID, string, idpdirectory.PageRequest) (idpdirectory.Page[idpdirectory.UserRef], error) {
+	return idpdirectory.Page[idpdirectory.UserRef]{}, unimplemented("organization members", "SCIM2 organizations")
+}
