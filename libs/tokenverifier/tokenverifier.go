@@ -82,6 +82,15 @@ const (
 // convention this installation invented (§75, issue #78).
 const OrganizationClaim = "organization"
 
+// OrganizationMembershipsClaim carries every organization the user belongs
+// to, regardless of which one is active (issue #84). It is populated by the
+// platform's own Keycloak protocol mapper - unlike OrganizationClaim, this
+// is not a built-in Keycloak claim - and it is never subtracted from or
+// substituted for the active hospital: OtherHospitals is the active
+// hospital removed from this list, computed here so every caller sees the
+// same subtraction.
+const OrganizationMembershipsClaim = "organization_memberships"
+
 // TenantWideRealmRole is the realm role that lets a token carry no active
 // organization and still be usable: an administrator's deliberate
 // tenant-wide choice (issue #78), not a default anything else falls back
@@ -133,6 +142,13 @@ type VerifiedToken struct {
 	Roles     []string
 	IssuedAt  time.Time
 	ExpiresAt time.Time
+	// OtherHospitals lists every organization the user belongs to other
+	// than HospitalID (issue #84): display data for a hospital switcher,
+	// kept on its own field so that widening a decision by reading it
+	// instead of HospitalID is a structural impossibility, not a review
+	// discipline. tests/architecture enforces that no decision path reads
+	// this field.
+	OtherHospitals []string
 }
 
 // Verifier performs the §16.1 identity checks.
@@ -305,10 +321,11 @@ func (v *Verifier) Verify(ctx context.Context, raw string) (VerifiedToken, error
 		// The tenant is the realm that signed the token (issue #77), never a
 		// claim inside it: a caller who could put any value in a claim could
 		// put any tenant in it too.
-		TenantID:   v.cfg.Realm,
-		HospitalID: hospital,
-		Roles:      roles,
-		ExpiresAt:  expiresAt,
+		TenantID:       v.cfg.Realm,
+		HospitalID:     hospital,
+		Roles:          roles,
+		ExpiresAt:      expiresAt,
+		OtherHospitals: otherHospitalsOf(claims, hospital),
 	}
 	if claims.IssuedAt != nil {
 		verified.IssuedAt = time.Unix(*claims.IssuedAt, 0)
@@ -416,6 +433,32 @@ func organizationAliases(rest map[string]any) ([]string, bool) {
 		return nil, false
 	}
 	return aliases, true
+}
+
+// otherHospitalsOf reads OrganizationMembershipsClaim and returns every
+// alias in it other than active (issue #84). An absent or malformed claim
+// reports nil rather than an error: unlike the active organization, a
+// missing memberships list is not a scope the token fails to carry, it is
+// display data a client simply does not get to show - a switcher with
+// nothing to switch to, not a rejected token.
+func otherHospitalsOf(claims jwtClaims, active string) []string {
+	raw, ok := claims.rest[OrganizationMembershipsClaim]
+	if !ok {
+		return nil
+	}
+	items, ok := raw.([]any)
+	if !ok {
+		return nil
+	}
+	var others []string
+	for _, item := range items {
+		alias, ok := item.(string)
+		if !ok || alias == active {
+			continue
+		}
+		others = append(others, alias)
+	}
+	return others
 }
 
 // hasTenantWideMarker reports whether the token carries the administrator's

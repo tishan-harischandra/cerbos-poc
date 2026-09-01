@@ -9,6 +9,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"errors"
+	"slices"
 	"testing"
 	"time"
 
@@ -274,6 +275,75 @@ func TestHospitalIsDerivedFromTheVerifiedOrganizationClaim(t *testing.T) {
 			}
 			if verified.HospitalID != test.wantHospitalID {
 				t.Errorf("HospitalID = %q, want %q", verified.HospitalID, test.wantHospitalID)
+			}
+		})
+	}
+}
+
+// A hospital switcher needs to know what else a user can switch to without
+// that list ever being able to widen a decision (issue #84): the active
+// hospital and the rest of a user's memberships are two different fields,
+// and the active one is always excluded from the other list even though
+// Keycloak's own membership claim does not exclude it itself.
+func TestOtherHospitalsCarriesEveryMembershipExceptTheActiveHospital(t *testing.T) {
+	fixture := newFixture(t)
+
+	tests := []struct {
+		name              string
+		overrides         claims
+		wantOtherHospital []string
+	}{
+		{
+			name: "no other memberships claim at all",
+			overrides: claims{
+				"organization": []string{"north-hospital"},
+			},
+			wantOtherHospital: nil,
+		},
+		{
+			name: "the memberships claim names only the active hospital",
+			overrides: claims{
+				"organization":             []string{"north-hospital"},
+				"organization_memberships": []string{"north-hospital"},
+			},
+			wantOtherHospital: nil,
+		},
+		{
+			name: "the memberships claim names the active hospital and another",
+			overrides: claims{
+				"organization":             []string{"north-hospital"},
+				"organization_memberships": []string{"north-hospital", "south-hospital"},
+			},
+			wantOtherHospital: []string{"south-hospital"},
+		},
+		{
+			name: "a tenant-wide session still reports every membership",
+			overrides: claims{
+				"organization":             nil,
+				"realm_access":             map[string]any{"roles": []string{"admin"}},
+				"organization_memberships": []string{"north-hospital", "south-hospital"},
+			},
+			wantOtherHospital: []string{"north-hospital", "south-hospital"},
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			payload := fixture.valid(nil)
+			for name, value := range test.overrides {
+				if value == nil {
+					delete(payload, name)
+					continue
+				}
+				payload[name] = value
+			}
+
+			verified, err := fixture.verifier(t).Verify(context.Background(), fixture.sign(t, payload))
+			if err != nil {
+				t.Fatalf("Verify: %v", err)
+			}
+			if !slices.Equal(verified.OtherHospitals, test.wantOtherHospital) {
+				t.Errorf("OtherHospitals = %v, want %v", verified.OtherHospitals, test.wantOtherHospital)
 			}
 		})
 	}
