@@ -33,6 +33,7 @@ import (
 	"github.com/tishan-harischandra/cerbos-poc/libs/outbox"
 	"github.com/tishan-harischandra/cerbos-poc/libs/outbox/kafkapublisher"
 	"github.com/tishan-harischandra/cerbos-poc/libs/policyrelease"
+	"github.com/tishan-harischandra/cerbos-poc/libs/tenantregistry"
 	"github.com/tishan-harischandra/cerbos-poc/libs/tokenverifier"
 )
 
@@ -94,18 +95,30 @@ func main() {
 		os.Exit(1)
 	}
 
-	// The console's own login configuration (ADR-008) is only ever one
-	// realm's: a browser lands on one login page. Absent an explicit
-	// override, that is the first realm the registry names; an
-	// installation that wants a particular realm's login page sets
-	// OIDC_ISSUER/OIDC_CLIENT_ID rather than relying on map order.
+	// homeRealm is used for platform-status reporting only (§9.4): which
+	// identity provider type and role source this deployment runs, an
+	// installation-wide fact rather than a per-tenant one. It is not the
+	// console's login configuration - issue #83 replaced "one baked-in
+	// realm" with per-tenant resolution from the request's own host, so
+	// there is no longer a single realm the console's own login page is
+	// "for".
 	homeRealm := homeInstallation(providerTenants, installations)
-	if cfg.OIDCIssuer == "" {
-		cfg.OIDCIssuer = homeRealm.Config.Issuer
+
+	// A user reaches their hospital group by its own subdomain and never
+	// needs to know what a realm is (issue #83): the console's runtime
+	// environment names whichever tenant the browser's own Host header
+	// resolves to, from the same registry every other multi-tenant
+	// wiring in this service already reads - never a value baked into the
+	// bundle or this service's own environment at build/start time.
+	registryEntries := make([]tenantregistry.Entry, 0, len(providerTenants))
+	for _, tenant := range providerTenants {
+		registryEntries = append(registryEntries, tenantregistry.Entry{
+			Realm:           tenant.Realm,
+			Issuer:          tenant.Issuer,
+			BrowserClientID: tenant.BrowserClientID,
+		})
 	}
-	if cfg.OIDCClientID == "" {
-		cfg.OIDCClientID = homeRealm.Config.ClientID
-	}
+	hostResolver := tenantregistry.NewHostResolver(registryEntries)
 
 	verifiers := tokenverifier.NewRegistry()
 	for _, installation := range installations {
@@ -139,12 +152,9 @@ func main() {
 	var consoleConfig *console.Config
 	if cfg.ConsoleDir != "" {
 		consoleConfig = &console.Config{
-			Dir:     cfg.ConsoleDir,
-			ADSAddr: cfg.ADSAddr,
-			Environment: console.Environment{
-				OIDCIssuer:   cfg.OIDCIssuer,
-				OIDCClientID: cfg.OIDCClientID,
-			},
+			Dir:          cfg.ConsoleDir,
+			ADSAddr:      cfg.ADSAddr,
+			HostResolver: hostResolver,
 		}
 	}
 

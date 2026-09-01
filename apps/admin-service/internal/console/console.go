@@ -12,7 +12,6 @@
 package console
 
 import (
-	"encoding/json"
 	"errors"
 	"fmt"
 	"io/fs"
@@ -21,6 +20,8 @@ import (
 	"path"
 	"path/filepath"
 	"strings"
+
+	"github.com/tishan-harischandra/cerbos-poc/libs/tenantregistry"
 )
 
 // Config describes the console this service serves.
@@ -31,62 +32,14 @@ type Config struct {
 	// same address this service already uses for the simulator, so the
 	// browser's route to the ADS and the service's own cannot diverge.
 	ADSAddr string
-	// Environment is what the bundle needs to know at runtime.
-	Environment Environment
-}
-
-// Environment is the configuration the browser needs at runtime.
-//
-// The bundle is built long before anyone knows which Keycloak an installation
-// logs in against, and a static build has no templating step of its own, so
-// these values reach it as a small script the service renders.
-type Environment struct {
-	OIDCIssuer   string
-	OIDCClientID string
+	// HostResolver resolves which tenant's issuer and client id the
+	// runtime environment names, from the request's own Host header
+	// (issue #83) - never a value baked into the bundle at build time.
+	HostResolver tenantregistry.HostResolver
 }
 
 // EnvJSPath is where index.html expects the runtime environment.
 const EnvJSPath = "/assets/env.js"
-
-// EnvJS renders the runtime environment as the script index.html loads.
-//
-// The values are marshalled as JSON rather than interpolated. They are
-// configuration arriving from the environment, and they end up inside a script
-// this origin serves: a stray quote would close the string literal early, and
-// an operator's typo would become script injection on the console's own
-// origin. json.Marshal escapes both the quote and the `<` that would otherwise
-// close the surrounding script tag.
-func EnvJS(env Environment) http.Handler {
-	// A JSON object literal is also a JavaScript object literal, so the
-	// whole value is marshalled in one step rather than interpolated field
-	// by field. json.Marshal already escapes the quote; escapeForScript
-	// handles the one thing JSON encoding does not know about.
-	marshalled, _ := json.Marshal(struct {
-		OIDCIssuer   string `json:"oidcIssuer"`
-		OIDCClientID string `json:"oidcClientId"`
-	}{OIDCIssuer: env.OIDCIssuer, OIDCClientID: env.OIDCClientID})
-	body := fmt.Sprintf("window.__ENV__ = %s;\n", escapeForScript(marshalled))
-
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Type", "text/javascript; charset=utf-8")
-		// The issuer can change without the bundle changing, so this one
-		// file must not be cached the way the fingerprinted assets are.
-		w.Header().Set("Cache-Control", "no-store")
-		_, _ = w.Write([]byte(body))
-	})
-}
-
-// escapeForScript hides the character sequences that would end the script
-// element early. Inside a <script>, the parser looks for "</script" and
-// "<!--" before the javascript is ever parsed, so a value containing one would
-// terminate the script no matter how well quoted it is as a JSON string.
-func escapeForScript(marshalled []byte) string {
-	escaped := string(marshalled)
-	escaped = strings.ReplaceAll(escaped, "<", `\u003c`)
-	escaped = strings.ReplaceAll(escaped, ">", `\u003e`)
-	escaped = strings.ReplaceAll(escaped, "&", `\u0026`)
-	return escaped
-}
 
 // Assets serves the built bundle, falling back to index.html so a deep link
 // or a refresh reaches the application's own router.

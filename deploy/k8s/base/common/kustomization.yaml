@@ -14,6 +14,8 @@
 # derives its own tenant from itself.
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
+resources:
+  - ingress.yaml
 configMapGenerator:
   - name: idp-config
     literals:

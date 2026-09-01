@@ -1,0 +1,45 @@
+# A user reaches their hospital group by its own web address and never
+# needs to know what a realm is (issue #83): tenant is resolved from the
+# request host, one subdomain per tenant, and this is the one place a
+# cluster names which host pattern reaches which front end.
+#
+# Two wildcard host patterns rather than one, because the two front ends
+# are two separate workloads on two separate ports in compose (issue #16's
+# ADR-008 vs the business-ui service) and Ingress routes by host and path,
+# not by port: *.admin.<baseDomain> reaches the Admin Console (served by
+# admin-service), and *.<baseDomain> reaches business-ui. Every tenant
+# subdomain under either pattern is served by the same Ingress rule - no
+# manifest change is needed to add a tenant, only a new tenant registry row
+# (issue #76).
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: tenant-subdomains
+  annotations:
+    # Rewritten by an overlay that needs a specific controller's own
+    # annotations (e.g. nginx.ingress.kubernetes.io/*); the base manifest
+    # names no controller so it validates against the plain Kubernetes API
+    # schema on its own.
+    kubernetes.io/ingress.class: nginx
+spec:
+  rules:
+    - host: "*.admin.cerbos-poc.test"
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: admin-service
+                port:
+                  number: 8081
+    - host: "*.cerbos-poc.test"
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: business-ui
+                port:
+                  number: 80

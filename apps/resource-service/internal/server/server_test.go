@@ -6,10 +6,12 @@ import (
 	"errors"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 	"time"
 
 	"github.com/tishan-harischandra/cerbos-poc/apps/resource-service/internal/server"
+	"github.com/tishan-harischandra/cerbos-poc/libs/tenantregistry"
 )
 
 func TestHealthzReportsTheServiceIsAlive(t *testing.T) {
@@ -30,6 +32,39 @@ func TestHealthzReportsTheServiceIsAlive(t *testing.T) {
 	}
 	if body.Status != "ok" {
 		t.Errorf("GET /healthz status field = %q, want %q", body.Status, "ok")
+	}
+}
+
+// business-ui's runtime environment (issue #83) is absent unless this
+// deployment is actually configured to serve it - a bare API deployment
+// must not gain a new route it never asked for.
+func TestEnvJSIsAbsentWithNoHostResolverConfigured(t *testing.T) {
+	handler := server.New(server.Config{})
+
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, server.EnvJSPath, nil))
+
+	if rec.Code != http.StatusNotFound {
+		t.Errorf("GET %s status = %d, want 404 with no host resolver configured", server.EnvJSPath, rec.Code)
+	}
+}
+
+func TestEnvJSRendersTheRequestingHostsOwnTenant(t *testing.T) {
+	resolver := tenantregistry.NewHostResolver([]tenantregistry.Entry{
+		{Realm: "tenant-a", Issuer: "http://localhost:8081/realms/tenant-a", BrowserClientID: "patient-app"},
+	})
+	handler := server.New(server.Config{HostResolver: resolver})
+
+	req := httptest.NewRequest(http.MethodGet, server.EnvJSPath, nil)
+	req.Host = "tenant-a.example.test"
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("GET %s status = %d, want 200", server.EnvJSPath, rec.Code)
+	}
+	if !strings.Contains(rec.Body.String(), "tenant-a") {
+		t.Errorf("body = %q, want the requesting host's own tenant", rec.Body.String())
 	}
 }
 

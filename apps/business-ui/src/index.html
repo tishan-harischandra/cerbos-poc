@@ -8,6 +8,11 @@
     <link rel="icon" type="image/x-icon" href="favicon.ico" />
   </head>
   <body>
+    <!-- Served by the resource service, resolved per tenant from the
+         browser's own Host header (issue #83), the same ADR-008 pattern
+         apps/admin-console uses. Absent under `nx serve`, where
+         oidc-config.ts's defaults apply. -->
+    <script src="assets/env.js"></script>
     <app-root></app-root>
   </body>
 </html>

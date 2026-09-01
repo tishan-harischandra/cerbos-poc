@@ -6,7 +6,15 @@ import (
 	"encoding/json"
 	"net/http"
 	"time"
+
+	"github.com/tishan-harischandra/cerbos-poc/libs/tenantregistry"
 )
+
+// EnvJSPath is where business-ui's index.html expects the runtime
+// environment, mirroring apps/admin-service/internal/console's own
+// EnvJSPath (ADR-008's pattern, extended to a second front end by issue
+// #83's per-tenant resolution).
+const EnvJSPath = "/assets/env.js"
 
 // DefaultReadinessTimeout bounds how long readiness waits on its
 // dependencies, mirroring apps/ads/internal/server.
@@ -27,6 +35,11 @@ type Config struct {
 	// in the token middleware, the same convention apps/ads uses: no route
 	// exists that forgot authentication and no route needs it applied twice.
 	FHIRHandler http.Handler
+	// HostResolver resolves business-ui's runtime environment per tenant,
+	// from the request's own Host header (issue #83) - nil means this
+	// deployment does not serve the console's env.js at all (a bare API
+	// deployment, or a business-ui served some other way).
+	HostResolver tenantregistry.HostResolver
 }
 
 // New builds the resource service's HTTP handler.
@@ -37,6 +50,9 @@ func New(cfg Config) http.Handler {
 	})
 	if cfg.FHIRHandler != nil {
 		mux.Handle("/fhir/", cfg.FHIRHandler)
+	}
+	if cfg.HostResolver != nil {
+		mux.Handle("GET "+EnvJSPath, tenantregistry.EnvJSHandler(cfg.HostResolver))
 	}
 
 	timeout := cfg.ReadinessTimeout

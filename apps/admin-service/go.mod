@@ -9,6 +9,7 @@ require (
 	github.com/tishan-harischandra/cerbos-poc/libs/leaderlock v0.0.0
 	github.com/tishan-harischandra/cerbos-poc/libs/outbox v0.0.0-00010101000000-000000000000
 	github.com/tishan-harischandra/cerbos-poc/libs/permissionevents v0.0.0
+	github.com/tishan-harischandra/cerbos-poc/libs/tenantregistry v0.0.0
 	github.com/tishan-harischandra/cerbos-poc/libs/tokenverifier v0.0.0
 )
 

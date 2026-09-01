@@ -13,6 +13,7 @@ COPY libs/assignmentstore/go.mod libs/assignmentstore/go.sum ./libs/assignmentst
 COPY libs/tokenverifier/go.mod ./libs/tokenverifier/
 COPY libs/canonicalid/go.mod ./libs/canonicalid/
 COPY libs/idpdirectory/go.mod ./libs/idpdirectory/
+COPY libs/tenantregistry/go.mod libs/tenantregistry/go.sum ./libs/tenantregistry/
 WORKDIR /src/apps/resource-service
 RUN go mod download
 

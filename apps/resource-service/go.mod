@@ -5,6 +5,7 @@ go 1.25.11
 require (
 	github.com/tishan-harischandra/cerbos-poc/libs/assignmentstore v0.0.0
 	github.com/tishan-harischandra/cerbos-poc/libs/idpdirectory v0.0.0-20260805202053-720924328c18
+	github.com/tishan-harischandra/cerbos-poc/libs/tenantregistry v0.0.0
 	github.com/tishan-harischandra/cerbos-poc/libs/tokenverifier v0.0.0
 )
 
@@ -17,7 +18,10 @@ require (
 	golang.org/x/text v0.29.0 // indirect
 )
 
-require github.com/tishan-harischandra/cerbos-poc/libs/canonicalid v0.0.0 // indirect
+require (
+	github.com/tishan-harischandra/cerbos-poc/libs/canonicalid v0.0.0 // indirect
+	gopkg.in/yaml.v3 v3.0.1 // indirect
+)
 
 replace github.com/tishan-harischandra/cerbos-poc/libs/assignmentstore => ../../libs/assignmentstore
 
