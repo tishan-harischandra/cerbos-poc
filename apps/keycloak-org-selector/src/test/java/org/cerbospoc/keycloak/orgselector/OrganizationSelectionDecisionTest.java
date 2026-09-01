@@ -1,8 +1,10 @@
 package org.cerbospoc.keycloak.orgselector;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.List;
 import java.util.Optional;
@@ -10,7 +12,6 @@ import org.cerbospoc.keycloak.orgselector.OrganizationSelectionDecision.NeedsSel
 import org.cerbospoc.keycloak.orgselector.OrganizationSelectionDecision.Outcome;
 import org.cerbospoc.keycloak.orgselector.OrganizationSelectionDecision.Refused;
 import org.cerbospoc.keycloak.orgselector.OrganizationSelectionDecision.Selected;
-import org.cerbospoc.keycloak.orgselector.OrganizationSelectionDecision.Undecided;
 import org.junit.jupiter.api.Test;
 
 /**
@@ -50,12 +51,13 @@ class OrganizationSelectionDecisionTest {
     }
 
     @Test
-    void moreThanOneMembershipOffersASelectionAmongExactlyThem() {
+    void moreThanOneMembershipOffersASelectionAmongExactlyThemWithNoTenantWideEntry() {
         Outcome outcome = OrganizationSelectionDecision.decide(
                 List.of("north-hospital", "south-hospital"), false, Optional.empty());
 
         NeedsSelection needsSelection = assertInstanceOf(NeedsSelection.class, outcome);
         assertEquals(List.of("north-hospital", "south-hospital"), needsSelection.options());
+        assertFalse(needsSelection.offerTenantWide(), "an ordinary user's screen offers no tenant-wide entry");
     }
 
     @Test
@@ -71,33 +73,43 @@ class OrganizationSelectionDecisionTest {
     }
 
     @Test
-    void anAdministratorIsUndecidedForTheScreenEvenWithExactlyOneMembership() {
+    void anAdministratorIsOfferedTheScreenWithATenantWideEntryEvenWithExactlyOneMembership() {
         // The tenant-wide choice has to remain available to an
         // administrator, so a single membership must not pre-empt it the
         // way it would for an ordinary user.
         Outcome outcome = OrganizationSelectionDecision.decide(
                 List.of("north-hospital"), true, Optional.empty());
 
-        assertInstanceOf(Undecided.class, outcome);
+        NeedsSelection needsSelection = assertInstanceOf(NeedsSelection.class, outcome);
+        assertEquals(List.of("north-hospital"), needsSelection.options());
+        assertTrue(needsSelection.offerTenantWide());
     }
 
     @Test
-    void anAdministratorWithNoMembershipIsUndecidedForTheScreenRatherThanRefused() {
+    void anAdministratorWithNoMembershipIsOfferedOnlyTheTenantWideEntryRatherThanRefused() {
         Outcome outcome = OrganizationSelectionDecision.decide(List.of(), true, Optional.empty());
 
-        assertInstanceOf(Undecided.class, outcome);
+        NeedsSelection needsSelection = assertInstanceOf(NeedsSelection.class, outcome);
+        assertEquals(List.of(), needsSelection.options());
+        assertTrue(needsSelection.offerTenantWide());
     }
 
     @Test
-    void anAdministratorWithMultipleMembershipsIsUndecidedRatherThanOfferedTheMembershipsScreen() {
-        // Issue #80's screen only ever lists memberships, with no
-        // tenant-wide entry - not what an administrator's own screen (a
-        // later slice) has to offer, so this stays Undecided rather than
-        // NeedsSelection.
+    void anAdministratorWithMultipleMembershipsIsOfferedThemPlusTheTenantWideEntry() {
         Outcome outcome = OrganizationSelectionDecision.decide(
                 List.of("north-hospital", "south-hospital"), true, Optional.empty());
 
-        assertInstanceOf(Undecided.class, outcome);
+        NeedsSelection needsSelection = assertInstanceOf(NeedsSelection.class, outcome);
+        assertEquals(List.of("north-hospital", "south-hospital"), needsSelection.options());
+        assertTrue(needsSelection.offerTenantWide());
+    }
+
+    @Test
+    void aSelectionWithNoTenantWideEntryRequiresAtLeastTwoOptions() {
+        // The single-membership and no-membership cases are Selected/Refused,
+        // never a one-option screen with nothing else to offer.
+        assertThrows(IllegalArgumentException.class,
+                () -> new OrganizationSelectionDecision.NeedsSelection(List.of("north-hospital"), false));
     }
 
     @Test

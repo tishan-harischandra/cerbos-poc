@@ -20,7 +20,8 @@
         { "username": "user-auditor" },
         { "username": "user-clerk-granted" },
         { "username": "user-unassigned" },
-        { "username": "user-doctor-multi" }
+        { "username": "user-doctor-multi" },
+        { "username": "user-admin-clinician" }
       ]
     },
     {
@@ -220,6 +221,18 @@
       "credentials": [{ "type": "password", "value": "demo-password", "temporary": false }],
       "realmRoles": ["admin"],
       "clientRoles": { "patient-app": ["administrator"] }
+    },
+    {
+      "id": "user-admin-clinician",
+      "username": "user-admin-clinician",
+      "enabled": true,
+      "emailVerified": true,
+      "firstName": "Alex",
+      "lastName": "AdminClinician",
+      "email": "alex.adminclinician@example.test",
+      "credentials": [{ "type": "password", "value": "demo-password", "temporary": false }],
+      "realmRoles": ["admin"],
+      "clientRoles": { "patient-app": ["administrator", "doctor"] }
     },
     {
       "id": "user-forger",

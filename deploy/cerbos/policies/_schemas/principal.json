@@ -12,7 +12,7 @@
     },
     "hospitalId": {
       "type": "string",
-      "minLength": 1
+      "description": "The active organization alias, or an empty string for a tenant-wide administrator session (issue #80/#81) - never absent: an omitted hospitalId is a malformed request, an empty one is a deliberate, distinct fact a policy can and must read."
     },
     "idpRoles": {
       "type": "array",

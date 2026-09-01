@@ -37,6 +37,16 @@ principals:
       idpRoles:
         - "kc:tenant-a:patient-app:doctor"
 
+  administrator_tenant_wide:
+    id: idp-user-777
+    roles:
+      - "sys:permission-evaluator"
+    attr:
+      tenantId: tenant-a
+      hospitalId: ""
+      idpRoles:
+        - "kc:tenant-a:patient-app:administrator"
+
 resources:
   revoked_over_role_grant:
     kind: medicinal_product_definition
@@ -343,6 +353,54 @@ tests:
     expected:
       - principal: doctor_of_other_hospital
         resource: inherited_with_role_grant
+        actions:
+          create: EFFECT_DENY
+          list: EFFECT_DENY
+          read: EFFECT_DENY
+          update: EFFECT_DENY
+          delete: EFFECT_DENY
+          assign: EFFECT_DENY
+
+  - name: a tenant-wide session reaches a role grant in any hospital of its tenant
+    input:
+      principals: [administrator_tenant_wide]
+      resources: [other_hospital_record]
+      actions: ["create", "list", "read", "update", "delete", "assign"]
+    expected:
+      - principal: administrator_tenant_wide
+        resource: other_hospital_record
+        actions:
+          create: EFFECT_ALLOW
+          list: EFFECT_ALLOW
+          read: EFFECT_ALLOW
+          update: EFFECT_ALLOW
+          delete: EFFECT_ALLOW
+          assign: EFFECT_ALLOW
+
+  - name: a tenant-wide session cannot reach a hospital-narrowed user grant
+    input:
+      principals: [administrator_tenant_wide]
+      resources: [user_granted_without_role_grant]
+      actions: ["create", "list", "read", "update", "delete", "assign"]
+    expected:
+      - principal: administrator_tenant_wide
+        resource: user_granted_without_role_grant
+        actions:
+          create: EFFECT_DENY
+          list: EFFECT_DENY
+          read: EFFECT_DENY
+          update: EFFECT_DENY
+          delete: EFFECT_DENY
+          assign: EFFECT_DENY
+
+  - name: a tenant-wide session is still denied outside its own tenant
+    input:
+      principals: [administrator_tenant_wide]
+      resources: [other_tenant_record]
+      actions: ["create", "list", "read", "update", "delete", "assign"]
+    expected:
+      - principal: administrator_tenant_wide
+        resource: other_tenant_record
         actions:
           create: EFFECT_DENY
           list: EFFECT_DENY

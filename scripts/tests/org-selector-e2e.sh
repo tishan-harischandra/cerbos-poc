@@ -188,26 +188,102 @@ fi
 rm -f "${jar}"
 
 echo
-echo "--- an administrator is undecided (the selection screen, not this authenticator) ---"
+echo "--- an administrator sees a tenant-wide entry; a non-administrator never does (issue #81) ---"
 
 jar="$(mktemp)"
 login_page tenant-a patient-app "${jar}"
 action="$(login_action "${login_body}")"
-submit_credentials "${action}" "${jar}" user-admin demo-password
+form_body="$(curl -sS --max-time 10 -c "${jar}" -b "${jar}" \
+  --data-urlencode "username=user-admin" --data-urlencode "password=demo-password" \
+  "${action}")"
+if grep -qF "Tenant-wide" <<<"${form_body}"; then
+  pass "a user holding the admin realm role sees a tenant-wide entry"
+else
+  fail "a user holding the admin realm role sees a tenant-wide entry (screen was: ${form_body})"
+fi
+selection_action="$(login_action "${form_body}")"
+
+jar2="$(mktemp)"
+login_page tenant-a patient-app "${jar2}"
+action2="$(login_action "${login_body}")"
+doctor_form="$(curl -sS --max-time 10 -c "${jar2}" -b "${jar2}" \
+  --data-urlencode "username=user-doctor-multi" --data-urlencode "password=demo-password" \
+  "${action2}")"
+if grep -qF "Tenant-wide" <<<"${doctor_form}"; then
+  fail "a user without the admin realm role never sees the tenant-wide entry (screen was: ${doctor_form})"
+else
+  pass "a user without the admin realm role never sees the tenant-wide entry"
+fi
+rm -f "${jar2}"
+
+echo
+echo "--- an administrator with no organization memberships can still log in, choosing tenant-wide ---"
+
+submit_organization "${selection_action}" "${jar}" ""
 code="$(code_from_redirect)"
 if [[ -z "${code}" ]]; then
-  fail "an administrator still reaches a code (headers were: ${login_headers})"
+  fail "an administrator choosing tenant-wide reaches a code (headers were: ${login_headers})"
 else
   response="$(token_from_code tenant-a patient-app "${code}")"
   access_token="$(jq -r '.access_token // empty' <<<"${response}")"
   organization_claim="$(claim_of "${access_token}" '.organization // "absent"')"
   if [[ "${organization_claim}" == "absent" ]]; then
-    pass "an administrator's login proceeds with no organization forced, unchanged by this authenticator"
+    pass "a tenant-wide session carries no active hospital"
   else
-    fail "an administrator's login proceeds with no organization forced (organization claim was '${organization_claim}')"
+    fail "a tenant-wide session carries no active hospital (organization claim was '${organization_claim}')"
   fi
 fi
 rm -f "${jar}"
+
+echo
+echo "--- an administrator who also belongs to organizations can still choose one of them ---"
+
+jar="$(mktemp)"
+login_page tenant-a patient-app "${jar}"
+action="$(login_action "${login_body}")"
+form_body="$(curl -sS --max-time 10 -c "${jar}" -b "${jar}" \
+  --data-urlencode "username=user-admin-clinician" --data-urlencode "password=demo-password" \
+  "${action}")"
+selection_action="$(login_action "${form_body}")"
+submit_organization "${selection_action}" "${jar}" "north-hospital"
+code="$(code_from_redirect)"
+if [[ -z "${code}" ]]; then
+  fail "an administrator choosing a hospital reaches a code (headers were: ${login_headers})"
+else
+  response="$(token_from_code tenant-a patient-app "${code}")"
+  access_token="$(jq -r '.access_token // empty' <<<"${response}")"
+  organization_claim="$(claim_of "${access_token}" '.organization | tojson')"
+  if [[ "${organization_claim}" == '["north-hospital"]' ]]; then
+    pass "an administrator who also belongs to organizations can choose one and receive an ordinary hospital-scoped session"
+  else
+    fail "an administrator can choose a hospital instead of tenant-wide (organization claim was '${organization_claim}')"
+  fi
+fi
+rm -f "${jar}"
+
+echo
+echo "--- a non-administrator cannot forge a tenant-wide submission ---"
+
+jar="$(mktemp)"
+login_page tenant-a patient-app "${jar}"
+action="$(login_action "${login_body}")"
+form_body="$(curl -sS --max-time 10 -c "${jar}" -b "${jar}" \
+  --data-urlencode "username=user-doctor-multi" --data-urlencode "password=demo-password" \
+  "${action}")"
+selection_action="$(login_action "${form_body}")"
+forged_status="$(curl -sS --max-time 10 -o /tmp/org-selector-forged.html -w '%{http_code}' \
+  -c "${jar}" -b "${jar}" --data-urlencode "organization=" "${selection_action}")"
+if [[ "${forged_status}" == "403" ]]; then
+  pass "a non-administrator cannot forge a tenant-wide submission"
+else
+  fail "a non-administrator cannot forge a tenant-wide submission (HTTP ${forged_status})"
+fi
+if grep -qF "only available to an administrator" /tmp/org-selector-forged.html; then
+  pass "the rejection names an explicit reason"
+else
+  fail "the rejection names an explicit reason (page did not contain it)"
+fi
+rm -f "${jar}" /tmp/org-selector-forged.html
 
 echo
 echo "--- a member of more than one organization sees the selection screen (issue #80) ---"

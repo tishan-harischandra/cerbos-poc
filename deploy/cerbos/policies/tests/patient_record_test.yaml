@@ -38,6 +38,19 @@ principals:
       idpRoles:
         - "kc:tenant-a:patient-app:doctor"
 
+  # issue #81: an administrator's tenant-wide session (issue #80) - no
+  # active hospital at all, never an empty string standing in for "every
+  # hospital" by omission.
+  administrator_tenant_wide:
+    id: idp-user-777
+    roles:
+      - "sys:permission-evaluator"
+    attr:
+      tenantId: tenant-a
+      hospitalId: ""
+      idpRoles:
+        - "kc:tenant-a:patient-app:administrator"
+
 resources:
   # Row 2: mandatory passes, user revokes, role grants.
   revoked_over_role_grant:
@@ -342,6 +355,56 @@ tests:
     expected:
       - principal: doctor_of_other_hospital
         resource: inherited_with_role_grant
+        actions:
+          list: EFFECT_DENY
+          read: EFFECT_DENY
+          update: EFFECT_DENY
+          delete: EFFECT_DENY
+
+  # issue #81: the tenant-wide case. A role grant carries no hospital
+  # dimension (§8.1), so a tenant-wide session reaches it regardless of
+  # which hospital the resource belongs to - "an empty hospital matches
+  # tenant-wide assignments". A user grant is hospital-narrowed by
+  # construction, so the same session must never reach it, whatever
+  # hospital the resource happens to belong to - "and never a
+  # hospital-narrowed one". Tenant isolation itself is not weakened: a
+  # tenant-wide session still belongs to exactly one tenant.
+  - name: a tenant-wide session reaches a role grant in any hospital of its tenant
+    input:
+      principals: [administrator_tenant_wide]
+      resources: [other_hospital_record]
+      actions: ["list", "read", "update", "delete"]
+    expected:
+      - principal: administrator_tenant_wide
+        resource: other_hospital_record
+        actions:
+          list: EFFECT_ALLOW
+          read: EFFECT_ALLOW
+          update: EFFECT_ALLOW
+          delete: EFFECT_ALLOW
+
+  - name: a tenant-wide session cannot reach a hospital-narrowed user grant
+    input:
+      principals: [administrator_tenant_wide]
+      resources: [user_granted_without_role_grant]
+      actions: ["list", "read", "update", "delete"]
+    expected:
+      - principal: administrator_tenant_wide
+        resource: user_granted_without_role_grant
+        actions:
+          list: EFFECT_DENY
+          read: EFFECT_DENY
+          update: EFFECT_DENY
+          delete: EFFECT_DENY
+
+  - name: a tenant-wide session is still denied outside its own tenant
+    input:
+      principals: [administrator_tenant_wide]
+      resources: [other_tenant_record]
+      actions: ["list", "read", "update", "delete"]
+    expected:
+      - principal: administrator_tenant_wide
+        resource: other_tenant_record
         actions:
           list: EFFECT_DENY
           read: EFFECT_DENY
