@@ -50,12 +50,16 @@ const (
 	// every decision taken against this matrix.
 	Revision = 184
 
-	// HospitalID is the hospital every demo principal belongs to, per the
-	// realm import's user attributes.
-	HospitalID = "hospital-1"
+	// HospitalID is the organization alias every demo principal belongs to
+	// (issue #78), per the realm import's organization membership - not a
+	// free-form attribute.
+	HospitalID = "north-hospital"
 	// OtherHospitalID holds a user override that must never reach a
-	// HospitalID decision, even for the very same user (§6.2, §8.3).
-	OtherHospitalID = "hospital-2"
+	// HospitalID decision, even for the very same user (§6.2, §8.3). It is
+	// a real organization alias too (south-hospital), not a placeholder:
+	// nothing in this demo installation is actually a member of it, which
+	// is what makes it a clean fixture for "must never leak".
+	OtherHospitalID = "south-hospital"
 
 	// DoctorWithRevokedUpdate is a real Keycloak user (§7.1's requirement
 	// that every seeded identity resolve through the real IdP) whose update
@@ -148,7 +152,7 @@ func Apply(ctx context.Context, writer Writer, at time.Time) error {
 		userOverride(HospitalID, ClerkWithGrantedRead, "update", "",
 			assignmentstore.EffectGrant, true, began, expired),
 		// The same user's live grant in another hospital, which must never
-		// reach a hospital-1 decision.
+		// reach a north-hospital decision.
 		userOverride(OtherHospitalID, DoctorWithRevokedUpdate, "delete", "",
 			assignmentstore.EffectGrant, true, began, ends),
 		// Scoped to one resource instance: it must apply there and nowhere

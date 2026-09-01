@@ -20,7 +20,11 @@ spec:
       containers:
         - name: keycloak
           image: quay.io/keycloak/keycloak:26.4
-          args: ["start-dev", "--import-realm"]
+          # `organization` is a preview feature in 26.4: Keycloak Organizations
+          # (issue #75/#78) is disabled by default and every organization
+          # import 400s without it, matching docker-compose.yml's keycloak
+          # service.
+          args: ["start-dev", "--import-realm", "--features=organization"]
           envFrom:
             - secretRef:
                 name: keycloak-credentials

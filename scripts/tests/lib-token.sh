@@ -12,16 +12,36 @@ KEYCLOAK_URL="${KEYCLOAK_URL:-http://127.0.0.1:${KEYCLOAK_PORT:-8081}}"
 REALM="${IDP_REALM:-tenant-a}"
 DEMO_PASSWORD="${KEYCLOAK_DEMO_PASSWORD:-demo-password}"
 
+# organization_for_realm <realm>
+# Echoes the demo organization alias a realm's members belong to (issue
+# #78): the hospital now comes only from a real, Keycloak-confirmed
+# organization claim, never a free-form attribute, so every token this
+# suite mints requests one.
+organization_for_realm() {
+  case "$1" in
+    tenant-b) echo "hospital-b1" ;;
+    *) echo "north-hospital" ;;
+  esac
+}
+
 # token_for <username> [client-id] [realm]
 # Echoes an access token, or exits non-zero with the provider's message.
+#
+# Every grant requests the realm's demo organization scope (issue #78). A
+# principal who is not a member - user-admin, the hostile fixture users -
+# simply has it silently dropped by Keycloak (§75's spike finding), which is
+# exactly the "no active organization" case the tenant-wide marker or the
+# unscoped-token refusal then decides between.
 token_for() {
   local username="$1" client="${2:-patient-app}" realm="${3:-${REALM}}"
+  local org; org="$(organization_for_realm "${realm}")"
   local response
   response="$(curl -sS --max-time 10 \
     -d "grant_type=password" \
     -d "client_id=${client}" \
     -d "username=${username}" \
     -d "password=${DEMO_PASSWORD}" \
+    -d "scope=openid organization:${org}" \
     "${KEYCLOAK_URL}/realms/${realm}/protocol/openid-connect/token")" || return 1
 
   local token
