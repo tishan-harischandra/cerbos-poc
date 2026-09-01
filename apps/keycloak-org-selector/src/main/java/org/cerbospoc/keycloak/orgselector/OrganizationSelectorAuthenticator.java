@@ -13,41 +13,83 @@ import org.keycloak.models.RoleModel;
 import org.keycloak.models.UserModel;
 
 /**
- * The login-flow half of organization selection (issue #79). Placed after
- * credentials and any second factor, it gathers the facts
+ * The login-flow half of organization selection (issues #79 and #80).
+ * Placed after credentials and any second factor, it gathers the facts
  * {@link OrganizationSelectionDecision} needs from the authenticated
  * session and acts on the outcome:
  *
  * <ul>
  *   <li>{@link OrganizationSelectionDecision.Selected} - the organization is
  *       recorded and the flow proceeds with no screen shown;
+ *   <li>{@link OrganizationSelectionDecision.NeedsSelection} - the
+ *       {@code select-organization.ftl} screen is shown, listing exactly
+ *       the offered options; {@link #action} handles its submission;
  *   <li>{@link OrganizationSelectionDecision.Refused} - the flow fails with
  *       an explicit reason rather than a generic authentication failure;
  *   <li>{@link OrganizationSelectionDecision.Undecided} - this
- *       authenticator has no basis to decide (the selection screen slice
- *       does), so the flow proceeds unchanged.
+ *       authenticator has no basis to decide (an administrator's own
+ *       screen, a later slice's concern), so the flow proceeds unchanged.
  * </ul>
  */
 public class OrganizationSelectorAuthenticator implements Authenticator {
 
     private static final Logger LOG = Logger.getLogger(OrganizationSelectorAuthenticator.class);
+    static final String SELECTION_FORM = "select-organization.ftl";
+    static final String SELECTED_FIELD = "organization";
 
     @Override
     public void authenticate(AuthenticationFlowContext context) {
-        RealmModel realm = context.getRealm();
         UserModel user = context.getUser();
-
         List<String> memberships = OrganizationSupport.membershipAliases(context, user);
-        boolean isAdministrator = isTenantWideAdministrator(realm, user);
+        boolean isAdministrator = isTenantWideAdministrator(context.getRealm(), user);
         Optional<String> requestedAlias = OrganizationSupport.requestedAlias(context);
 
-        OrganizationSelectionDecision.Outcome outcome =
-                OrganizationSelectionDecision.decide(memberships, isAdministrator, requestedAlias);
+        act(context, user, memberships,
+                OrganizationSelectionDecision.decide(memberships, isAdministrator, requestedAlias));
+    }
 
+    @Override
+    public void action(AuthenticationFlowContext context) {
+        UserModel user = context.getUser();
+        // Re-derived from Keycloak's own membership records, not trusted
+        // from the form that was just submitted: the submission names an
+        // alias, membership in it is still checked here exactly the way
+        // authenticate() checked it, so a tampered or stale submission is
+        // rejected rather than honoured (issue #80's acceptance criterion).
+        List<String> memberships = OrganizationSupport.membershipAliases(context, user);
+        String submitted = context.getHttpRequest().getDecodedFormParameters().getFirst(SELECTED_FIELD);
+
+        if (submitted == null || !memberships.contains(submitted)) {
+            LOG.infof("organization selector: rejecting a submission naming an organization %s does not belong to",
+                    user.getUsername());
+            act(context, user, memberships, new OrganizationSelectionDecision.Refused(
+                    "the selected organization is not one you belong to"));
+            return;
+        }
+        act(context, user, memberships, new OrganizationSelectionDecision.Selected(submitted));
+    }
+
+    private void act(AuthenticationFlowContext context, UserModel user, List<String> memberships,
+            OrganizationSelectionDecision.Outcome outcome) {
         if (outcome instanceof OrganizationSelectionDecision.Selected selected) {
             OrganizationSupport.selectOrganization(context, selected.alias());
             LOG.debugf("organization selector: %s selected for %s", selected.alias(), user.getUsername());
             context.success();
+            return;
+        }
+
+        if (outcome instanceof OrganizationSelectionDecision.NeedsSelection needsSelection) {
+            LOG.debugf("organization selector: presenting %d options to %s",
+                    needsSelection.options().size(), user.getUsername());
+            Response challenge = context.form()
+                    .setAttribute("organizations", needsSelection.options())
+                    .createForm(SELECTION_FORM);
+            // challenge, not success or failure: the flow is neither
+            // finished nor refused, it is waiting on the submission
+            // action() handles. Keycloak issues no token for a session
+            // left here, so abandoning the screen leaves nothing capable
+            // of taking a decision (issue #80's acceptance criterion).
+            context.challenge(challenge);
             return;
         }
 
@@ -60,10 +102,9 @@ public class OrganizationSelectorAuthenticator implements Authenticator {
             return;
         }
 
-        // Undecided: more than one membership, or an administrator - the
-        // selection screen a later slice adds is what decides these, not
-        // this authenticator. Proceeding unchanged is the deliberate
-        // no-op, not an oversight.
+        // Undecided: an administrator - their own screen, a later slice's
+        // concern, is what decides this, not this authenticator.
+        // Proceeding unchanged is the deliberate no-op, not an oversight.
         context.success();
     }
 
@@ -76,12 +117,6 @@ public class OrganizationSelectorAuthenticator implements Authenticator {
     private static boolean isTenantWideAdministrator(RealmModel realm, UserModel user) {
         RoleModel role = realm.getRole(OrganizationSelectionRealmRoles.TENANT_WIDE);
         return role != null && user.hasRole(role);
-    }
-
-    @Override
-    public void action(AuthenticationFlowContext context) {
-        // No form is ever submitted back to this authenticator: it either
-        // decides silently or fails the flow outright in authenticate().
     }
 
     @Override

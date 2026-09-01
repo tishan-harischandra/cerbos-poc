@@ -6,6 +6,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import java.util.List;
 import java.util.Optional;
+import org.cerbospoc.keycloak.orgselector.OrganizationSelectionDecision.NeedsSelection;
 import org.cerbospoc.keycloak.orgselector.OrganizationSelectionDecision.Outcome;
 import org.cerbospoc.keycloak.orgselector.OrganizationSelectionDecision.Refused;
 import org.cerbospoc.keycloak.orgselector.OrganizationSelectionDecision.Selected;
@@ -49,11 +50,24 @@ class OrganizationSelectionDecisionTest {
     }
 
     @Test
-    void moreThanOneMembershipIsUndecidedForTheScreen() {
+    void moreThanOneMembershipOffersASelectionAmongExactlyThem() {
         Outcome outcome = OrganizationSelectionDecision.decide(
                 List.of("north-hospital", "south-hospital"), false, Optional.empty());
 
-        assertInstanceOf(Undecided.class, outcome);
+        NeedsSelection needsSelection = assertInstanceOf(NeedsSelection.class, outcome);
+        assertEquals(List.of("north-hospital", "south-hospital"), needsSelection.options());
+    }
+
+    @Test
+    void aRequestedAliasThatDoesNotMatchStillOffersASelectionAmongTheRealMemberships() {
+        // The requested alias is not a membership, so it does not win rule
+        // 1; falling through to more-than-one-membership is correct, not a
+        // side effect of ignoring the request.
+        Outcome outcome = OrganizationSelectionDecision.decide(
+                List.of("north-hospital", "south-hospital"), false, Optional.of("east-hospital"));
+
+        NeedsSelection needsSelection = assertInstanceOf(NeedsSelection.class, outcome);
+        assertEquals(List.of("north-hospital", "south-hospital"), needsSelection.options());
     }
 
     @Test
@@ -70,6 +84,18 @@ class OrganizationSelectionDecisionTest {
     @Test
     void anAdministratorWithNoMembershipIsUndecidedForTheScreenRatherThanRefused() {
         Outcome outcome = OrganizationSelectionDecision.decide(List.of(), true, Optional.empty());
+
+        assertInstanceOf(Undecided.class, outcome);
+    }
+
+    @Test
+    void anAdministratorWithMultipleMembershipsIsUndecidedRatherThanOfferedTheMembershipsScreen() {
+        // Issue #80's screen only ever lists memberships, with no
+        // tenant-wide entry - not what an administrator's own screen (a
+        // later slice) has to offer, so this stays Undecided rather than
+        // NeedsSelection.
+        Outcome outcome = OrganizationSelectionDecision.decide(
+                List.of("north-hospital", "south-hospital"), true, Optional.empty());
 
         assertInstanceOf(Undecided.class, outcome);
     }

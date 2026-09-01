@@ -7,6 +7,7 @@
   "loginWithEmailAllowed": true,
   "accessTokenLifespan": 900,
   "browserFlow": "browser-with-org-selector",
+  "loginTheme": "cerbos-poc",
   "organizationsEnabled": true,
   "organizations": [
     {
