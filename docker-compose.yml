@@ -82,7 +82,15 @@ services:
   # token is the same string whether it was minted for the browser or read by
   # the ADS - a mismatch there rejects every token with a confusing message.
   keycloak:
-    image: quay.io/keycloak/keycloak:26.4
+    # The organization selector authenticator (issue #79) is baked into
+    # this image at build time (apps/keycloak-org-selector/Dockerfile runs
+    # a Maven stage and then `kc.sh build`), not mounted as a provider jar
+    # at runtime: `kc.sh build` has to run once against the finished
+    # provider set, and running it on every container start would slow
+    # every `make up` by the build's own duration for no benefit.
+    build:
+      context: .
+      dockerfile: apps/keycloak-org-selector/Dockerfile
     # `organization` is a preview feature in 26.4: Keycloak Organizations
     # (issue #75/#74) is disabled by default and every organization-scoped
     # token request 400s without it. Enabling it here is required, not

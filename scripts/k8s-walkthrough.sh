@@ -75,6 +75,9 @@ declare -A images=(
   [docker.io/cerbos-poc/admin-service:dev]="apps/admin-service/Dockerfile"
   [docker.io/cerbos-poc/resource-service:dev]="apps/resource-service/Dockerfile"
   [docker.io/cerbos-poc/business-ui:dev]="apps/business-ui/Dockerfile"
+  # The organization selector authenticator (issue #79) is baked into this
+  # image at build time, the same way docker-compose.yml builds it.
+  [docker.io/cerbos-poc/keycloak:dev]="apps/keycloak-org-selector/Dockerfile"
 )
 for tag in "${!images[@]}"; do
   echo "    ${tag}"
