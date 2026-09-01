@@ -104,6 +104,19 @@ func RenderPrecedenceTest(m *Manifest, entry ResourceEntry) string {
 	b.WriteString("      idpRoles:\n")
 	b.WriteString("        - \"kc:tenant-a:patient-app:doctor\"\n\n")
 
+	// issue #81: an administrator's tenant-wide session (issue #80) - no
+	// active hospital at all, never an empty string standing in for "every
+	// hospital" by omission.
+	b.WriteString("  administrator_tenant_wide:\n")
+	b.WriteString("    id: idp-user-777\n")
+	b.WriteString("    roles:\n")
+	b.WriteString("      - \"sys:permission-evaluator\"\n")
+	b.WriteString("    attr:\n")
+	b.WriteString("      tenantId: tenant-a\n")
+	b.WriteString("      hospitalId: \"\"\n")
+	b.WriteString("      idpRoles:\n")
+	b.WriteString("        - \"kc:tenant-a:patient-app:administrator\"\n\n")
+
 	b.WriteString("resources:\n")
 
 	writeResource := func(name, tenant, hospital, status string, role, userGrant, userRevoke []string) {
@@ -175,6 +188,21 @@ func RenderPrecedenceTest(m *Manifest, entry ResourceEntry) string {
 		"doctor", "other_hospital_record", actions, "EFFECT_DENY")
 	writeCase("a principal from another hospital is denied every action",
 		"doctor_of_other_hospital", "inherited_with_role_grant", actions, "EFFECT_DENY")
+
+	// issue #81: the tenant-wide case. A role grant carries no hospital
+	// dimension (§8.1), so a tenant-wide session reaches it regardless of
+	// which hospital the resource belongs to - "an empty hospital matches
+	// tenant-wide assignments". A user grant is hospital-narrowed by
+	// construction, so the same session must never reach it, whatever
+	// hospital the resource happens to belong to - "and never a
+	// hospital-narrowed one". Tenant isolation itself is not weakened:
+	// a tenant-wide session still belongs to exactly one tenant.
+	writeCase("a tenant-wide session reaches a role grant in any hospital of its tenant",
+		"administrator_tenant_wide", "other_hospital_record", actions, "EFFECT_ALLOW")
+	writeCase("a tenant-wide session cannot reach a hospital-narrowed user grant",
+		"administrator_tenant_wide", "user_granted_without_role_grant", actions, "EFFECT_DENY")
+	writeCase("a tenant-wide session is still denied outside its own tenant",
+		"administrator_tenant_wide", "other_tenant_record", actions, "EFFECT_DENY")
 
 	return strings.TrimRight(b.String(), "\n") + "\n"
 }

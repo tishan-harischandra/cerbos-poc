@@ -13,11 +13,24 @@
             <#list organizations as organization>
                 <div class="${properties.kcFormGroupClass!}">
                     <label class="${properties.kcLabelClass!}">
-                        <input type="radio" name="organization" value="${organization}"<#if organization?index == 0> checked="checked"</#if>/>
+                        <input type="radio" name="organization" value="${organization}"<#if organization?index == 0 && !offerTenantWide> checked="checked"</#if>/>
                         ${organization}
                     </label>
                 </div>
             </#list>
+            <#-- issue #81: an administrator's additional entry, yielding a
+                 session with no active hospital at all. Never shown to a
+                 user who is not an administrator - action() also re-checks
+                 that server-side, since a form field is only ever a
+                 convenience, not the thing that makes a choice trustworthy. -->
+            <#if offerTenantWide>
+                <div class="${properties.kcFormGroupClass!}">
+                    <label class="${properties.kcLabelClass!}">
+                        <input type="radio" name="organization" value="${tenantWideValue}" checked="checked"/>
+                        Tenant-wide (all hospitals)
+                    </label>
+                </div>
+            </#if>
             <div class="${properties.kcFormGroupClass!}">
                 <input class="${properties.kcButtonClass!} ${properties.kcButtonPrimaryClass!} ${properties.kcButtonBlockClass!}"
                        type="submit" value="${msg("doSubmit")}"/>

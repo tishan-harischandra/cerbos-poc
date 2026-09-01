@@ -32,9 +32,24 @@ func RenderPolicy(m *Manifest, entry ResourceEntry) string {
 
 	b.WriteString("  variables:\n")
 	b.WriteString("    local:\n")
+	// issue #81: an empty hospital (a tenant-wide administrator session,
+	// issue #80) satisfies isolation against any hospital in the same
+	// tenant, because role_permission - what role_actions comes from -
+	// carries no hospital dimension at all (§8.1): a role means the same
+	// thing across the whole tenant, and tenant-wide is exactly "the
+	// tenant's own role grants, no single hospital". hospital_scoped is
+	// the opposite fact, used below to keep the directional half of the
+	// invariant explicit at the one place it could otherwise leak: a user
+	// grant is a hospital-narrowed assignment by construction (§8.1 gives
+	// user_permission_override a hospital_id column precisely because it
+	// does not mean the same thing everywhere), so it must never apply to
+	// a session with no hospital, however isolated that session's tenant
+	// isolation check reads.
 	b.WriteString("      isolated: >-\n")
 	b.WriteString("        request.principal.attr.tenantId == request.resource.attr.tenantId &&\n")
-	b.WriteString("        request.principal.attr.hospitalId == request.resource.attr.hospitalId\n")
+	b.WriteString("        (request.principal.attr.hospitalId == \"\" ||\n")
+	b.WriteString("         request.principal.attr.hospitalId == request.resource.attr.hospitalId)\n")
+	b.WriteString("      hospital_scoped: request.principal.attr.hospitalId != \"\"\n")
 	b.WriteString("      role_actions: request.resource.attr.permissionContext.roleGrantedActions\n")
 	b.WriteString("      user_grants: request.resource.attr.permissionContext.userGrantedActions\n")
 	b.WriteString("      user_revokes: request.resource.attr.permissionContext.userRevokedActions\n")
@@ -79,7 +94,14 @@ func RenderPolicy(m *Manifest, entry ResourceEntry) string {
 		b.WriteString("      roles: [\"sys:permission-evaluator\"]\n")
 		b.WriteString("      condition:\n")
 		b.WriteString("        match:\n")
-		fmt.Fprintf(&b, "          expr: '%q in variables.user_grants'\n", action.Key)
+		// issue #81: a user grant is a hospital-narrowed assignment
+		// (§8.1's user_permission_override carries a hospital_id column
+		// role_permission does not), so variables.hospital_scoped keeps it
+		// from ever applying to a tenant-wide session - defense in depth
+		// at the one layer that decides, even though the assignment
+		// service's own query for a tenant-wide principal's hospital_id
+		// (an empty string) already matches no override row.
+		fmt.Fprintf(&b, "          expr: '%q in variables.user_grants && variables.hospital_scoped'\n", action.Key)
 		b.WriteString(ruleOutput())
 	}
 

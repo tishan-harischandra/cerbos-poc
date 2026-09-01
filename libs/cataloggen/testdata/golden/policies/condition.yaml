@@ -12,7 +12,9 @@ resourcePolicy:
     local:
       isolated: >-
         request.principal.attr.tenantId == request.resource.attr.tenantId &&
-        request.principal.attr.hospitalId == request.resource.attr.hospitalId
+        (request.principal.attr.hospitalId == "" ||
+         request.principal.attr.hospitalId == request.resource.attr.hospitalId)
+      hospital_scoped: request.principal.attr.hospitalId != ""
       role_actions: request.resource.attr.permissionContext.roleGrantedActions
       user_grants: request.resource.attr.permissionContext.userGrantedActions
       user_revokes: request.resource.attr.permissionContext.userRevokedActions
@@ -69,7 +71,7 @@ resourcePolicy:
       roles: ["sys:permission-evaluator"]
       condition:
         match:
-          expr: '"read" in variables.user_grants'
+          expr: '"read" in variables.user_grants && variables.hospital_scoped'
       output:
         when:
           ruleActivated: '"fired"'
@@ -80,7 +82,7 @@ resourcePolicy:
       roles: ["sys:permission-evaluator"]
       condition:
         match:
-          expr: '"update" in variables.user_grants'
+          expr: '"update" in variables.user_grants && variables.hospital_scoped'
       output:
         when:
           ruleActivated: '"fired"'
