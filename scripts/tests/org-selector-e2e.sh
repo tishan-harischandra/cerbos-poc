@@ -19,6 +19,24 @@ wait_for_keycloak || exit 1
 
 REDIRECT_URI="http://127.0.0.1:4200/"
 
+# The browser flow's login form action and its Set-Cookie both carry
+# whatever host Keycloak was configured with (KC_HOSTNAME), which need not
+# be the host lib-token.sh's KEYCLOAK_URL uses to reach it (compose
+# defaults it to "localhost"; KEYCLOAK_URL defaults to "127.0.0.1" -
+# harmless for every other e2e script here, since a direct grant carries no
+# cookie, but fatal for a cookie jar: a cookie set for one host is not sent
+# on a request to the other, and the login form fails with "Restart login
+# cookie not found" rather than anything that names the real problem).
+# Discovery's own issuer is read once, up front, so every request in this
+# script goes to the one host Keycloak actually issues cookies for.
+BASE_URL="$(curl -sS --max-time 10 "${KEYCLOAK_URL}/realms/tenant-a/.well-known/openid-configuration" \
+  | jq -r '.issuer' | sed 's#/realms/tenant-a$##')"
+if [[ -z "${BASE_URL}" || "${BASE_URL}" == "null" ]]; then
+  echo "org-selector-e2e: could not determine Keycloak's own hostname from discovery" >&2
+  exit 1
+fi
+KEYCLOAK_URL="${BASE_URL}"
+
 # login_page <realm> <client-id> <cookie-jar> [scope]
 # GETs the authorization endpoint and leaves the login form in $login_body.
 login_page() {
