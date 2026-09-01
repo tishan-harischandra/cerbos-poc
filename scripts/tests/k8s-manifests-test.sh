@@ -125,6 +125,23 @@ for overlay in dev prod; do
     "false" \
     "$(contains "${rendered}" "admin-console")"
 
+  # Issue #83: tenant is resolved from the request host, one subdomain per
+  # tenant, with no host-file editing anywhere this manifest itself
+  # controls - so the Ingress it renders has to expose a wildcard host, not
+  # one bound to a single tenant's own subdomain.
+  check "${overlay}: an Ingress is rendered" \
+    "true" \
+    "$(contains "${rendered}" "kind: Ingress")"
+  check "${overlay}: the Ingress exposes a wildcard host" \
+    "true" \
+    "$(contains "${rendered}" "host: '\*\.")"
+  check "${overlay}: the Ingress reaches admin-service, not a baked-in tenant" \
+    "true" \
+    "$(contains "${rendered}" "name: admin-service")"
+  check "${overlay}: the Ingress reaches business-ui, not a baked-in tenant" \
+    "true" \
+    "$(contains "${rendered}" "name: business-ui")"
+
   # kubeconform has no bundled schema for KEDA's ScaledObject CRD, so it is
   # skipped explicitly rather than silently passing on an unresolvable
   # schema lookup.

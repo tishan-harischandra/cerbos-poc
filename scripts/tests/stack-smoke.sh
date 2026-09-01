@@ -65,10 +65,12 @@ deep_link_status="$(curl -s -o /dev/null -w '%{http_code}' "${BASE}/user-overrid
 [[ "${deep_link_status}" == "200" ]]
 check "a console deep link is answered by the application shell" "$?"
 
-# The runtime environment used to be rendered by an entrypoint script; it is
-# now served from the service's own configuration, and the console cannot log
-# anyone in without it.
-env_js="$(curl -fsS "${BASE}/assets/env.js" 2>/dev/null)"
+# The runtime environment resolves per tenant from the request's own Host
+# header (issue #83) rather than from a value baked into the bundle, so a
+# plain 127.0.0.1 request names no tenant subdomain and gets no environment
+# to serve: this asks the same way a browser on tenant-a's own subdomain
+# would, over wildcard DNS that resolves straight to the loopback address.
+env_js="$(curl -fsS -H "Host: tenant-a.localtest.me" "${BASE}/assets/env.js" 2>/dev/null)"
 check "the console's runtime environment is served" "$?"
 grep -q 'oidcIssuer' <<<"${env_js}"
 check "the runtime environment names the issuer to log in against" "$?"

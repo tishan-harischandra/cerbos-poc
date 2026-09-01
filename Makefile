@@ -175,6 +175,7 @@ smoke: ## Verify a running stack end to end
 	bash scripts/tests/decision-e2e.sh
 	bash scripts/tests/org-selector-e2e.sh
 	bash scripts/tests/console-crosslinks-e2e.sh
+	bash scripts/tests/tenant-subdomain-e2e.sh
 
 .PHONY: walkthrough
 walkthrough: ## Execute the README's guided walkthrough against a running deployment

@@ -11,6 +11,7 @@ import (
 	"github.com/tishan-harischandra/cerbos-poc/apps/admin-service/internal/catalogapi"
 	"github.com/tishan-harischandra/cerbos-poc/apps/admin-service/internal/console"
 	"github.com/tishan-harischandra/cerbos-poc/apps/admin-service/internal/server"
+	"github.com/tishan-harischandra/cerbos-poc/libs/tenantregistry"
 )
 
 // One mux answers both audiences (ADR-008), so the cases that matter are the
@@ -86,7 +87,10 @@ func TestTheADSIsReachedThroughThisOriginRatherThanDirectly(t *testing.T) {
 func TestTheRuntimeEnvironmentIsServedToTheBrowser(t *testing.T) {
 	handler := consoleHandler(t, "http://ads.invalid")
 
-	response := get(handler, console.EnvJSPath)
+	request := httptest.NewRequest(http.MethodGet, console.EnvJSPath, nil)
+	request.Host = "tenant-a.example.test"
+	response := httptest.NewRecorder()
+	handler.ServeHTTP(response, request)
 
 	if response.Code != http.StatusOK {
 		t.Fatalf("status = %d, want 200", response.Code)
@@ -123,10 +127,13 @@ func consoleHandler(t *testing.T, adsAddr string) http.Handler {
 		Console: &console.Config{
 			Dir:     dir,
 			ADSAddr: adsAddr,
-			Environment: console.Environment{
-				OIDCIssuer:   "http://localhost:8081/realms/tenant-a",
-				OIDCClientID: "patient-app",
-			},
+			HostResolver: tenantregistry.NewHostResolver([]tenantregistry.Entry{
+				{
+					Realm:           "tenant-a",
+					Issuer:          "http://localhost:8081/realms/tenant-a",
+					BrowserClientID: "patient-app",
+				},
+			}),
 		},
 	})
 }

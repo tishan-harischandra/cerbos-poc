@@ -18,6 +18,7 @@ COPY libs/tokenverifier/go.mod ./libs/tokenverifier/
 COPY libs/outbox/go.mod libs/outbox/go.sum ./libs/outbox/
 COPY libs/permissionevents/go.mod ./libs/permissionevents/
 COPY libs/policyrelease/go.mod libs/policyrelease/go.sum ./libs/policyrelease/
+COPY libs/tenantregistry/go.mod libs/tenantregistry/go.sum ./libs/tenantregistry/
 WORKDIR /src/apps/admin-service
 RUN go mod download
 

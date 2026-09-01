@@ -72,15 +72,20 @@ cp .env.example .env
 make up      # build, start, migrate and seed - a few minutes on a first run
 ```
 
-Then follow it in the browser:
+Then follow it in the browser. Tenant is resolved from the host you open, one
+subdomain per tenant (issue #83) - `*.localtest.me` is public wildcard DNS
+that resolves any subdomain to the loopback address, so this needs no
+`/etc/hosts` editing:
 
-1. **Open the Admin Console** at <http://localhost:4200> and log in as
-   `user-admin` / `demo-password`. The landing screen is the role matrix.
+1. **Open the Admin Console** at <http://tenant-a.localtest.me:4200> and log
+   in as `user-admin` / `demo-password`. The landing screen is the role
+   matrix.
 2. **Find the role.** Search for `doctor` and select it. Its canonical
    identifier is `kc:tenant-a:patient-app:doctor` - the same string the
    authorization database is keyed by and a token normalises to (§7.5).
-3. **Open the Business UI** at <http://localhost:4201> in a second tab and
-   click into patient `patient-456`. The patient detail route is denied: the
+3. **Open the Business UI** at <http://tenant-a.localtest.me:4201> in a
+   second tab and click into patient `patient-456`. The patient detail route
+   is denied: the
    `patient.route.details` capability needs `person:read`, which the doctor
    role does not grant.
 4. **Grant it.** Back in the console, filter the resource catalog for
@@ -129,10 +134,17 @@ ADS, the database - is reachable only from inside the compose network (§16.1).
 The Administration Service serves the Admin Console and proxies its API calls
 (ADR-008), so the console needs no port of its own.
 
+Both browser entry points resolve which tenant to log in against from the
+request's own host, one subdomain per tenant (issue #83) - `localhost` or
+`127.0.0.1` on its own names no tenant and gets a clear error rather than a
+console that silently logs in against the wrong realm. `tenant-a.localtest.me`
+and `tenant-b.localtest.me` are public wildcard DNS names that resolve to the
+loopback address, so this needs no `/etc/hosts` editing.
+
 | Service | Host URL | In-network address | Published? |
 | --- | --- | --- | --- |
-| Admin Console | <http://localhost:4200> | `admin-service:8081` | yes (`ADMIN_CONSOLE_PORT`) |
-| Business UI | <http://localhost:4201> | `business-ui:80` | yes (`BUSINESS_UI_PORT`) |
+| Admin Console | <http://tenant-a.localtest.me:4200> | `admin-service:8081` | yes (`ADMIN_CONSOLE_PORT`) |
+| Business UI | <http://tenant-a.localtest.me:4201> | `business-ui:80` | yes (`BUSINESS_UI_PORT`) |
 | Keycloak | <http://localhost:8081> | `keycloak:8080` | yes (`KEYCLOAK_PORT`) - a login is a browser redirect |
 | Administration API | <http://localhost:4200/api/admin/...> | `admin-service:8081/admin/...` | same port as the console |
 | ADS health | <http://localhost:4200/api/ads/healthz> | `ads:8080/healthz` | proxied by admin-service only |

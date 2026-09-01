@@ -16,6 +16,7 @@ import (
 	"github.com/tishan-harischandra/cerbos-poc/apps/admin-service/internal/simulate"
 	"github.com/tishan-harischandra/cerbos-poc/apps/admin-service/internal/tokenauth"
 	"github.com/tishan-harischandra/cerbos-poc/apps/admin-service/internal/useroverride"
+	"github.com/tishan-harischandra/cerbos-poc/libs/tenantregistry"
 )
 
 // DefaultReadinessTimeout bounds how long readiness waits on its dependencies.
@@ -176,7 +177,7 @@ func withConsole(mux *http.ServeMux, cfg console.Config) (http.Handler, error) {
 
 	// Registered ahead of the bundle: the environment is configuration this
 	// service holds, not a file the build produced.
-	mux.Handle("GET "+console.EnvJSPath, console.EnvJS(cfg.Environment))
+	mux.Handle("GET "+console.EnvJSPath, tenantregistry.EnvJSHandler(cfg.HostResolver))
 
 	assets, err := console.Assets(cfg.Dir)
 	if err != nil {

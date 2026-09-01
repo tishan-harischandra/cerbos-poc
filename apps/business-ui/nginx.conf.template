@@ -32,6 +32,20 @@ server {
     proxy_set_header X-Forwarded-Proto $scheme;
   }
 
+  # issue #83: the runtime environment resolves per tenant from the
+  # browser's own Host header. proxy_set_header Host $host forwards
+  # exactly the host the browser sent - a different subdomain in the
+  # request is a different tenant in the response - to the resource
+  # service, which is the process actually holding the tenant registry
+  # (ADR-008's pattern, extended to this second front end).
+  location = /assets/env.js {
+    set $resource_service_upstream "http://resource-service:8080";
+    proxy_pass $resource_service_upstream/assets/env.js;
+    proxy_set_header Host $host;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto $scheme;
+  }
+
   location / {
     try_files $uri $uri/ /index.html;
   }

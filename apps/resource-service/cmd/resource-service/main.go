@@ -22,6 +22,7 @@ import (
 	"github.com/tishan-harischandra/cerbos-poc/libs/assignmentstore/postgresstore"
 	"github.com/tishan-harischandra/cerbos-poc/libs/assignmentstore/tenantresolve"
 	"github.com/tishan-harischandra/cerbos-poc/libs/idpdirectory/provider"
+	"github.com/tishan-harischandra/cerbos-poc/libs/tenantregistry"
 	"github.com/tishan-harischandra/cerbos-poc/libs/tokenverifier"
 )
 
@@ -75,6 +76,20 @@ func main() {
 		verifiers.Register(installation.Config.Issuer, installation.Verifier)
 	}
 
+	// business-ui's runtime environment resolves per tenant from the
+	// request's own Host header (issue #83), the same registry every
+	// other multi-tenant wiring in this service already reads - never a
+	// value baked into the bundle at build time.
+	registryEntries := make([]tenantregistry.Entry, 0, len(providerTenants))
+	for _, tenant := range providerTenants {
+		registryEntries = append(registryEntries, tenantregistry.Entry{
+			Realm:           tenant.Realm,
+			Issuer:          tenant.Issuer,
+			BrowserClientID: tenant.BrowserClientID,
+		})
+	}
+	hostResolver := tenantregistry.NewHostResolver(registryEntries)
+
 	authenticated := func(next http.Handler) http.Handler {
 		return tokenauth.Require(tokenauth.Config{Verifier: verifiers, Logger: logger}, next)
 	}
@@ -89,6 +104,7 @@ func main() {
 			ADS:    adsclient.New(cfg.ADSAddr),
 			Logger: logger,
 		})),
+		HostResolver: hostResolver,
 	})
 
 	httpServer := &http.Server{

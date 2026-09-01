@@ -300,11 +300,11 @@ services:
       # every replica.
       LEADER_ELECTION_TYPE: "${LEADER_ELECTION_TYPE:-PG_ADVISORY}"
       LEADER_ELECTION_REDIS_ADDR: "${LEADER_ELECTION_REDIS_ADDR:-redis:6379}"
-      # This service serves the Admin Console (ADR-008), so the console's
-      # login configuration is now its own - left unset here, it defaults
-      # to the tenant registry's own issuer and browser client (issue #76).
-      # An explicit OIDC_ISSUER/OIDC_CLIENT_ID is for a browser reaching this
-      # deployment by an address the registry does not know about.
+      # This service serves the Admin Console (ADR-008). Its login
+      # configuration resolves per tenant from the browser's own Host
+      # header against the tenant registry (issue #83) - there is no
+      # longer a single realm to bake into an OIDC_ISSUER/OIDC_CLIENT_ID
+      # override.
       # §9.3: high-risk actions default to a bounded expiry when a GRANT or
       # REVOKE names none, rather than being left unbounded (issue #15).
       USER_OVERRIDE_HIGH_RISK_ACTIONS: "${USER_OVERRIDE_HIGH_RISK_ACTIONS:-update,delete,assign}"
@@ -517,6 +517,11 @@ services:
       - "${BUSINESS_UI_PORT:-4201}:80"
     depends_on:
       ads:
+        condition: service_healthy
+      # /assets/env.js proxies here (issue #83): the resource service is
+      # the process actually holding the tenant registry this front end
+      # resolves its runtime environment from.
+      resource-service:
         condition: service_healthy
     healthcheck:
       test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://127.0.0.1/index.html"]

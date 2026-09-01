@@ -66,11 +66,6 @@ type Config struct {
 	// is what a build with no bundle on disk - a developer running
 	// `nx serve admin-console` against it - wants.
 	ConsoleDir string
-	// OIDCIssuer and OIDCClientID are what the console's bundle needs at
-	// runtime to log a human in. They were rendered into assets/env.js by
-	// an entrypoint script when the console had its own image.
-	OIDCIssuer   string
-	OIDCClientID string
 }
 
 // LookupFunc mirrors os.LookupEnv so configuration stays testable.
@@ -98,14 +93,6 @@ func FromEnv(lookup LookupFunc) Config {
 		HighRiskOverrideValidity: durationOr(lookup, "USER_OVERRIDE_HIGH_RISK_VALIDITY", 90*24*time.Hour),
 
 		ConsoleDir: valueOr(lookup, "ADMIN_CONSOLE_DIR", "/admin-console"),
-		// The issuer the browser is redirected to, which is the published
-		// address rather than the compose-internal one. Left empty here
-		// means the tenant registry's issuer and browser client (issue
-		// #76) apply, unchanged: an explicit OIDC_ISSUER/OIDC_CLIENT_ID
-		// override is for a browser reaching this deployment by an
-		// address the registry does not know about.
-		OIDCIssuer:   valueOr(lookup, "OIDC_ISSUER", ""),
-		OIDCClientID: valueOr(lookup, "OIDC_CLIENT_ID", ""),
 	}
 }
 
