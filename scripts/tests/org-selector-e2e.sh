@@ -88,6 +88,16 @@ token_from_code() {
     "${KEYCLOAK_URL}/realms/${realm}/protocol/openid-connect/token"
 }
 
+# submit_organization <action-url> <cookie-jar> <alias>
+# Submits the selection screen's own form, leaving the response headers in
+# $login_headers.
+submit_organization() {
+  local action="$1" jar="$2" alias="$3"
+  login_headers="$(curl -sS --max-time 10 -D - -o /tmp/org-selector-submission.html -c "${jar}" -b "${jar}" \
+    --data-urlencode "organization=${alias}" \
+    "${action}")"
+}
+
 echo "--- an alias already requested in scope is selected with no screen ---"
 
 jar="$(mktemp)"
@@ -198,6 +208,85 @@ else
   fi
 fi
 rm -f "${jar}"
+
+echo
+echo "--- a member of more than one organization sees the selection screen (issue #80) ---"
+
+# The credentials POST's own response body is the selection screen: a
+# member of more than one organization reaches it directly, no separate
+# navigation involved.
+jar="$(mktemp)"
+login_page tenant-a patient-app "${jar}"
+action="$(login_action "${login_body}")"
+form_body="$(curl -sS --max-time 10 -c "${jar}" -b "${jar}" \
+  --data-urlencode "username=user-doctor-multi" --data-urlencode "password=demo-password" \
+  "${action}")"
+listed_aliases="$(grep -o 'value="[a-z-]*hospital"' <<<"${form_body}" | sed -e 's/value="//' -e 's/"$//' | sort)"
+if [[ "${listed_aliases}" == $'north-hospital\nsouth-hospital' ]]; then
+  pass "the screen lists exactly the caller's own organizations"
+else
+  fail "the screen lists exactly the caller's own organizations (was: ${listed_aliases})"
+fi
+selection_action="$(login_action "${form_body}")"
+
+echo
+echo "--- each answer yields a token whose active hospital differs accordingly ---"
+
+submit_organization "${selection_action}" "${jar}" "south-hospital"
+code="$(code_from_redirect)"
+south_organization="absent"
+if [[ -n "${code}" ]]; then
+  response="$(token_from_code tenant-a patient-app "${code}")"
+  access_token="$(jq -r '.access_token // empty' <<<"${response}")"
+  south_organization="$(claim_of "${access_token}" '.organization | tojson')"
+fi
+
+jar="$(mktemp)"
+login_page tenant-a patient-app "${jar}"
+action="$(login_action "${login_body}")"
+form_body="$(curl -sS --max-time 10 -c "${jar}" -b "${jar}" \
+  --data-urlencode "username=user-doctor-multi" --data-urlencode "password=demo-password" \
+  "${action}")"
+selection_action="$(login_action "${form_body}")"
+submit_organization "${selection_action}" "${jar}" "north-hospital"
+code="$(code_from_redirect)"
+north_organization="absent"
+if [[ -n "${code}" ]]; then
+  response="$(token_from_code tenant-a patient-app "${code}")"
+  access_token="$(jq -r '.access_token // empty' <<<"${response}")"
+  north_organization="$(claim_of "${access_token}" '.organization | tojson')"
+fi
+
+if [[ "${south_organization}" == '["south-hospital"]' && "${north_organization}" == '["north-hospital"]' ]]; then
+  pass "the same user's two answers yield two different active hospitals"
+else
+  fail "the same user's two answers yield two different active hospitals (south answer -> ${south_organization}, north answer -> ${north_organization})"
+fi
+rm -f "${jar}"
+
+echo
+echo "--- a submitted organization the user is not a member of is rejected ---"
+
+jar="$(mktemp)"
+login_page tenant-a patient-app "${jar}"
+action="$(login_action "${login_body}")"
+form_body="$(curl -sS --max-time 10 -c "${jar}" -b "${jar}" \
+  --data-urlencode "username=user-doctor-multi" --data-urlencode "password=demo-password" \
+  "${action}")"
+selection_action="$(login_action "${form_body}")"
+tampered_status="$(curl -sS --max-time 10 -o /tmp/org-selector-tampered.html -w '%{http_code}' \
+  -c "${jar}" -b "${jar}" --data-urlencode "organization=a-hospital-nobody-belongs-to" "${selection_action}")"
+if [[ "${tampered_status}" == "403" ]]; then
+  pass "a submitted organization the user is not a member of is rejected, not honoured"
+else
+  fail "a submitted organization the user is not a member of is rejected (HTTP ${tampered_status})"
+fi
+if grep -qF "not one you belong to" /tmp/org-selector-tampered.html; then
+  pass "the rejection names an explicit reason"
+else
+  fail "the rejection names an explicit reason (page did not contain it)"
+fi
+rm -f "${jar}" /tmp/org-selector-submission.html /tmp/org-selector-tampered.html
 
 if (( failures > 0 )); then
   echo

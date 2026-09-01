@@ -71,10 +71,10 @@ else
 fi
 
 south_members="$(admin_org_members south-hospital)"
-if [[ -z "${south_members}" ]]; then
-  pass "south-hospital has no members, so it is a clean negative fixture"
+if [[ -n "${south_members}" ]] && ! grep -qx "user-doctor" <<<"${south_members}"; then
+  pass "south-hospital's members do not include user-doctor, so it remains a clean negative fixture for that user"
 else
-  fail "south-hospital has no members (was '${south_members}')"
+  fail "south-hospital's members do not include user-doctor (was '${south_members}')"
 fi
 
 echo

@@ -7,6 +7,7 @@
   "accessTokenLifespan": 900,
   "organizationsEnabled": true,
   "browserFlow": "browser-with-org-selector",
+  "loginTheme": "cerbos-poc",
   "organizations": [
     {
       "name": "North Hospital",
@@ -18,7 +19,8 @@
         { "username": "user-doctor-revoked" },
         { "username": "user-auditor" },
         { "username": "user-clerk-granted" },
-        { "username": "user-unassigned" }
+        { "username": "user-unassigned" },
+        { "username": "user-doctor-multi" }
       ]
     },
     {
@@ -26,7 +28,7 @@
       "alias": "south-hospital",
       "enabled": true,
       "domains": [{ "name": "south-hospital.example.test", "verified": false }],
-      "members": []
+      "members": [{ "username": "user-doctor-multi" }]
     }
   ],
   "clients": [
@@ -149,6 +151,17 @@
       "firstName": "Dana",
       "lastName": "Doctor",
       "email": "dana.doctor@example.test",
+      "credentials": [{ "type": "password", "value": "demo-password", "temporary": false }],
+      "clientRoles": { "patient-app": ["doctor"] }
+    },
+    {
+      "id": "user-doctor-multi",
+      "username": "user-doctor-multi",
+      "enabled": true,
+      "emailVerified": true,
+      "firstName": "Morgan",
+      "lastName": "Doctor",
+      "email": "morgan.doctor@example.test",
       "credentials": [{ "type": "password", "value": "demo-password", "temporary": false }],
       "clientRoles": { "patient-app": ["doctor"] }
     },
