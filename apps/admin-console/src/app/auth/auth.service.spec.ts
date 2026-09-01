@@ -178,10 +178,8 @@ describe('AuthService', () => {
 
     expect(result).toBe(false);
     expect(auth.accessToken()).toEqual(existingToken);
-    httpMock.expectNone((request) =>
-      request.url === 'http://localhost:8081/realms/tenant-a/protocol/openid-connect/token' &&
-      (request.body as string).includes('switch'),
-    );
+    // No token request at all: afterEach's httpMock.verify() would fail if
+    // the refused switch had issued one and left it outstanding.
   });
 
   it('clears the token and redirects to the end-session endpoint on logout', async () => {
