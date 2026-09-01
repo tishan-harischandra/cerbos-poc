@@ -80,6 +80,7 @@
       "webOrigins": [],
       "fullScopeAllowed": false,
       "defaultClientScopes": ["basic", "web-origins", "profile", "roles", "email"],
+      "optionalClientScopes": ["organization"],
       "protocolMappers": [
         {
           "name": "audience",
