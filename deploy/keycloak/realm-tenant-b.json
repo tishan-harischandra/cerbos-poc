@@ -28,8 +28,16 @@
       "standardFlowEnabled": true,
       "directAccessGrantsEnabled": true,
       "serviceAccountsEnabled": false,
-      "redirectUris": ["http://localhost:4200/*", "http://127.0.0.1:4200/*"],
-      "webOrigins": ["http://localhost:4200", "http://127.0.0.1:4200"],
+      "redirectUris": [
+        "http://localhost:4200/*",
+        "http://127.0.0.1:4200/*",
+        "http://tenant-b.localtest.me:4200/*"
+      ],
+      "webOrigins": [
+        "http://localhost:4200",
+        "http://127.0.0.1:4200",
+        "http://tenant-b.localtest.me:4200"
+      ],
       "defaultClientScopes": ["basic", "web-origins", "profile", "roles", "email"],
       "optionalClientScopes": ["organization"],
       "protocolMappers": [

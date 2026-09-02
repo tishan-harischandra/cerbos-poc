@@ -10,12 +10,15 @@
 set -uo pipefail
 
 cd "$(dirname "${BASH_SOURCE[0]}")/../.."
+# shellcheck source=scripts/tests/lib-token.sh
+source scripts/tests/lib-token.sh
 
 failures=0
 pass() { echo "ok   $1"; }
 fail() { echo "FAIL $1"; failures=$((failures + 1)); }
 
 command -v jq >/dev/null 2>&1 || { echo "tenant-subdomain-e2e: jq is required" >&2; exit 1; }
+wait_for_keycloak || exit 1
 
 ADMIN_CONSOLE_PORT="${ADMIN_CONSOLE_PORT:-4200}"
 BUSINESS_UI_PORT="${BUSINESS_UI_PORT:-4201}"
@@ -100,6 +103,52 @@ else
     fail "a real login against each subdomain's resolved realm succeeds (tenant-a token present: $([[ -n "${token_a}" ]] && echo yes || echo no), tenant-b token present: $([[ -n "${token_b}" ]] && echo yes || echo no))"
   fi
 fi
+
+echo
+echo "--- a browser actually standing at a tenant subdomain can complete the code flow ---"
+
+# The runtime environment resolves the issuer from the request host, but a
+# real browser at http://tenant-a.localtest.me:4200 also sends that same
+# host as its own origin - Angular's redirect_uri is window.location.origin
+# (apps/admin-console/src/app/auth/oidc-config.ts) - so the authorization
+# request Keycloak actually receives names the subdomain as redirect_uri,
+# not localhost. A client whose registered redirectUris/webOrigins forgot
+# the subdomain rejects that request outright with "Invalid parameter:
+# redirect_uri" before a login form is ever shown - exactly the failure a
+# person following this repo's own README instructions would hit, and
+# nothing above exercises it: every other suite drives the code flow
+# through 127.0.0.1 or localhost by name (issue #83 follow-up).
+# auth_code_request <host> <port> <realm>
+# GETs the authorization endpoint with a redirect_uri naming the given
+# subdomain host, leaving the status in $auth_status and the body in
+# $auth_body. Keycloak answers a registered redirect_uri with 200 and a
+# login form; an unregistered one is refused with 400 and "Invalid
+# parameter: redirect_uri" before any form is rendered.
+auth_code_request() {
+  local host="$1" port="$2" realm="$3"
+  auth_body="$(curl -sS --max-time 10 -w '\n%{http_code}' --get \
+    "${KEYCLOAK_URL}/realms/${realm}/protocol/openid-connect/auth" \
+    --data-urlencode "client_id=patient-app" \
+    --data-urlencode "response_type=code" \
+    --data-urlencode "scope=openid" \
+    --data-urlencode "state=tenant-subdomain-e2e" \
+    --data-urlencode "code_challenge=x2FhAr9-XdVv3ub7bYq5NxG_2Bq3ND2u5b0oa1s9c0M" \
+    --data-urlencode "code_challenge_method=S256" \
+    --data-urlencode "redirect_uri=http://${host}:${port}/callback")"
+  auth_status="${auth_body##*$'\n'}"
+  auth_body="${auth_body%$'\n'*}"
+}
+
+for pair in "tenant-a:${ADMIN_CONSOLE_PORT}" "tenant-a:${BUSINESS_UI_PORT}" "tenant-b:${ADMIN_CONSOLE_PORT}" "tenant-c:${ADMIN_CONSOLE_PORT}"; do
+  realm="${pair%%:*}"
+  port="${pair##*:}"
+  auth_code_request "${realm}.localtest.me" "${port}" "${realm}"
+  if [[ "${auth_status}" == "200" && "${auth_body}" != *"Invalid parameter"* ]]; then
+    pass "${realm} accepts an authorization request whose redirect_uri names its own subdomain on port ${port}"
+  else
+    fail "${realm} accepts an authorization request whose redirect_uri names its own subdomain on port ${port} (got HTTP ${auth_status})"
+  fi
+done
 
 if (( failures > 0 )); then
   echo
