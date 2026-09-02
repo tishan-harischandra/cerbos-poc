@@ -23,7 +23,7 @@ const catalog = {
   rootPolicyRevision: 'root-v1.4.0',
 };
 
-function setUp() {
+function setUp(hospitalId: string | undefined = 'hospital-1') {
   TestBed.configureTestingModule({
     imports: [UserOverride],
     providers: [
@@ -31,7 +31,7 @@ function setUp() {
       provideHttpClientTesting(),
       {
         provide: AuthService,
-        useValue: { claims: () => ({ tenantId: 'tenant-a', hospitalId: 'hospital-1' }) },
+        useValue: { claims: () => ({ tenantId: 'tenant-a', hospitalId }) },
       },
     ],
   });
@@ -48,6 +48,20 @@ describe('UserOverride', () => {
     const note = fixture.nativeElement.querySelector('[data-testid="scope-note"]') as HTMLElement;
     expect(note.textContent).toContain('tenant-a');
     expect(note.textContent).toContain('hospital-1');
+  });
+
+  it('refuses to offer the screen at all to a tenant-wide session (ADR-012)', () => {
+    const httpMock = setUp('');
+    const fixture = TestBed.createComponent(UserOverride);
+    httpMock.expectOne('/api/admin/authz/resources').flush(catalog);
+    fixture.detectChanges();
+
+    const notice = fixture.nativeElement.querySelector(
+      '[data-testid="no-hospital-scope"]',
+    ) as HTMLElement;
+    expect(notice).toBeTruthy();
+    expect(fixture.nativeElement.querySelector('[data-testid="scope-note"]')).toBeNull();
+    expect(fixture.nativeElement.querySelector('[data-testid="user-search-input"]')).toBeNull();
   });
 
   it("shows a user's hospital memberships before granting or revoking a permission (issue #85)", async () => {

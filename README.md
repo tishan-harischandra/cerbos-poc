@@ -150,7 +150,8 @@ Every demo user's password is `demo-password`, in both deployment paths.
 
 | User | Use it for |
 | --- | --- |
-| `user-admin` | The Admin Console: role matrix, overrides, simulator, audit |
+| `user-admin` | The Admin Console's tenant-scoped screens: role matrix, revision/activation, audit search. Has no organization membership, so it can only log in tenant-wide (ADR-012) - the user override and simulator screens both require the caller's own token to name the exact hospital they target (§9.4), which a tenant-wide session never does, so `user-admin` gets a `403`/`hospitalId is required` on those, not a bug. |
+| `user-admin-clinician` | The user override and simulator screens: also holds the `admin` realm role, but is a member of North Hospital too, so the organization-selection screen offers a real choice - pick North Hospital, not tenant-wide, to use those two screens |
 | `user-doctor` | A clinician with role-granted `patient_record` read and update |
 | `user-doctor-revoked` | The same role, with a user REVOKE on `update` (ADR-003) |
 | `user-clerk-granted` | No role grants; a user GRANT on `read` alone |

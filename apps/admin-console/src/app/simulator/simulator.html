@@ -1,4 +1,12 @@
 <h1>Effective access simulator</h1>
+
+@if (!hospital()) {
+  <p data-testid="no-hospital-scope" class="error">
+    This screen needs a hospital-scoped session: a tenant-wide login (no hospital chosen
+    at sign-in) has no hospital to simulate against (ADR-012, §9.4). Log out and sign back
+    in, choosing a hospital rather than the tenant-wide option, to use this screen.
+  </p>
+} @else {
 <p data-testid="scope-note">
   Scope: tenant {{ tenant() }}, hospital {{ hospital() }} (your own authority).
 </p>
@@ -105,3 +113,4 @@
     </div>
   }
 </section>
+}
