@@ -178,6 +178,7 @@ smoke: ## Verify a running stack end to end
 	bash scripts/tests/tenant-subdomain-e2e.sh
 	bash scripts/tests/hospital-switch-e2e.sh
 	bash scripts/tests/organizations-e2e.sh
+	bash scripts/tests/tenant-onboarding-e2e.sh
 
 .PHONY: walkthrough
 walkthrough: ## Execute the README's guided walkthrough against a running deployment

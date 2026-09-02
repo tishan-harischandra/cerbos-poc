@@ -107,6 +107,12 @@ services:
     volumes:
       - ./deploy/keycloak/realm-tenant-a.json:/opt/keycloak/data/import/realm-tenant-a.json:ro
       - ./deploy/keycloak/realm-tenant-b.json:/opt/keycloak/data/import/realm-tenant-b.json:ro
+      # tenant-c exists in Keycloak but deliberately not in
+      # deploy/tenant-registry.yaml (issue #86): it is what
+      # scripts/tests/tenant-onboarding-e2e.sh onboards through the Admin
+      # Service at runtime, proving onboarding is real rather than a claim
+      # about a realm that was already registered.
+      - ./deploy/keycloak/realm-tenant-c.json:/opt/keycloak/data/import/realm-tenant-c.json:ro
       - ./deploy/keycloak/realm-other-issuer.json:/opt/keycloak/data/import/realm-other-issuer.json:ro
     ports:
       - "${KEYCLOAK_PORT:-8081}:8080"
@@ -249,8 +255,13 @@ services:
     volumes:
       # One mount per realm the tenant registry names (issue #77): each
       # realm's own service account secret, never shared with another's.
+      # tenant-c's is mounted even though it starts out unregistered
+      # (issue #86): tenantdiscovery reads it the moment the tenant
+      # onboarding endpoint saves that row, with no restart to add the
+      # mount after the fact.
       - ./deploy/secrets/idp-admin-credentials:/run/secrets/idp-admin-credentials:ro
       - ./deploy/secrets/idp-admin-credentials-tenant-b:/run/secrets/idp-admin-credentials-tenant-b:ro
+      - ./deploy/secrets/idp-admin-credentials-tenant-c:/run/secrets/idp-admin-credentials-tenant-c:ro
       - ./deploy/cerbos/catalog/ui-capabilities:/capability-catalog:ro
     depends_on:
       cerbos:
@@ -322,6 +333,10 @@ services:
     volumes:
       - ./deploy/secrets/idp-admin-credentials:/run/secrets/idp-admin-credentials:ro
       - ./deploy/secrets/idp-admin-credentials-tenant-b:/run/secrets/idp-admin-credentials-tenant-b:ro
+      # tenant-c's secret (issue #86): mounted so a tenant onboarding
+      # request naming this path passes the same "is it readable" check
+      # a file-seeded registry entry is held to.
+      - ./deploy/secrets/idp-admin-credentials-tenant-c:/run/secrets/idp-admin-credentials-tenant-c:ro
       - ./deploy/cerbos/catalog/resources:/authorization-catalog:ro
       - ./deploy/cerbos/catalog/ui-capabilities:/capability-catalog:ro
       - policy-release-archives:/var/lib/policy-controller/archives:ro

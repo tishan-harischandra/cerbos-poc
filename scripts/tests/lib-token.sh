@@ -23,6 +23,7 @@ organization_for_realm() {
   case "$1" in
     tenant-a) echo "north-hospital" ;;
     tenant-b) echo "hospital-b1" ;;
+    tenant-c) echo "hospital-c1" ;;
     *) echo "" ;;
   esac
 }
