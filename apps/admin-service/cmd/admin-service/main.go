@@ -251,6 +251,11 @@ func main() {
 	for realm := range installations {
 		realms = append(realms, realm)
 	}
+	// TLS is opt-in (docker-compose.tls.yml): a subdomain per tenant is
+	// not a secure context for a browser over plain HTTP, and PKCE's
+	// crypto.subtle call throws outright without one. Empty cert/key -
+	// the default - serves plain HTTP exactly as before.
+	tlsEnabled := cfg.TLSCertFile != "" && cfg.TLSKeyFile != ""
 	logger.Info("admin-service listening",
 		slog.String("addr", cfg.HTTPAddr),
 		slog.String("postgres", cfg.PostgresAddr),
@@ -258,10 +263,17 @@ func main() {
 		slog.Any("realms", realms),
 		slog.String("leaderElection", string(electionConfig.Type)),
 		slog.String("consoleDir", cfg.ConsoleDir),
+		slog.Bool("tls", tlsEnabled),
 	)
 
-	if err := httpServer.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
-		logger.Error("admin-service stopped", slog.Any("error", err))
+	var serveErr error
+	if tlsEnabled {
+		serveErr = httpServer.ListenAndServeTLS(cfg.TLSCertFile, cfg.TLSKeyFile)
+	} else {
+		serveErr = httpServer.ListenAndServe()
+	}
+	if serveErr != nil && !errors.Is(serveErr, http.ErrServerClosed) {
+		logger.Error("admin-service stopped", slog.Any("error", serveErr))
 		os.Exit(1)
 	}
 }

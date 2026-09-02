@@ -31,12 +31,16 @@
       "redirectUris": [
         "http://localhost:4200/*",
         "http://127.0.0.1:4200/*",
-        "http://tenant-b.localtest.me:4200/*"
+        "http://tenant-b.localtest.me:4200/*",
+        "https://localhost:4200/*",
+        "https://tenant-b.localtest.me:4200/*"
       ],
       "webOrigins": [
         "http://localhost:4200",
         "http://127.0.0.1:4200",
-        "http://tenant-b.localtest.me:4200"
+        "http://tenant-b.localtest.me:4200",
+        "https://localhost:4200",
+        "https://tenant-b.localtest.me:4200"
       ],
       "defaultClientScopes": ["basic", "web-origins", "profile", "roles", "email"],
       "optionalClientScopes": ["organization"],

@@ -388,6 +388,12 @@ services:
     volumes:
       - ./deploy/secrets/idp-admin-credentials:/run/secrets/idp-admin-credentials:ro
       - ./deploy/secrets/idp-admin-credentials-tenant-b:/run/secrets/idp-admin-credentials-tenant-b:ro
+      # tenant-c's secret (issue #86): mounted for the same reason
+      # admin-service mounts it - once a tenant onboarding request
+      # registers the realm, every service that reads the tenant
+      # registry, this one included, needs its credential to be
+      # readable, not just the service that ran the onboarding.
+      - ./deploy/secrets/idp-admin-credentials-tenant-c:/run/secrets/idp-admin-credentials-tenant-c:ro
     depends_on:
       ads:
         condition: service_healthy
@@ -533,8 +539,14 @@ services:
     build:
       context: .
       dockerfile: apps/business-ui/Dockerfile
+    # BUSINESS_UI_CONTAINER_PORT lets docker-compose.tls.yml switch the
+    # published port's target to 443 with a single scalar override rather
+    # than a second `ports:` entry: Compose merges list-valued keys like
+    # `ports` by concatenation, not replacement, so a second entry here
+    # would try to publish the same host port twice, to two different
+    # container ports, and fail outright.
     ports:
-      - "${BUSINESS_UI_PORT:-4201}:80"
+      - "${BUSINESS_UI_PORT:-4201}:${BUSINESS_UI_CONTAINER_PORT:-80}"
     depends_on:
       ads:
         condition: service_healthy

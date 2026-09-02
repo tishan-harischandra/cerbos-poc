@@ -1,0 +1,40 @@
+# The TLS counterpart of nginx.conf.template (docker-compose.tls.yml mounts
+# this over the image's own template instead): a subdomain per tenant is not
+# a secure context for a browser over plain HTTP, and PKCE's crypto.subtle
+# call throws outright without one - only localhost, its subdomains and the
+# loopback literals get that for free. Everything below the `listen`/`ssl_*`
+# lines is identical to the plain-HTTP template on purpose: this is the same
+# proxying, over TLS, not a second configuration to keep in sync by hand.
+resolver ${NGINX_LOCAL_RESOLVERS} valid=10s ipv6=off;
+
+server {
+  listen 443 ssl;
+  server_name _;
+
+  ssl_certificate ${NGINX_TLS_CERT_FILE};
+  ssl_certificate_key ${NGINX_TLS_KEY_FILE};
+
+  root /usr/share/nginx/html;
+  index index.html;
+
+  location /api/ads/ {
+    set $ads_upstream "http://ads:8080";
+    rewrite ^/api/ads/(.*)$ /$1 break;
+    proxy_pass $ads_upstream;
+    proxy_set_header Host $host;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto $scheme;
+  }
+
+  location = /assets/env.js {
+    set $resource_service_upstream "http://resource-service:8080";
+    proxy_pass $resource_service_upstream/assets/env.js;
+    proxy_set_header Host $host;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto $scheme;
+  }
+
+  location / {
+    try_files $uri $uri/ /index.html;
+  }
+}

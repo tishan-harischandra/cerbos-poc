@@ -114,6 +114,36 @@ bash scripts/k8s-walkthrough.sh   # the same script against deploy/k8s on kind
 browser tabs use, asserts each step, and times the convergence. CI runs it, so
 "works exactly as written" is checked rather than claimed.
 
+#### Logging in with a real browser
+
+A real browser standing at `http://tenant-a.localtest.me:4200` cannot actually
+complete the walkthrough above: PKCE's code-challenge derivation
+(`libs/web/auth/src/lib/pkce.ts`) calls `crypto.subtle`, which a browser only
+grants in a secure context, and a per-tenant subdomain over plain HTTP is not
+one - only `localhost`, its own subdomains and the loopback literals get that
+for free. `scripts/tests/walkthrough.sh` and every other e2e suite drive the
+OIDC code flow with `curl`, never real browser JS, so this never shows up
+there.
+
+```bash
+make up-tls   # like `make up`, but every browser-facing port serves HTTPS
+```
+
+`make up-tls` layers `docker-compose.tls.yml` over the default stack:
+`scripts/dev-tls.sh` (`make tls-certs`) generates a local mkcert certificate
+covering `localhost`, `127.0.0.1`, `::1` and all three `*.localtest.me`
+tenant subdomains, and Keycloak, the Admin Console and the Business UI each
+switch to it. Run `mkcert -install` once so your browser trusts it without a
+warning; if that cannot reach the system trust store or NSS (no root, or no
+`certutil`), import `$(mkcert -CAROOT)/rootCA.pem` by hand instead. Then open
+`https://tenant-a.localtest.me:4200` and log in exactly as above.
+
+Switching between `make up` and `make up-tls` on the same Postgres volume
+does not change the tenant registry's issuer: `make up`'s tenant seeding
+step is deliberately not an upsert once a realm is registered (issue #86),
+so an existing `http://...` row stays exactly as it is. Run `make clean`
+before switching schemes on a volume the other scheme has already seeded.
+
 ### Demo logins
 
 Every demo user's password is `demo-password`, in both deployment paths.

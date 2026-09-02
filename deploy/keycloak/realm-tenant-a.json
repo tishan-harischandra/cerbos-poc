@@ -48,7 +48,10 @@
         "http://localhost:4201/*",
         "http://127.0.0.1:4201/*",
         "http://tenant-a.localtest.me:4200/*",
-        "http://tenant-a.localtest.me:4201/*"
+        "http://tenant-a.localtest.me:4201/*",
+        "https://localhost:4200/*",
+        "https://tenant-a.localtest.me:4200/*",
+        "https://tenant-a.localtest.me:4201/*"
       ],
       "webOrigins": [
         "http://localhost:4200",
@@ -56,10 +59,13 @@
         "http://localhost:4201",
         "http://127.0.0.1:4201",
         "http://tenant-a.localtest.me:4200",
-        "http://tenant-a.localtest.me:4201"
+        "http://tenant-a.localtest.me:4201",
+        "https://localhost:4200",
+        "https://tenant-a.localtest.me:4200",
+        "https://tenant-a.localtest.me:4201"
       ],
       "attributes": {
-        "post.logout.redirect.uris": "http://localhost:4200/*##http://localhost:4201/*##http://tenant-a.localtest.me:4200/*##http://tenant-a.localtest.me:4201/*"
+        "post.logout.redirect.uris": "http://localhost:4200/*##http://localhost:4201/*##http://tenant-a.localtest.me:4200/*##http://tenant-a.localtest.me:4201/*##https://tenant-a.localtest.me:4200/*##https://tenant-a.localtest.me:4201/*"
       },
       "defaultClientScopes": ["basic", "web-origins", "profile", "roles", "email"],
       "optionalClientScopes": ["organization"],

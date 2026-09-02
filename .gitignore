@@ -24,3 +24,9 @@ target/
 
 vitest.config.*.timestamp*.k8s-walkthrough-kubeconfig
 .~lock.*#
+
+# make tls-certs' own output (scripts/dev-tls.sh): a locally-trusted mkcert
+# leaf certificate and its private key, regenerated per machine, never a
+# credential to commit.
+/deploy/tls/dev-cert.pem
+/deploy/tls/dev-key.pem

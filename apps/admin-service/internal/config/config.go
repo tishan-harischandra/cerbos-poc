@@ -66,6 +66,17 @@ type Config struct {
 	// is what a build with no bundle on disk - a developer running
 	// `nx serve admin-console` against it - wants.
 	ConsoleDir string
+
+	// TLSCertFile and TLSKeyFile, given together, switch the published
+	// listener to HTTPS: WebCrypto (crypto.subtle, PKCE's own
+	// dependency) is only available to a browser in a secure context,
+	// and a subdomain per tenant is not one of the hosts a browser
+	// grants that to for a plain HTTP origin (only localhost, its
+	// subdomains and the loopback literals are). Empty - the default -
+	// serves plain HTTP exactly as before; this is opt-in local-TLS for
+	// docker-compose.tls.yml, never required for the walking skeleton.
+	TLSCertFile string
+	TLSKeyFile  string
 }
 
 // LookupFunc mirrors os.LookupEnv so configuration stays testable.
@@ -93,6 +104,9 @@ func FromEnv(lookup LookupFunc) Config {
 		HighRiskOverrideValidity: durationOr(lookup, "USER_OVERRIDE_HIGH_RISK_VALIDITY", 90*24*time.Hour),
 
 		ConsoleDir: valueOr(lookup, "ADMIN_CONSOLE_DIR", "/admin-console"),
+
+		TLSCertFile: valueOr(lookup, "ADMIN_SERVICE_TLS_CERT_FILE", ""),
+		TLSKeyFile:  valueOr(lookup, "ADMIN_SERVICE_TLS_KEY_FILE", ""),
 	}
 }
 

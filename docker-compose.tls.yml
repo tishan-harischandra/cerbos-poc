@@ -1,0 +1,83 @@
+# Opt-in local TLS overlay: `make up-tls` layers this over docker-compose.yml.
+#
+# Why this exists: a browser only grants WebCrypto (crypto.subtle) in a
+# secure context, and a per-tenant subdomain (tenant-a.localtest.me, issue
+# #83) is not one of the hosts a plain HTTP origin gets that for free -
+# only localhost, its own subdomains and the loopback literals are. PKCE's
+# code-challenge derivation (libs/web/auth/src/lib/pkce.ts) calls
+# crypto.subtle.digest unconditionally, so a real browser standing at
+# http://tenant-a.localtest.me:4200 cannot complete a login at all - the
+# README's own walkthrough, followed literally with a real browser, fails
+# before a login form is ever submitted.
+#
+# `make tls-certs` (scripts/dev-tls.sh) generates deploy/tls/dev-cert.pem
+# and dev-key.pem with mkcert, covering localhost, 127.0.0.1, ::1 and all
+# three *.localtest.me tenant subdomains. This file mounts that pair into
+# the three services a browser ever talks to directly - Keycloak,
+# admin-service and business-ui - and switches each to HTTPS. Every
+# service-to-service call inside the compose network (ads, resource-service,
+# the admin REST API) stays on plain HTTP: none of it is browser-facing, so
+# none of it needs a secure context.
+#
+# The default `make up`/CI path never loads this file, so nothing here can
+# regress the plain-HTTP suites everything else in this repo is built on.
+services:
+  keycloak:
+    environment:
+      KC_HOSTNAME: https://localhost:8443
+      KC_HTTPS_CERTIFICATE_FILE: /run/tls/dev-cert.pem
+      KC_HTTPS_CERTIFICATE_KEY_FILE: /run/tls/dev-key.pem
+      KC_HTTPS_PORT: "8443"
+      # The management interface (the health probe's own target) otherwise
+      # inherits the main listener's TLS: the image ships no curl, wget or
+      # openssl (only bash), so a healthcheck that has to speak TLS itself
+      # has nothing to speak it with. Keeping it plain HTTP is safe - it is
+      # never published to the host, only probed from inside the container.
+      KC_HTTP_MANAGEMENT_SCHEME: http
+    volumes:
+      - ./deploy/tls:/run/tls:ro
+    ports:
+      - "${KEYCLOAK_HTTPS_PORT:-8443}:8443"
+
+  admin-service:
+    environment:
+      ADMIN_SERVICE_TLS_CERT_FILE: /run/tls/dev-cert.pem
+      ADMIN_SERVICE_TLS_KEY_FILE: /run/tls/dev-key.pem
+    volumes:
+      - ./deploy/tls:/run/tls:ro
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "wget",
+          "--quiet",
+          "--tries=1",
+          "--no-check-certificate",
+          "--spider",
+          "https://127.0.0.1:8081/readyz",
+        ]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  business-ui:
+    environment:
+      NGINX_TLS_CERT_FILE: /run/tls/dev-cert.pem
+      NGINX_TLS_KEY_FILE: /run/tls/dev-key.pem
+    volumes:
+      - ./apps/business-ui/nginx.conf.tls.template:/etc/nginx/templates/default.conf.template:ro
+      - ./deploy/tls:/run/tls:ro
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "wget",
+          "--quiet",
+          "--tries=1",
+          "--no-check-certificate",
+          "--spider",
+          "https://127.0.0.1/index.html",
+        ]
+      interval: 5s
+      timeout: 5s
+      retries: 20

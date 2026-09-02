@@ -38,6 +38,39 @@ up: ## Build and start the whole control plane, waiting for health
 down: ## Stop the control plane and remove its containers
 	$(COMPOSE) down --remove-orphans
 
+# docker-compose.tls.yml's own compose invocation: layered over the base
+# file, never a replacement for it, so the default `up`/`ci` path never
+# loads it and nothing here can regress the plain-HTTP suites everything
+# else in this repo is built on.
+COMPOSE_TLS = $(COMPOSE) -f docker-compose.yml -f docker-compose.tls.yml
+
+.PHONY: tls-certs
+tls-certs: ## Generate the local mkcert certificate docker-compose.tls.yml mounts (scripts/dev-tls.sh)
+	bash scripts/dev-tls.sh
+
+.PHONY: up-tls
+up-tls: tls-certs ## Like `make up`, but every browser-facing port serves HTTPS: a per-tenant subdomain is not a secure context over plain HTTP, and PKCE's crypto.subtle throws without one
+	# BUSINESS_UI_CONTAINER_PORT switches the container-side target of the
+	# one published port (docker-compose.yml's business-ui service) from
+	# 80 to 443. It has to be a real environment variable here, not a
+	# container `environment:` entry: it feeds Compose's own `${...}`
+	# substitution while parsing the YAML, before any container starts.
+	export BUSINESS_UI_CONTAINER_PORT=443; \
+	$(COMPOSE_TLS) up --build --detach postgres keycloak cerbos redpanda; \
+	COMPOSE="$(COMPOSE_TLS)" bash scripts/compose-wait.sh postgres keycloak cerbos redpanda; \
+	$(MAKE) migrate; \
+	$(MAKE) seed; \
+	tls_hostname="https://localhost:$${KEYCLOAK_HTTPS_PORT:-8443}"; \
+	TENANT_A_ISSUER="$${tls_hostname}/realms/tenant-a" \
+	TENANT_B_ISSUER="$${tls_hostname}/realms/tenant-b" \
+	$(MAKE) seed-tenants; \
+	$(COMPOSE_TLS) up --build --detach; \
+	COMPOSE="$(COMPOSE_TLS)" bash scripts/compose-wait.sh
+
+.PHONY: down-tls
+down-tls: ## Stop the TLS overlay stack and remove its containers
+	$(COMPOSE_TLS) down --remove-orphans
+
 .PHONY: clean
 clean: ## Remove containers, named volumes, local images and build caches
 	$(COMPOSE) down --remove-orphans --volumes --rmi local
