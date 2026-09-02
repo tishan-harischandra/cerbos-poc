@@ -74,40 +74,55 @@ func Parse(raw []byte) ([]Entry, error) {
 	seen := make(map[string]bool, len(rows))
 	entries := make([]Entry, 0, len(rows))
 	for _, row := range rows {
-		if row.Realm == "" {
-			return nil, fmt.Errorf("tenantregistry: a registry entry has no realm")
-		}
-		if seen[row.Realm] {
-			return nil, fmt.Errorf("tenantregistry: realm %q is declared more than once", row.Realm)
-		}
-		seen[row.Realm] = true
-
-		if row.Issuer == "" {
-			return nil, fmt.Errorf("tenantregistry: realm %q has no issuer", row.Realm)
-		}
-		if row.BrowserClientID == "" {
-			return nil, fmt.Errorf("tenantregistry: realm %q has no browserClientId", row.Realm)
-		}
-		if row.CredentialSecretRef == "" {
-			return nil, fmt.Errorf("tenantregistry: realm %q has no credentialSecretRef", row.Realm)
-		}
-		if _, err := os.ReadFile(row.CredentialSecretRef); err != nil {
-			return nil, fmt.Errorf("tenantregistry: realm %q's credentialSecretRef %q is not readable: %w", row.Realm, row.CredentialSecretRef, err)
-		}
-
-		serviceClientID := row.ServiceClientID
-		if serviceClientID == "" {
-			serviceClientID = row.BrowserClientID
-		}
-
-		entries = append(entries, Entry{
+		entry := Entry{
 			Realm:               row.Realm,
 			Issuer:              row.Issuer,
 			BrowserClientID:     row.BrowserClientID,
-			ServiceClientID:     serviceClientID,
+			ServiceClientID:     row.ServiceClientID,
 			CredentialSecretRef: row.CredentialSecretRef,
-		})
+		}
+		if err := Validate(entry); err != nil {
+			return nil, err
+		}
+		if seen[entry.Realm] {
+			return nil, fmt.Errorf("tenantregistry: realm %q is declared more than once", entry.Realm)
+		}
+		seen[entry.Realm] = true
+
+		if entry.ServiceClientID == "" {
+			entry.ServiceClientID = entry.BrowserClientID
+		}
+		entries = append(entries, entry)
 	}
 
 	return entries, nil
+}
+
+// Validate checks one entry against the same rules the registry file's
+// rows are checked against (issue #86): a tenant onboarded at runtime
+// through the Admin Service is held to the identical contract as one
+// declared in the file, so there is exactly one definition of "a valid
+// registry entry" rather than two that could drift apart.
+//
+// It does not check for a realm declared more than once - that is a
+// property of a whole file's rows, not of one entry in isolation - and
+// leaves ServiceClientID's browserClientId fallback to the caller, since
+// Parse and the onboarding handler apply it at different points.
+func Validate(entry Entry) error {
+	if entry.Realm == "" {
+		return fmt.Errorf("tenantregistry: a registry entry has no realm")
+	}
+	if entry.Issuer == "" {
+		return fmt.Errorf("tenantregistry: realm %q has no issuer", entry.Realm)
+	}
+	if entry.BrowserClientID == "" {
+		return fmt.Errorf("tenantregistry: realm %q has no browserClientId", entry.Realm)
+	}
+	if entry.CredentialSecretRef == "" {
+		return fmt.Errorf("tenantregistry: realm %q has no credentialSecretRef", entry.Realm)
+	}
+	if _, err := os.ReadFile(entry.CredentialSecretRef); err != nil {
+		return fmt.Errorf("tenantregistry: realm %q's credentialSecretRef %q is not readable: %w", entry.Realm, entry.CredentialSecretRef, err)
+	}
+	return nil
 }
