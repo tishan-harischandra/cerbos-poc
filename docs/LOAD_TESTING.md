@@ -29,8 +29,9 @@ same way `scripts/go.sh` runs the Go toolchain.
 
 | Dimension | Full profile | Demo profile |
 |---|---|---|
-| Tenants | 5 | 1 |
-| Hospitals | 20 (4 per tenant) | 1 |
+| Tenants (Keycloak realms) | 5 | 2 |
+| Hospitals (Keycloak organizations) | 20 (4 per tenant) | 4 (2 per tenant) |
+| Hospital memberships per user | 2 | 2 |
 | Canonical roles | 250 | a handful |
 | Users | 600,000 | tens |
 | Roles per user | 70 (42M mappings) | 1-2 |
@@ -40,6 +41,20 @@ same way `scripts/go.sh` runs the Go toolchain.
 The two profiles differ by configuration only, never by code path -
 `PROFILE=demo` exists to exercise the harness, not to produce a smaller
 measurement.
+
+Every hospital is a real Keycloak organization, and every user's
+memberships are real `USER_GROUP_MEMBERSHIP` rows against it (issue #87) -
+not a free-form attribute the way tenant/hospital were represented before
+organizations existed in this platform's model. A virtual user requests
+its primary hospital as an `organization:<alias>` direct-grant scope
+(`deploy/loadtest/k6/lib/identity.js` derives the same tenant/hospital
+assignment `libs/loadmodel/loadmodel.go`'s `Population.User` does, so a
+VU's request always names a membership that user genuinely has). See
+[`MEASURED_FINDINGS.md`](MEASURED_FINDINGS.md) for the Keycloak-internal
+schema this relies on, and for a still-open gap: the demo `ads` this
+harness's business/capability/mutation scenarios run against does not yet
+trust the loadtest realms this seed creates, so those scenarios will see
+`401`s until that is closed.
 
 **There are no browser VUs.** §15.1's concurrency is protocol-level: each VU
 takes one password grant and then rotates refresh tokens. A thousand headless
