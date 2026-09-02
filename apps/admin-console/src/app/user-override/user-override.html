@@ -37,6 +37,18 @@
   <section class="override-editor" data-testid="editor">
     <h2>{{ user.displayName || user.username }}</h2>
 
+    @if (userOrganizations().length > 0) {
+      <ul data-testid="user-organizations" aria-label="Hospital memberships">
+        @for (organization of userOrganizations(); track organization.externalId) {
+          <li [attr.data-testid]="'user-organization-' + organization.alias">
+            {{ organization.name || organization.alias }}
+          </li>
+        }
+      </ul>
+    } @else {
+      <p data-testid="no-user-organizations">No hospital memberships.</p>
+    }
+
     <label>
       Resource
       <select data-testid="resource-select" [ngModel]="selectedResourceKey()" (ngModelChange)="selectResource($event)">

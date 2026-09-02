@@ -180,6 +180,128 @@ func NewUserRolesHandler(cfg Config) http.Handler {
 	})
 }
 
+type organizationPayload struct {
+	ExternalID string `json:"externalId"`
+	Alias      string `json:"alias"`
+	Name       string `json:"name"`
+}
+
+func toOrganizationPayload(organization idpdirectory.OrganizationRef) organizationPayload {
+	return organizationPayload{
+		ExternalID: organization.ExternalID,
+		Alias:      organization.Alias,
+		Name:       organization.Name,
+	}
+}
+
+// NewOrganizationsHandler serves GET /internal/directory/organizations
+// (issue #85): the reach an administrator sees before granting a
+// permission, in the caller's own tenant only.
+func NewOrganizationsHandler(cfg Config) http.Handler {
+	logger := loggerOf(cfg)
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		identity, page, ok := requestContext(w, r)
+		if !ok {
+			return
+		}
+		directory, ok := directoryFor(cfg, identity.TenantID)
+		if !ok {
+			fail(w, logger, r, "listing organizations", errNoDirectoryForTenant(identity.TenantID))
+			return
+		}
+
+		found, err := directory.OrganizationsOfTenant(r.Context(),
+			idpdirectory.TenantID(identity.TenantID),
+			idpdirectory.OrganizationSearch{Query: r.URL.Query().Get("query"), Page: page})
+		if err != nil {
+			fail(w, logger, r, "listing organizations", err)
+			return
+		}
+
+		items := make([]organizationPayload, 0, len(found.Items))
+		for _, organization := range found.Items {
+			items = append(items, toOrganizationPayload(organization))
+		}
+		writeJSON(w, http.StatusOK, pagePayload[organizationPayload]{
+			Items: items, Offset: found.Offset, Limit: found.Limit, HasMore: found.HasMore,
+		})
+	})
+}
+
+// NewOrganizationMembersHandler serves GET
+// /internal/directory/organizations/{externalId}/members (issue #85).
+func NewOrganizationMembersHandler(cfg Config) http.Handler {
+	logger := loggerOf(cfg)
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		identity, page, ok := requestContext(w, r)
+		if !ok {
+			return
+		}
+		directory, ok := directoryFor(cfg, identity.TenantID)
+		if !ok {
+			fail(w, logger, r, "listing an organization's members", errNoDirectoryForTenant(identity.TenantID))
+			return
+		}
+
+		externalID := r.PathValue("externalId")
+		found, err := directory.MembersOfOrganization(r.Context(),
+			idpdirectory.TenantID(identity.TenantID), externalID, page)
+		if err != nil {
+			fail(w, logger, r, "listing an organization's members", err)
+			return
+		}
+
+		items := make([]userPayload, 0, len(found.Items))
+		for _, user := range found.Items {
+			items = append(items, userPayload{
+				ExternalID:  user.ExternalID,
+				Username:    user.Username,
+				DisplayName: user.DisplayName,
+				Email:       user.Email,
+				Enabled:     user.Enabled,
+			})
+		}
+		writeJSON(w, http.StatusOK, pagePayload[userPayload]{
+			Items: items, Offset: found.Offset, Limit: found.Limit, HasMore: found.HasMore,
+		})
+	})
+}
+
+// NewUserOrganizationsHandler serves GET
+// /internal/directory/users/{externalId}/organizations (issue #85): the
+// Admin Console's user-override screen shows a user's hospital memberships
+// when granting or revoking a permission.
+func NewUserOrganizationsHandler(cfg Config) http.Handler {
+	logger := loggerOf(cfg)
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		identity, ok := tokenauth.From(r.Context())
+		if !ok {
+			writeError(w, http.StatusUnauthorized, "a bearer token is required")
+			return
+		}
+
+		directory, ok := directoryFor(cfg, identity.TenantID)
+		if !ok {
+			fail(w, logger, r, "reading a user's organizations", errNoDirectoryForTenant(identity.TenantID))
+			return
+		}
+
+		externalID := r.PathValue("externalId")
+		organizations, err := directory.OrganizationsOfUser(r.Context(),
+			idpdirectory.TenantID(identity.TenantID), externalID)
+		if err != nil {
+			fail(w, logger, r, "reading a user's organizations", err)
+			return
+		}
+
+		items := make([]organizationPayload, 0, len(organizations))
+		for _, organization := range organizations {
+			items = append(items, toOrganizationPayload(organization))
+		}
+		writeJSON(w, http.StatusOK, map[string]any{"items": items})
+	})
+}
+
 // requestContext resolves who is asking and which window they want, answering
 // the caller itself when either is unusable.
 func requestContext(w http.ResponseWriter, r *http.Request) (tokenauth.Identity, idpdirectory.PageRequest, bool) {

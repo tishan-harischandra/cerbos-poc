@@ -52,6 +52,17 @@ type RoleRef struct {
 	Description string
 }
 
+// OrganizationRef is an organization as the directory knows it (issue #85).
+// Alias is the identifier §78's OrganizationClaim and HospitalID carry - the
+// same string, not a display name that happens to look similar - so a
+// caller can match this ref against a verified token's hospital with no
+// translation step.
+type OrganizationRef struct {
+	ExternalID string
+	Alias      string
+	Name       string
+}
+
 // PageRequest is one window over a result set. Both fields are honoured by
 // every adapter: the Admin Console pages through hundreds of thousands of
 // users, so an adapter that quietly returned everything would be unusable.
@@ -95,6 +106,12 @@ type RoleSearch struct {
 	Page  PageRequest
 }
 
+// OrganizationSearch selects organizations of a tenant.
+type OrganizationSearch struct {
+	Query string
+	Page  PageRequest
+}
+
 // Page is one window of results plus what a caller needs to ask for the next.
 type Page[T any] struct {
 	Items   []T
@@ -122,4 +139,17 @@ type IdentityDirectory interface {
 	// directory round trip on the decision path would put the identity
 	// provider's availability in front of every authorization call.
 	ResolveRuntimeRoles(ctx context.Context, token tokenverifier.VerifiedToken, tenant TenantID) ([]string, error)
+
+	// OrganizationsOfTenant reports one window of the organizations a
+	// tenant declares (issue #85). Keycloak stays the only place that
+	// creates or changes one; this is a read.
+	OrganizationsOfTenant(ctx context.Context, tenant TenantID, query OrganizationSearch) (Page[OrganizationRef], error)
+	// OrganizationsOfUser reports every organization a user belongs to,
+	// unpaged like GetUserRoles: a person's own memberships are a small,
+	// bounded list, not a directory-scale search.
+	OrganizationsOfUser(ctx context.Context, tenant TenantID, userExternalID string) ([]OrganizationRef, error)
+	// MembersOfOrganization reports one window of an organization's
+	// members, so an administrator granting a permission can see the
+	// reach of what they are about to do.
+	MembersOfOrganization(ctx context.Context, tenant TenantID, organizationExternalID string, page PageRequest) (Page[UserRef], error)
 }

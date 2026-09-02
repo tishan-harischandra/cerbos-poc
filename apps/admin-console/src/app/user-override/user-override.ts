@@ -9,6 +9,7 @@ import {
   OverrideEffectInput,
   OverrideRow,
   PreviewResult,
+  UserOrganizationRef,
   UserOverrideApi,
   UserRef,
   UserRoleRef,
@@ -50,6 +51,9 @@ export class UserOverride {
 
   readonly selectedUser = signal<UserRef | null>(null);
   private readonly userRoles = signal<UserRoleRef[]>([]);
+  /** The reach an administrator sees before granting or revoking a
+   * permission (issue #85). */
+  readonly userOrganizations = signal<UserOrganizationRef[]>([]);
 
   readonly resources = signal<ResourceEntry[]>([]);
   readonly selectedResourceKey = signal('');
@@ -120,18 +124,26 @@ export class UserOverride {
     this.staleRevision.set(false);
     this.preview.set(null);
 
-    // Both requests are dispatched together rather than one after the
-    // other: neither depends on the other's result, and awaiting them in
-    // sequence would double the round-trip latency for no reason.
+    // All three requests are dispatched together rather than one after
+    // the other: none depends on another's result, and awaiting them in
+    // sequence would multiply the round-trip latency for no reason.
     const rolesRequest = firstValueFrom(this.api.getUserRoles(user.externalId)).catch(
       () => ({ items: [] as UserRoleRef[] }),
     );
+    const organizationsRequest = firstValueFrom(
+      this.api.getUserOrganizations(user.externalId),
+    ).catch(() => ({ items: [] as UserOrganizationRef[] }));
     const revisionRequest = firstValueFrom(this.api.getCurrentRevision(this.tenant())).catch(
       () => ({ revision: 0 }),
     );
 
-    const [roles, current] = await Promise.all([rolesRequest, revisionRequest]);
+    const [roles, organizations, current] = await Promise.all([
+      rolesRequest,
+      organizationsRequest,
+      revisionRequest,
+    ]);
     this.userRoles.set(roles.items);
+    this.userOrganizations.set(organizations.items);
     this.lastKnownRevision = current.revision;
   }
 

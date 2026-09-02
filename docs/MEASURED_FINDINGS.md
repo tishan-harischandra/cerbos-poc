@@ -249,6 +249,33 @@ accept a full interactive round trip for a hospital switch. Recorded here
 rather than silently declared done; see the issue #84 pull request for the
 resulting scope decision.
 
+## Listing organizations requires the broad manage-realm role (issue #85)
+
+Issue #85's directory reads are read-only by design - the acceptance
+criterion is an architecture test forbidding a write path on the adapter
+surface. Wiring them up against a real Keycloak 26.4 found that Keycloak's
+own admin REST API does not offer a narrower permission for the two
+listing endpoints:
+
+| Endpoint | Role actually required |
+|---|---|
+| `GET /organizations` (organizations of a tenant) | `manage-realm` - confirmed by testing: `view-realm`, `view-users`, `query-users` and `view-clients` together still 403. |
+| `GET /organizations/{id}/members` (members of an organization) | `manage-realm`, same finding. |
+| `GET /organizations/members/{id}/organizations` (organizations of a user) | None of the above - this one succeeds with the roles already granted for #76/#77. |
+
+**Finding: the two listing endpoints hard-require `manage-realm` in this
+Keycloak version, with no narrower alternative found.** `manage-realm` is
+a materially broader grant than the read-only claim this feature makes -
+it is realm-wide write access, not scoped to organizations. `deploy/keycloak/realm-tenant-a.json`
+and `realm-tenant-b.json` grant it to each tenant's own
+`authorization-admin-service` service account (already isolated per
+tenant per issue #76's design, so the blast radius of a leaked credential
+is still one tenant, not the platform), because there was no other way to
+serve the acceptance criteria against this Keycloak version. If Keycloak
+ever ships a narrower fine-grained permission for organization reads,
+this grant should be narrowed to match; recorded here so that gap is
+visible rather than silently accepted.
+
 ## What has not been measured
 
 Stated plainly, so nobody mistakes an absence for a pass:

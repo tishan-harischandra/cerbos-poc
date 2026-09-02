@@ -7,9 +7,24 @@ import (
 	"testing"
 
 	"github.com/tishan-harischandra/cerbos-poc/libs/idpdirectory"
+	"github.com/tishan-harischandra/cerbos-poc/libs/idpdirectory/directorycontract"
 	"github.com/tishan-harischandra/cerbos-poc/libs/idpdirectory/wso2"
 	"github.com/tishan-harischandra/cerbos-poc/libs/tokenverifier"
 )
+
+// The shared cross-tenant contract (issue #85): even a stub that implements
+// none of the organization reads must never answer with data for a tenant
+// it does not serve - ErrUnimplemented satisfies that as surely as
+// ErrUnknownTenant would.
+func TestDirectoryContract(t *testing.T) {
+	directorycontract.Run(t, func(t *testing.T) (idpdirectory.IdentityDirectory, idpdirectory.TenantID) {
+		directory, err := wso2.New(wso2.Config{BaseURL: "https://identity.internal", TenantID: "tenant-a"})
+		if err != nil {
+			t.Fatalf("New: %v", err)
+		}
+		return directory, idpdirectory.TenantID("tenant-b")
+	})
+}
 
 // The stub proves the seam: it satisfies the whole port, so a second provider
 // needs no change to the interface, and it fails loudly on every operation, so
@@ -51,6 +66,18 @@ func TestEveryOperationReportsThatItIsNotImplemented(t *testing.T) {
 		},
 		"ResolveRuntimeRoles": func() error {
 			_, err := port.ResolveRuntimeRoles(ctx, tokenverifier.VerifiedToken{}, "tenant-a")
+			return err
+		},
+		"OrganizationsOfTenant": func() error {
+			_, err := port.OrganizationsOfTenant(ctx, "tenant-a", idpdirectory.OrganizationSearch{})
+			return err
+		},
+		"OrganizationsOfUser": func() error {
+			_, err := port.OrganizationsOfUser(ctx, "tenant-a", "user-doctor")
+			return err
+		},
+		"MembersOfOrganization": func() error {
+			_, err := port.MembersOfOrganization(ctx, "tenant-a", "org-north", idpdirectory.PageRequest{})
 			return err
 		},
 	}

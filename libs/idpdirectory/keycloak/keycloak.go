@@ -242,6 +242,82 @@ func (d *Directory) ResolveRuntimeRoles(_ context.Context, token tokenverifier.V
 	return append([]string(nil), token.Roles...), nil
 }
 
+// OrganizationsOfTenant returns one window of the realm's organizations
+// (issue #85). Keycloak's own Organizations admin API (`GET
+// /organizations`) is a read; nothing in this adapter ever writes one.
+func (d *Directory) OrganizationsOfTenant(ctx context.Context, tenant idpdirectory.TenantID, query idpdirectory.OrganizationSearch) (idpdirectory.Page[idpdirectory.OrganizationRef], error) {
+	var empty idpdirectory.Page[idpdirectory.OrganizationRef]
+	if err := d.checkTenant(tenant); err != nil {
+		return empty, err
+	}
+
+	page := query.Page.Normalised()
+	params := url.Values{}
+	if query.Query != "" {
+		params.Set("search", query.Query)
+	}
+	applyWindow(params, page)
+
+	var found []organizationRepresentation
+	if err := d.getJSON(ctx, d.adminPath("organizations"), params, &found); err != nil {
+		return empty, err
+	}
+
+	items, hasMore := trim(found, page.Limit)
+	refs := make([]idpdirectory.OrganizationRef, 0, len(items))
+	for _, representation := range items {
+		refs = append(refs, representation.toRef())
+	}
+	return idpdirectory.Page[idpdirectory.OrganizationRef]{
+		Items: refs, Offset: page.Offset, Limit: page.Limit, HasMore: hasMore,
+	}, nil
+}
+
+// OrganizationsOfUser returns every organization a user belongs to
+// (issue #85), via Keycloak's `GET
+// /organizations/members/{member-id}/organizations`.
+func (d *Directory) OrganizationsOfUser(ctx context.Context, tenant idpdirectory.TenantID, userExternalID string) ([]idpdirectory.OrganizationRef, error) {
+	if err := d.checkTenant(tenant); err != nil {
+		return nil, err
+	}
+	var found []organizationRepresentation
+	if err := d.getJSON(ctx, d.adminPath("organizations", "members", userExternalID, "organizations"), nil, &found); err != nil {
+		return nil, err
+	}
+	refs := make([]idpdirectory.OrganizationRef, 0, len(found))
+	for _, representation := range found {
+		refs = append(refs, representation.toRef())
+	}
+	return refs, nil
+}
+
+// MembersOfOrganization returns one window of an organization's members
+// (issue #85), via Keycloak's `GET /organizations/{id}/members`.
+func (d *Directory) MembersOfOrganization(ctx context.Context, tenant idpdirectory.TenantID, organizationExternalID string, page idpdirectory.PageRequest) (idpdirectory.Page[idpdirectory.UserRef], error) {
+	var empty idpdirectory.Page[idpdirectory.UserRef]
+	if err := d.checkTenant(tenant); err != nil {
+		return empty, err
+	}
+
+	normalised := page.Normalised()
+	params := url.Values{}
+	applyWindow(params, normalised)
+
+	var found []userRepresentation
+	if err := d.getJSON(ctx, d.adminPath("organizations", organizationExternalID, "members"), params, &found); err != nil {
+		return empty, err
+	}
+
+	items, hasMore := trim(found, normalised.Limit)
+	refs := make([]idpdirectory.UserRef, 0, len(items))
+	for _, representation := range items {
+		refs = append(refs, representation.toRef())
+	}
+	return idpdirectory.Page[idpdirectory.UserRef]{
+		Items: refs, Offset: normalised.Offset, Limit: normalised.Limit, HasMore: hasMore,
+	}, nil
+}
+
 func (d *Directory) checkTenant(tenant idpdirectory.TenantID) error {
 	if tenant != d.cfg.TenantID {
 		return fmt.Errorf("%w: %q", idpdirectory.ErrUnknownTenant, tenant)
@@ -488,4 +564,14 @@ type roleRepresentation struct {
 	ID          string `json:"id"`
 	Name        string `json:"name"`
 	Description string `json:"description"`
+}
+
+type organizationRepresentation struct {
+	ID    string `json:"id"`
+	Name  string `json:"name"`
+	Alias string `json:"alias"`
+}
+
+func (o organizationRepresentation) toRef() idpdirectory.OrganizationRef {
+	return idpdirectory.OrganizationRef{ExternalID: o.ID, Alias: o.Alias, Name: o.Name}
 }

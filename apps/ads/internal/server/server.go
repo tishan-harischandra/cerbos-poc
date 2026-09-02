@@ -46,6 +46,13 @@ type Config struct {
 	// user (issue #17's user-override screen). Nil means the route does
 	// not exist.
 	DirectoryUserRolesHandler http.Handler
+	// DirectoryOrganizationsHandler, DirectoryOrganizationMembersHandler
+	// and DirectoryUserOrganizationsHandler serve the identity
+	// directory's organization reads (issue #85). Nil means the
+	// corresponding route does not exist.
+	DirectoryOrganizationsHandler       http.Handler
+	DirectoryOrganizationMembersHandler http.Handler
+	DirectoryUserOrganizationsHandler   http.Handler
 
 	// CapabilityHandler serves POST /internal/capabilities/evaluate, the
 	// §12.3 capability snapshot endpoint (issue #11). Nil means the route
@@ -88,6 +95,15 @@ func New(cfg Config) http.Handler {
 	}
 	if cfg.DirectoryUserRolesHandler != nil {
 		mux.Handle("GET /internal/directory/users/{externalId}/roles", cfg.DirectoryUserRolesHandler)
+	}
+	if cfg.DirectoryOrganizationsHandler != nil {
+		mux.Handle("GET /internal/directory/organizations", cfg.DirectoryOrganizationsHandler)
+	}
+	if cfg.DirectoryOrganizationMembersHandler != nil {
+		mux.Handle("GET /internal/directory/organizations/{externalId}/members", cfg.DirectoryOrganizationMembersHandler)
+	}
+	if cfg.DirectoryUserOrganizationsHandler != nil {
+		mux.Handle("GET /internal/directory/users/{externalId}/organizations", cfg.DirectoryUserOrganizationsHandler)
 	}
 	if cfg.CapabilityHandler != nil {
 		mux.Handle("POST /internal/capabilities/evaluate", cfg.CapabilityHandler)

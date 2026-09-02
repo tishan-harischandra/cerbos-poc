@@ -34,6 +34,18 @@ export interface UserRolesResult {
   items: UserRoleRef[];
 }
 
+/** An organization a user belongs to (issue #85): the reach an
+ * administrator sees before granting or revoking a permission. */
+export interface UserOrganizationRef {
+  externalId: string;
+  alias: string;
+  name: string;
+}
+
+export interface UserOrganizationsResult {
+  items: UserOrganizationRef[];
+}
+
 export type OverrideEffectInput = 'INHERIT' | 'GRANT' | 'REVOKE';
 
 export interface SaveOverrideRequest {
@@ -103,6 +115,12 @@ export class UserOverrideApi {
   getUserRoles(userExternalId: string): Observable<UserRolesResult> {
     return this.http.get<UserRolesResult>(
       `${this.adsBaseUrl}/internal/directory/users/${userExternalId}/roles`,
+    );
+  }
+
+  getUserOrganizations(userExternalId: string): Observable<UserOrganizationsResult> {
+    return this.http.get<UserOrganizationsResult>(
+      `${this.adsBaseUrl}/internal/directory/users/${userExternalId}/organizations`,
     );
   }
 

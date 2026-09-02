@@ -1,0 +1,73 @@
+<h1>Organizations</h1>
+<p>
+  Read only: Keycloak stays the only place an organization or a membership is created or
+  changed.
+</p>
+
+@if (loadError()) {
+  <p data-testid="organizations-error" class="error">{{ loadError() }}</p>
+}
+
+<ul data-testid="organization-list">
+  @for (organization of organizations(); track organization.externalId) {
+    <li>
+      <button
+        type="button"
+        [attr.data-testid]="'organization-option-' + organization.alias"
+        (click)="selectOrganization(organization)"
+      >
+        {{ organization.name || organization.alias }}
+      </button>
+    </li>
+  }
+</ul>
+
+<div class="pagination">
+  <button type="button" data-testid="prev-page" [disabled]="offset() === 0" (click)="previousPage()">
+    Previous
+  </button>
+  <button type="button" data-testid="next-page" [disabled]="!hasMore()" (click)="nextPage()">
+    Next
+  </button>
+</div>
+
+@if (selectedOrganization(); as organization) {
+  <section data-testid="organization-members">
+    <h2>{{ organization.name || organization.alias }} members</h2>
+
+    @if (membersError()) {
+      <p data-testid="members-error" class="error">{{ membersError() }}</p>
+    }
+
+    @if (members().length > 0) {
+      <ul data-testid="member-list">
+        @for (member of members(); track member.externalId) {
+          <li [attr.data-testid]="'member-' + member.externalId">
+            {{ member.displayName || member.username }}
+          </li>
+        }
+      </ul>
+    } @else {
+      <p data-testid="no-members">No members.</p>
+    }
+
+    <div class="pagination">
+      <button
+        type="button"
+        data-testid="members-prev-page"
+        [disabled]="membersOffset() === 0"
+        (click)="membersPreviousPage()"
+      >
+        Previous
+      </button>
+      <button
+        type="button"
+        data-testid="members-next-page"
+        [disabled]="!membersHasMore()"
+        (click)="membersNextPage()"
+      >
+        Next
+      </button>
+    </div>
+  </section>
+}

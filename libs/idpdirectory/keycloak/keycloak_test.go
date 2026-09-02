@@ -14,6 +14,7 @@ import (
 	"testing"
 
 	"github.com/tishan-harischandra/cerbos-poc/libs/idpdirectory"
+	"github.com/tishan-harischandra/cerbos-poc/libs/idpdirectory/directorycontract"
 	"github.com/tishan-harischandra/cerbos-poc/libs/idpdirectory/keycloak"
 	"github.com/tishan-harischandra/cerbos-poc/libs/tokenverifier"
 )
@@ -292,6 +293,125 @@ func TestRuntimeRolesForATokenFromAnotherTenantAreRefused(t *testing.T) {
 	}
 }
 
+// Paging organizations of a tenant follows the same window contract as
+// SearchUsers and SearchRoles (issue #85).
+func TestOrganizationsOfTenantAsksKeycloakForTheRequestedWindowAndReportsMore(t *testing.T) {
+	fake := newFakeKeycloak(t)
+	fake.organizations = []organization{
+		{ID: "org-north", Name: "North Hospital", Alias: "north-hospital"},
+		{ID: "org-south", Name: "South Hospital", Alias: "south-hospital"},
+		{ID: "org-east", Name: "East Hospital", Alias: "east-hospital"},
+	}
+	defer fake.Close()
+
+	page, err := fake.directory(t).OrganizationsOfTenant(context.Background(), tenant, idpdirectory.OrganizationSearch{
+		Page: idpdirectory.PageRequest{Offset: 0, Limit: 2},
+	})
+	if err != nil {
+		t.Fatalf("OrganizationsOfTenant: %v", err)
+	}
+	if len(page.Items) != 2 {
+		t.Fatalf("returned %d organizations, want the 2 that were asked for", len(page.Items))
+	}
+	if page.Items[0].ExternalID != "org-north" || page.Items[0].Alias != "north-hospital" {
+		t.Errorf("first organization = %+v, want org-north/north-hospital", page.Items[0])
+	}
+	if !page.HasMore {
+		t.Error("HasMore = false, want true: a third organization remains")
+	}
+}
+
+// A cross-tenant lookup is an error, not a filtered or empty result
+// (issue #85's acceptance criterion).
+func TestOrganizationsOfTenantForAnotherTenantIsRefused(t *testing.T) {
+	fake := newFakeKeycloak(t)
+	defer fake.Close()
+
+	_, err := fake.directory(t).OrganizationsOfTenant(context.Background(), idpdirectory.TenantID("tenant-b"), idpdirectory.OrganizationSearch{})
+	if !errors.Is(err, idpdirectory.ErrUnknownTenant) {
+		t.Errorf("OrganizationsOfTenant error = %v, want %v", err, idpdirectory.ErrUnknownTenant)
+	}
+}
+
+// A user's own memberships are a small, bounded list - unpaged, like
+// GetUserRoles.
+func TestOrganizationsOfUserReportsEveryMembership(t *testing.T) {
+	fake := newFakeKeycloak(t)
+	fake.organizations = []organization{
+		{ID: "org-north", Name: "North Hospital", Alias: "north-hospital"},
+		{ID: "org-south", Name: "South Hospital", Alias: "south-hospital"},
+	}
+	fake.organizationMembers = map[string][]user{
+		"org-north": {{ID: "user-doctor-multi"}},
+		"org-south": {{ID: "user-doctor-multi"}},
+	}
+	defer fake.Close()
+
+	orgs, err := fake.directory(t).OrganizationsOfUser(context.Background(), tenant, "user-doctor-multi")
+	if err != nil {
+		t.Fatalf("OrganizationsOfUser: %v", err)
+	}
+	if len(orgs) != 2 {
+		t.Fatalf("organizations = %v, want both memberships", orgs)
+	}
+}
+
+func TestOrganizationsOfUserForAnotherTenantIsRefused(t *testing.T) {
+	fake := newFakeKeycloak(t)
+	defer fake.Close()
+
+	_, err := fake.directory(t).OrganizationsOfUser(context.Background(), idpdirectory.TenantID("tenant-b"), "user-doctor-multi")
+	if !errors.Is(err, idpdirectory.ErrUnknownTenant) {
+		t.Errorf("OrganizationsOfUser error = %v, want %v", err, idpdirectory.ErrUnknownTenant)
+	}
+}
+
+// The reach of a permission grant: paging an organization's members
+// follows the same window contract as SearchUsers.
+func TestMembersOfOrganizationAsksKeycloakForTheRequestedWindowAndReportsMore(t *testing.T) {
+	fake := newFakeKeycloak(t)
+	fake.organizationMembers = map[string][]user{
+		"org-north": {
+			{ID: "user-1", Username: "doctor-1"},
+			{ID: "user-2", Username: "doctor-2"},
+			{ID: "user-3", Username: "doctor-3"},
+		},
+	}
+	defer fake.Close()
+
+	page, err := fake.directory(t).MembersOfOrganization(context.Background(), tenant, "org-north",
+		idpdirectory.PageRequest{Offset: 0, Limit: 2})
+	if err != nil {
+		t.Fatalf("MembersOfOrganization: %v", err)
+	}
+	if len(page.Items) != 2 {
+		t.Fatalf("returned %d members, want the 2 that were asked for", len(page.Items))
+	}
+	if !page.HasMore {
+		t.Error("HasMore = false, want true: a third member remains")
+	}
+}
+
+func TestMembersOfOrganizationForAnotherTenantIsRefused(t *testing.T) {
+	fake := newFakeKeycloak(t)
+	defer fake.Close()
+
+	_, err := fake.directory(t).MembersOfOrganization(context.Background(), idpdirectory.TenantID("tenant-b"), "org-north", idpdirectory.PageRequest{})
+	if !errors.Is(err, idpdirectory.ErrUnknownTenant) {
+		t.Errorf("MembersOfOrganization error = %v, want %v", err, idpdirectory.ErrUnknownTenant)
+	}
+}
+
+// The shared cross-tenant contract (issue #85): a directory built for
+// tenant-a never answers an organization read for tenant-b.
+func TestDirectoryContract(t *testing.T) {
+	directorycontract.Run(t, func(t *testing.T) (idpdirectory.IdentityDirectory, idpdirectory.TenantID) {
+		fake := newFakeKeycloak(t)
+		t.Cleanup(fake.Close)
+		return fake.directory(t), idpdirectory.TenantID("tenant-b")
+	})
+}
+
 // --- a fake Keycloak admin API ---------------------------------------------
 
 type user struct {
@@ -309,6 +429,12 @@ type role struct {
 	Description string `json:"description"`
 }
 
+type organization struct {
+	ID    string `json:"id"`
+	Name  string `json:"name"`
+	Alias string `json:"alias"`
+}
+
 type fakeKeycloak struct {
 	*httptest.Server
 	t *testing.T
@@ -319,6 +445,10 @@ type fakeKeycloak struct {
 	// reports as directly assigned, from the same authoritative source
 	// clientRoles models.
 	userRoleMappings map[string][]role
+	organizations    []organization
+	// organizationMembers keys an organization's external id to its
+	// members, the same shape Keycloak's own membership endpoint reports.
+	organizationMembers map[string][]user
 	// clientUUID is the internal id the fake currently reports for the client.
 	// Changing it stands in for a realm that was rebuilt.
 	clientUUID string
@@ -376,6 +506,23 @@ func (f *fakeKeycloak) serve(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 		w.WriteHeader(http.StatusNotFound)
+	case path == "/admin/realms/"+realm+"/organizations":
+		writeJSON(f.t, w, window(f.organizations, r))
+	case strings.HasPrefix(path, "/admin/realms/"+realm+"/organizations/members/") && strings.HasSuffix(path, "/organizations"):
+		id := strings.TrimSuffix(strings.TrimPrefix(path, "/admin/realms/"+realm+"/organizations/members/"), "/organizations")
+		var found []organization
+		for _, org := range f.organizations {
+			for _, member := range f.organizationMembers[org.ID] {
+				if member.ID == id {
+					found = append(found, org)
+					break
+				}
+			}
+		}
+		writeJSON(f.t, w, found)
+	case strings.HasPrefix(path, "/admin/realms/"+realm+"/organizations/") && strings.HasSuffix(path, "/members"):
+		id := strings.TrimSuffix(strings.TrimPrefix(path, "/admin/realms/"+realm+"/organizations/"), "/members")
+		writeJSON(f.t, w, window(f.organizationMembers[id], r))
 	case path == "/admin/realms/"+realm+"/clients":
 		writeJSON(f.t, w, []map[string]string{{"id": f.clientUUID, "clientId": clientID}})
 	case path == "/admin/realms/"+realm+"/clients/"+f.clientUUID+"/roles":

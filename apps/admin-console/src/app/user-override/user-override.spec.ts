@@ -50,6 +50,51 @@ describe('UserOverride', () => {
     expect(note.textContent).toContain('hospital-1');
   });
 
+  it("shows a user's hospital memberships before granting or revoking a permission (issue #85)", async () => {
+    const httpMock = setUp();
+    const fixture = TestBed.createComponent(UserOverride);
+    httpMock.expectOne('/api/admin/authz/resources').flush(catalog);
+
+    const selectPromise = fixture.componentInstance.selectUser({
+      externalId: 'user-1', username: 'doctor', displayName: 'Dana Doctor', email: '', enabled: true,
+    });
+    httpMock.expectOne('/api/ads/internal/directory/users/user-1/roles').flush({ items: [] });
+    httpMock.expectOne('/api/ads/internal/directory/users/user-1/organizations').flush({
+      items: [
+        { externalId: 'org-north', alias: 'north-hospital', name: 'North Hospital' },
+        { externalId: 'org-south', alias: 'south-hospital', name: 'South Hospital' },
+      ],
+    });
+    httpMock.expectOne('/api/admin/authz/tenants/tenant-a/permission-revision').flush({ revision: 0 });
+    await selectPromise;
+    fixture.detectChanges();
+
+    expect(
+      fixture.nativeElement.querySelector('[data-testid="user-organization-north-hospital"]'),
+    ).toBeTruthy();
+    expect(
+      fixture.nativeElement.querySelector('[data-testid="user-organization-south-hospital"]'),
+    ).toBeTruthy();
+    expect(fixture.nativeElement.querySelector('[data-testid="no-user-organizations"]')).toBeNull();
+  });
+
+  it('shows no memberships when a user belongs to no hospital', async () => {
+    const httpMock = setUp();
+    const fixture = TestBed.createComponent(UserOverride);
+    httpMock.expectOne('/api/admin/authz/resources').flush(catalog);
+
+    const selectPromise = fixture.componentInstance.selectUser({
+      externalId: 'user-1', username: 'doctor', displayName: 'Dana Doctor', email: '', enabled: true,
+    });
+    httpMock.expectOne('/api/ads/internal/directory/users/user-1/roles').flush({ items: [] });
+    httpMock.expectOne('/api/ads/internal/directory/users/user-1/organizations').flush({ items: [] });
+    httpMock.expectOne('/api/admin/authz/tenants/tenant-a/permission-revision').flush({ revision: 0 });
+    await selectPromise;
+    fixture.detectChanges();
+
+    expect(fixture.nativeElement.querySelector('[data-testid="no-user-organizations"]')).toBeTruthy();
+  });
+
   it('distinguishes Inherit, Grant and Revoke as three separate controls', async () => {
     const httpMock = setUp();
     const fixture = TestBed.createComponent(UserOverride);
@@ -59,6 +104,7 @@ describe('UserOverride', () => {
       externalId: 'user-1', username: 'doctor', displayName: 'Dana Doctor', email: '', enabled: true,
     });
     httpMock.expectOne('/api/ads/internal/directory/users/user-1/roles').flush({ items: [] });
+    httpMock.expectOne('/api/ads/internal/directory/users/user-1/organizations').flush({ items: [] });
     httpMock.expectOne('/api/admin/authz/tenants/tenant-a/permission-revision').flush({ revision: 0 });
     await selectPromise;
     fixture.detectChanges();
@@ -79,6 +125,7 @@ describe('UserOverride', () => {
     httpMock.expectOne('/api/ads/internal/directory/users/user-1/roles').flush({
       items: [{ canonicalId: 'role-doctor', externalId: 'doctor', name: 'Doctor', description: '' }],
     });
+    httpMock.expectOne('/api/ads/internal/directory/users/user-1/organizations').flush({ items: [] });
     httpMock.expectOne('/api/admin/authz/tenants/tenant-a/permission-revision').flush({ revision: 3 });
     await selectPromise;
 
@@ -110,6 +157,7 @@ describe('UserOverride', () => {
       externalId: 'user-1', username: 'doctor', displayName: '', email: '', enabled: true,
     });
     httpMock.expectOne('/api/ads/internal/directory/users/user-1/roles').flush({ items: [] });
+    httpMock.expectOne('/api/ads/internal/directory/users/user-1/organizations').flush({ items: [] });
     httpMock.expectOne('/api/admin/authz/tenants/tenant-a/permission-revision').flush({ revision: 0 });
     await selectPromise;
 
@@ -137,6 +185,7 @@ describe('UserOverride', () => {
       externalId: 'user-1', username: 'doctor', displayName: '', email: '', enabled: true,
     });
     httpMock.expectOne('/api/ads/internal/directory/users/user-1/roles').flush({ items: [] });
+    httpMock.expectOne('/api/ads/internal/directory/users/user-1/organizations').flush({ items: [] });
     httpMock.expectOne('/api/admin/authz/tenants/tenant-a/permission-revision').flush({ revision: 0 });
     await selectPromise;
 
@@ -160,6 +209,7 @@ describe('UserOverride', () => {
       externalId: 'user-1', username: 'doctor', displayName: '', email: '', enabled: true,
     });
     httpMock.expectOne('/api/ads/internal/directory/users/user-1/roles').flush({ items: [] });
+    httpMock.expectOne('/api/ads/internal/directory/users/user-1/organizations').flush({ items: [] });
     httpMock.expectOne('/api/admin/authz/tenants/tenant-a/permission-revision').flush({ revision: 0 });
     await selectPromise;
 
@@ -179,6 +229,7 @@ describe('UserOverride', () => {
       externalId: 'user-1', username: 'doctor', displayName: '', email: '', enabled: true,
     });
     httpMock.expectOne('/api/ads/internal/directory/users/user-1/roles').flush({ items: [] });
+    httpMock.expectOne('/api/ads/internal/directory/users/user-1/organizations').flush({ items: [] });
     httpMock.expectOne('/api/admin/authz/tenants/tenant-a/permission-revision').flush({ revision: 0 });
     await selectPromise;
 
@@ -214,6 +265,7 @@ describe('UserOverride', () => {
       externalId: 'user-1', username: 'doctor', displayName: '', email: '', enabled: true,
     });
     httpMock.expectOne('/api/ads/internal/directory/users/user-1/roles').flush({ items: [] });
+    httpMock.expectOne('/api/ads/internal/directory/users/user-1/organizations').flush({ items: [] });
     httpMock.expectOne('/api/admin/authz/tenants/tenant-a/permission-revision').flush({ revision: 0 });
     await selectPromise;
 
@@ -245,6 +297,7 @@ describe('UserOverride', () => {
       externalId: 'user-1', username: 'doctor', displayName: '', email: '', enabled: true,
     });
     httpMock.expectOne('/api/ads/internal/directory/users/user-1/roles').flush({ items: [] });
+    httpMock.expectOne('/api/ads/internal/directory/users/user-1/organizations').flush({ items: [] });
     httpMock.expectOne('/api/admin/authz/tenants/tenant-a/permission-revision').flush({ revision: 0 });
     await selectPromise;
 
