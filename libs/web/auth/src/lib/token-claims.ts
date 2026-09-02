@@ -1,7 +1,8 @@
 /**
  * The subset of an access token's claims the console reads for display
- * purposes (§16.1's tenant_id/hospital_id claims, §7.3's client role
- * claim). Nothing here is a security decision: the backend independently
+ * purposes: the realm in `iss` as the tenant (ADR-010), the organization
+ * claim as the active hospital (§75), and §7.3's client role claim.
+ * Nothing here is a security decision: the backend independently
  * verifies every claim on every request regardless of what the browser
  * decoded.
  */
@@ -42,18 +43,53 @@ export function decodeAccessToken(token: string, clientId: string): TokenClaims 
     { roles?: string[] }
   >;
   const realmAccess = (payload['realm_access'] ?? {}) as { roles?: string[] };
-  const hospitalId = String(payload['hospital_id'] ?? '');
+  const hospitalId = activeHospitalOf(payload);
 
   return {
     subject: String(payload['sub'] ?? ''),
     username: String(payload['preferred_username'] ?? ''),
-    tenantId: String(payload['tenant_id'] ?? ''),
+    tenantId: tenantIdOf(payload),
     hospitalId,
     roles: resourceAccess[clientId]?.roles ?? [],
     expiresAt: Number(payload['exp'] ?? 0),
     isAdministrator: (realmAccess.roles ?? []).includes('admin'),
     otherHospitals: otherHospitalsOf(payload, hospitalId),
   };
+}
+
+/**
+ * A tenant is the Keycloak realm that signed the token, full stop - there
+ * is no `tenant_id` claim and no mapping layer (ADR-010, deviation S8):
+ * the server derives its own TenantID from the realm the verifying
+ * Installation is configured for (libs/tokenverifier), never from a
+ * token claim, and this mirrors that rather than reading one that does
+ * not exist. `iss` is `<issuer base>/realms/<realm>` for every adapter
+ * this platform ships (§7.1), so the realm is the segment after the
+ * last `/realms/`.
+ */
+function tenantIdOf(payload: Record<string, unknown>): string {
+  const issuer = String(payload['iss'] ?? '');
+  const marker = '/realms/';
+  const index = issuer.lastIndexOf(marker);
+  return index === -1 ? '' : issuer.slice(index + marker.length);
+}
+
+/**
+ * The active hospital is the token's organization claim (issue #78,
+ * §75) - a JSON array of alias strings Keycloak's organization scope
+ * itself produces, e.g. `"organization": ["north-hospital"]` - never a
+ * `hospital_id` claim, which does not exist. Mirrors
+ * libs/tokenverifier's own hospitalOf/organizationAliases: any other
+ * shape (absent, empty, more than one alias, a non-string entry) is
+ * "no active hospital" for display purposes, the same as the server
+ * treats it as unscoped or ambiguous.
+ */
+function activeHospitalOf(payload: Record<string, unknown>): string {
+  const raw = payload['organization'];
+  if (!Array.isArray(raw) || raw.length !== 1 || typeof raw[0] !== 'string') {
+    return '';
+  }
+  return raw[0];
 }
 
 function otherHospitalsOf(payload: Record<string, unknown>, active: string): string[] {

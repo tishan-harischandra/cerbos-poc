@@ -63,8 +63,8 @@ describe('AuthService', () => {
     const token = fakeJwt({
       sub: 'doctor-1',
       preferred_username: 'doctor',
-      tenant_id: 'tenant-a',
-      hospital_id: 'north-hospital',
+      iss: 'http://localhost:8081/realms/tenant-a',
+      organization: ['north-hospital'],
       resource_access: { 'patient-app': { roles: ['doctor'] } },
     });
 
@@ -86,7 +86,7 @@ describe('AuthService', () => {
     configure({ provide: SILENT_FRAME, useValue: silentFrame });
     const auth = TestBed.inject(AuthService);
 
-    const token = fakeJwt({ sub: 'doctor-1', hospital_id: 'south-hospital' });
+    const token = fakeJwt({ sub: 'doctor-1', organization: ['south-hospital'] });
     const promise = auth.switchHospital('south-hospital');
     const req = await vi.waitFor(() =>
       httpMock.expectOne('http://localhost:8081/realms/tenant-a/protocol/openid-connect/token'),
@@ -107,7 +107,7 @@ describe('AuthService', () => {
     const auth = TestBed.inject(AuthService);
     await auth.login();
     const state = sessionStorage.getItem('business-ui:pkce-state')!;
-    const existingToken = fakeJwt({ sub: 'doctor-1', hospital_id: 'north-hospital' });
+    const existingToken = fakeJwt({ sub: 'doctor-1', organization: ['north-hospital'] });
     const callback = auth.handleCallback('auth-code-1', state);
     httpMock
       .expectOne('http://localhost:8081/realms/tenant-a/protocol/openid-connect/token')

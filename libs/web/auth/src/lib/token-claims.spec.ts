@@ -11,8 +11,8 @@ describe('decodeAccessToken', () => {
     const token = fakeJwt({
       sub: 'user-1',
       preferred_username: 'doctor',
-      tenant_id: 'tenant-a',
-      hospital_id: 'hospital-1',
+      iss: 'https://localhost:8443/realms/tenant-a',
+      organization: ['hospital-1'],
       exp: 1893456000,
       resource_access: { 'patient-app': { roles: ['doctor'] } },
     });
@@ -25,6 +25,36 @@ describe('decodeAccessToken', () => {
     expect(claims.hospitalId).toEqual('hospital-1');
     expect(claims.roles).toEqual(['doctor']);
     expect(claims.expiresAt).toEqual(1893456000);
+  });
+
+  it('derives the tenant from the realm in the issuer, not a tenant_id claim (ADR-010)', () => {
+    const token = fakeJwt({ iss: 'http://keycloak:8080/realms/tenant-b' });
+
+    expect(decodeAccessToken(token, 'patient-app').tenantId).toEqual('tenant-b');
+  });
+
+  it('names no tenant when the issuer has no /realms/ segment', () => {
+    const token = fakeJwt({ iss: 'not-an-issuer-url' });
+
+    expect(decodeAccessToken(token, 'patient-app').tenantId).toEqual('');
+  });
+
+  it('derives the active hospital from the organization claim, not a hospital_id claim (issue #78)', () => {
+    const token = fakeJwt({ organization: ['north-hospital'] });
+
+    expect(decodeAccessToken(token, 'patient-app').hospitalId).toEqual('north-hospital');
+  });
+
+  it('names no active hospital when the organization claim names more than one alias', () => {
+    const token = fakeJwt({ organization: ['north-hospital', 'south-hospital'] });
+
+    expect(decodeAccessToken(token, 'patient-app').hospitalId).toEqual('');
+  });
+
+  it('names no active hospital when the organization claim is absent', () => {
+    const token = fakeJwt({});
+
+    expect(decodeAccessToken(token, 'patient-app').hospitalId).toEqual('');
   });
 
   it('reads only the configured client role claim, never another client', () => {
@@ -63,14 +93,14 @@ describe('decodeAccessToken', () => {
   });
 
   it('reports no other hospitals when the memberships claim is absent (issue #84)', () => {
-    const token = fakeJwt({ hospital_id: 'north-hospital' });
+    const token = fakeJwt({ organization: ['north-hospital'] });
 
     expect(decodeAccessToken(token, 'patient-app').otherHospitals).toEqual([]);
   });
 
   it('excludes the active hospital from otherHospitals even though Keycloak includes it', () => {
     const token = fakeJwt({
-      hospital_id: 'north-hospital',
+      organization: ['north-hospital'],
       organization_memberships: ['north-hospital', 'south-hospital'],
     });
 
