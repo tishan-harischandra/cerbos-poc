@@ -15,7 +15,7 @@ or **out of scope**.
 | Section | Status | Where |
 |---|---|---|
 | §5.1 Hierarchy | implemented | `libs/assignmentstore/store.go` (tenant/hospital keys), `deploy/liquibase/changelog` |
-| §5.2 Trusted decision attributes | implemented | `apps/ads/internal/tokenauth`, `apps/ads/internal/authz` - tenant, hospital, principal and roles come from the verified token only |
+| §5.2 Trusted decision attributes | implemented, differently | `apps/ads/internal/tokenauth`, `libs/tokenverifier` - tenant comes from the verified realm and hospital from a confirmed organization membership, never an editable claim (ADR-010) |
 | §5.3 Scope usage | out of scope | §5.3 itself recommends deferring per-tenant scoped policies (DEVIATIONS N1) |
 
 ## §6 Authorization domain model
@@ -32,9 +32,9 @@ or **out of scope**.
 
 | Section | Status | Where |
 |---|---|---|
-| §7.1 Installation selection | implemented | `IDP_TYPE` and `libs/idpdirectory/provider` |
+| §7.1 Installation selection | implemented, differently | `IDP_TYPE` and `libs/idpdirectory/provider` select the provider; `tenantMappingMode` itself is not implemented at all - a tenant is always the realm (ADR-010, DEVIATIONS S8) |
 | §7.2 Adapter interface | implemented | `libs/idpdirectory/port.go` (Go, not Java - DEVIATIONS S1) |
-| §7.3 Keycloak adapter | implemented | `libs/idpdirectory/keycloak`, exercised against a real Keycloak by `identity-e2e.sh` |
+| §7.3 Keycloak adapter | implemented | `libs/idpdirectory/keycloak`, exercised against a real Keycloak by `identity-e2e.sh`; read-only organization/membership access (ADR-010) and the in-flow login authenticator (`apps/keycloak-org-selector`, ADR-012) are additions the design does not describe |
 | §7.4 WSO2 adapter | partial | Port and contract only; SCIM2 calls not written (DEVIATIONS N2) |
 | §7.5 Canonical identifiers | implemented | `libs/canonicalid`, asserted byte-for-byte against token normalisation in `identity-e2e.sh` |
 
