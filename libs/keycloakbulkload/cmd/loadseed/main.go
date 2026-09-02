@@ -142,7 +142,7 @@ func run() error {
 				LastName:   u.LastName,
 				Email:      u.Email,
 				TenantID:   u.TenantID,
-				HospitalID: u.HospitalID,
+				HospitalID: u.HospitalID(),
 				RoleIDs:    roleIDs,
 			}
 			return true

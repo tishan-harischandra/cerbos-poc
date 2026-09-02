@@ -298,6 +298,53 @@ administrator can bring up an arbitrary new tenant. A production
 deployment wanting to restrict this would need a platform-operator
 credential this prototype does not have a design for yet.
 
+## Keycloak 26.4's organization schema, for the direct-SQL bulk loader (issue #87)
+
+`libs/keycloakbulkload` writes users, credentials and role mappings straight
+into Keycloak's PostgreSQL schema because the Admin REST API cannot reach
+600,000 users in a bounded time (see the package doc comment). Issue #87
+needs the same throughput for organizations and memberships, and Keycloak
+publishes no schema documentation for either. Measured directly: created a
+realm with `organizationsEnabled: true`, an organization and a membership
+through the real Admin REST API against a Postgres-backed Keycloak 26.4
+(`docker compose --profile loadtest up keycloak-db keycloak-loadtest`, with
+`--features=organization`), then inspected the rows with `psql`.
+
+**Finding: a Keycloak organization is a `KEYCLOAK_GROUP` row with
+`type = 1`, plus one `ORG` row pointing at it.** Membership is an ordinary
+`USER_GROUP_MEMBERSHIP` row against that group - organizations are not a
+separate membership mechanism, they are the existing group model with a
+marker.
+
+| Table | Columns that matter | Notes |
+|---|---|---|
+| `keycloak_group` | `id`, `name`, `parent_group`, `realm_id`, `type` | `type = 1` marks an organization-backed group (`0` is an ordinary group). `name` holds the **organization's own id**, not a display name. `parent_group` is `''` (empty string), not `NULL`, for a top-level group. |
+| `org` | `id`, `enabled`, `realm_id`, `group_id`, `name`, `description`, `alias`, `redirect_url` | `group_id` is a unique FK to the `keycloak_group` row above. `alias` is what a direct grant's `scope=organization:<alias>` matches against. |
+| `org_domain` | `id`, `name`, `verified`, `org_id` | Optional; not required for a direct grant to carry the `organization` claim. |
+| `user_group_membership` | `group_id`, `user_id`, `membership_type` | `membership_type = 'UNMANAGED'` is what the Admin REST API itself writes for a member added directly (as opposed to via an invitation). |
+
+Confirmed end to end: inserting these four tables' rows directly with `psql`
+(no Admin REST call) for a user already loaded by the bulk writer produced a
+direct grant (`scope=openid organization:<alias>`) whose access token
+carried `"organization": ["<alias>"]`, identical in shape to one obtained
+through a real invitation. No custom provider jar or authenticator is
+required for this - only `--features=organization` on the Keycloak command
+line, confirming issue #75's finding again at this lower level.
+
+**Finding: specifying `optionalClientScopes` at all on client creation
+disables Keycloak's own default-scope assignment, rather than merging with
+it.** Tried to add `"organization"` to a newly created client's optional
+scopes explicitly, on the assumption it would be additive. It is not: a
+client created with `optionalClientScopes: ["organization"]` came back with
+`defaultClientScopes: []` - no `roles`, no `profile`, no `email` - so a
+token for that client carried no `resource_access` claim at all, breaking
+the existing (non-organization) integration test. Confirmed the same
+client created with *neither* field set gets Keycloak's full built-in
+default set, and `"organization"` is already present in the auto-assigned
+optional set the moment `--features=organization` is on the server, with
+no per-client configuration needed at all. `EnsureRealm` therefore sets
+neither field.
+
 ## What has not been measured
 
 Stated plainly, so nobody mistakes an absence for a pass:

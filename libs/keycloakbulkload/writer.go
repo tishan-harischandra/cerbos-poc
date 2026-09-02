@@ -28,6 +28,12 @@ type UserRecord struct {
 	TenantID   string
 	HospitalID string
 	RoleIDs    []string
+	// HospitalGroupIDs are the Keycloak group ids (issue #87) backing this
+	// user's organization memberships - OrganizationGroupIDs's values, one
+	// per hospital the generator placed this user in. Resolved once by the
+	// caller, the same way RoleIDs already is, so a batch never repeats an
+	// alias-to-group-id lookup per row.
+	HospitalGroupIDs []string
 }
 
 // LoadConfig is everything BulkLoad needs beyond the users themselves.
@@ -47,6 +53,7 @@ type LoadConfig struct {
 type LoadStats struct {
 	Users        int
 	RoleMappings int
+	Memberships  int
 	Batches      int
 	Elapsed      time.Duration
 }
@@ -91,6 +98,7 @@ func BulkLoad(ctx context.Context, pool *pgxpool.Pool, cfg LoadConfig, users <-c
 		stats.Users += len(batch)
 		for _, u := range batch {
 			stats.RoleMappings += len(u.RoleIDs)
+			stats.Memberships += len(u.HospitalGroupIDs)
 		}
 		stats.Batches++
 		batch = batch[:0]
@@ -151,6 +159,14 @@ func writeBatch(ctx context.Context, pool *pgxpool.Pool, realmID string, cred Sh
 		&roleMappingRows{batch: batch},
 	); err != nil {
 		return fmt.Errorf("keycloakbulkload: copying user_role_mapping: %w", err)
+	}
+
+	if _, err := tx.CopyFrom(ctx,
+		pgx.Identifier{"user_group_membership"},
+		[]string{"group_id", "user_id", "membership_type"},
+		&membershipRows{batch: batch},
+	); err != nil {
+		return fmt.Errorf("keycloakbulkload: copying user_group_membership: %w", err)
 	}
 
 	if err := tx.Commit(ctx); err != nil {

@@ -57,8 +57,13 @@ func TestGeneratingThePopulationTwiceProducesIdenticalUsers(t *testing.T) {
 	for i := 0; i < cfg.Users; i++ {
 		ua, ub := a.User(i), b.User(i)
 		if ua.Username != ub.Username || ua.TenantID != ub.TenantID ||
-			ua.HospitalID != ub.HospitalID || len(ua.RoleNames) != len(ub.RoleNames) {
+			len(ua.HospitalIDs) != len(ub.HospitalIDs) || len(ua.RoleNames) != len(ub.RoleNames) {
 			t.Fatalf("user %d differs between runs: %+v vs %+v", i, ua, ub)
+		}
+		for j := range ua.HospitalIDs {
+			if ua.HospitalIDs[j] != ub.HospitalIDs[j] {
+				t.Fatalf("user %d hospital %d differs: %q vs %q", i, j, ua.HospitalIDs[j], ub.HospitalIDs[j])
+			}
 		}
 		for j := range ua.RoleNames {
 			if ua.RoleNames[j] != ub.RoleNames[j] {
@@ -91,6 +96,34 @@ func TestEveryUserHasExactlyRolesPerUserDistinctRoles(t *testing.T) {
 	}
 }
 
+// issue #87: multi-hospital membership is the common case, not an edge
+// case - every user belongs to HospitalsPerUser distinct hospitals.
+func TestEveryUserBelongsToHospitalsPerUserDistinctHospitals(t *testing.T) {
+	cfg := loadmodel.FullLoadConfig()
+	cfg.Users = 1000
+	pop, err := loadmodel.New(cfg)
+	if err != nil {
+		t.Fatalf("New: %v", err)
+	}
+
+	for i := 0; i < cfg.Users; i++ {
+		user := pop.User(i)
+		if len(user.HospitalIDs) != cfg.HospitalsPerUser {
+			t.Fatalf("user %d belongs to %d hospitals, want %d", i, len(user.HospitalIDs), cfg.HospitalsPerUser)
+		}
+		seen := make(map[string]bool, len(user.HospitalIDs))
+		for _, hospital := range user.HospitalIDs {
+			if seen[hospital] {
+				t.Fatalf("user %d has a duplicate hospital membership %q", i, hospital)
+			}
+			seen[hospital] = true
+		}
+		if user.HospitalID() != user.HospitalIDs[0] {
+			t.Errorf("user %d: HospitalID() = %q, want HospitalIDs[0] = %q", i, user.HospitalID(), user.HospitalIDs[0])
+		}
+	}
+}
+
 func TestUsersAreDistributedAcrossEveryTenantAndHospital(t *testing.T) {
 	cfg := loadmodel.DemoConfig()
 	cfg.Users = 400
@@ -102,7 +135,9 @@ func TestUsersAreDistributedAcrossEveryTenantAndHospital(t *testing.T) {
 	seenHospital := make(map[string]bool)
 	for i := 0; i < cfg.Users; i++ {
 		user := pop.User(i)
-		seenHospital[user.HospitalID] = true
+		for _, hospital := range user.HospitalIDs {
+			seenHospital[hospital] = true
+		}
 	}
 
 	for _, tenant := range pop.TenantIDs() {
@@ -289,6 +324,8 @@ func TestValidateRejectsAnIncoherentConfig(t *testing.T) {
 		{Tenants: 1, HospitalsPerTenant: 1, CanonicalRoles: 0, RolesPerUser: 1, OverrideEveryNthUser: 1},
 		{Tenants: 1, HospitalsPerTenant: 1, CanonicalRoles: 5, RolesPerUser: 10, OverrideEveryNthUser: 1},
 		{Tenants: 1, HospitalsPerTenant: 1, CanonicalRoles: 5, RolesPerUser: 1, OverrideEveryNthUser: 0},
+		{Tenants: 1, HospitalsPerTenant: 4, CanonicalRoles: 5, RolesPerUser: 1, OverrideEveryNthUser: 1, HospitalsPerUser: 0},
+		{Tenants: 1, HospitalsPerTenant: 4, CanonicalRoles: 5, RolesPerUser: 1, OverrideEveryNthUser: 1, HospitalsPerUser: 5},
 	}
 	for i, cfg := range cases {
 		if err := cfg.Validate(); err == nil {

@@ -119,6 +119,13 @@ type RealmSetup struct {
 	ClientID       string
 	RoleNames      []string
 	PasswordPolicy string
+	// Organizations are the hospital aliases (issue #87) this realm's
+	// tenant declares. EnsureRealm enables the realm's organizations
+	// feature and creates each one, whenever this is non-empty; the
+	// client's own optional "organization" scope needs no configuration
+	// at all once the server has --features=organization (see
+	// docs/MEASURED_FINDINGS.md).
+	Organizations []string
 }
 
 // EnsureRealm creates the realm, the client and every canonical role in
@@ -128,9 +135,10 @@ type RealmSetup struct {
 // realm leaves it unchanged and fails on nothing that already exists.
 func (c *AdminClient) EnsureRealm(ctx context.Context, setup RealmSetup) (clientUUID string, roleIDByName map[string]string, err error) {
 	status, body, err := c.call(ctx, http.MethodPost, "/admin/realms", map[string]any{
-		"realm":          setup.Realm,
-		"enabled":        true,
-		"passwordPolicy": setup.PasswordPolicy,
+		"realm":                setup.Realm,
+		"enabled":              true,
+		"passwordPolicy":       setup.PasswordPolicy,
+		"organizationsEnabled": len(setup.Organizations) > 0,
 	})
 	if err != nil {
 		return "", nil, err
@@ -139,6 +147,16 @@ func (c *AdminClient) EnsureRealm(ctx context.Context, setup RealmSetup) (client
 		return "", nil, fmt.Errorf("keycloakbulkload: creating realm %q failed with %d: %s", setup.Realm, status, body)
 	}
 
+	// Deliberately no explicit defaultClientScopes/optionalClientScopes
+	// here: measured directly against this same Keycloak 26.4 (see
+	// docs/MEASURED_FINDINGS.md) that specifying either at all - even only
+	// to add "organization" to the optional list - makes Keycloak skip
+	// assigning its own sensible defaults (including "roles", without
+	// which a seeded user's token would carry no resource_access claim at
+	// all) rather than merging with them. Leaving both unset gets every
+	// built-in default scope Keycloak would assign a client created
+	// through the Admin Console, "organization" among the optional ones
+	// automatically once this server has --features=organization.
 	status, body, err = c.call(ctx, http.MethodPost, "/admin/realms/"+setup.Realm+"/clients", map[string]any{
 		"clientId":                  setup.ClientID,
 		"publicClient":              true,
@@ -229,7 +247,37 @@ func (c *AdminClient) EnsureRealm(ctx context.Context, setup RealmSetup) (client
 		roleIDByName[name] = role.ID
 	}
 
+	if err := c.EnsureOrganizations(ctx, setup.Realm, setup.Organizations); err != nil {
+		return "", nil, err
+	}
+
 	return clientUUID, roleIDByName, nil
+}
+
+// EnsureOrganizations creates each alias as an organization in realm if it
+// does not already exist (issue #87). Idempotent, the same as EnsureRealm:
+// a 409 for an alias already registered is success, not failure.
+//
+// It does not resolve the internal group id a membership row needs -
+// that is Keycloak-internal schema (see OrganizationGroupIDs), not
+// something the Admin REST organization representation exposes.
+func (c *AdminClient) EnsureOrganizations(ctx context.Context, realm string, aliases []string) error {
+	for _, alias := range aliases {
+		status, body, err := c.call(ctx, http.MethodPost, "/admin/realms/"+realm+"/organizations", map[string]any{
+			"name":    alias,
+			"alias":   alias,
+			"enabled": true,
+			"domains": []map[string]any{{"name": alias + ".example.test", "verified": false}},
+		})
+		if err != nil {
+			return err
+		}
+		if status != http.StatusCreated && status != http.StatusConflict {
+			return fmt.Errorf("keycloakbulkload: creating organization %q in realm %q failed with %d: %s",
+				alias, realm, status, body)
+		}
+	}
+	return nil
 }
 
 // RealmID looks up the internal UUID Keycloak assigned to realmName, needed

@@ -46,6 +46,12 @@ type Config struct {
 	// OverrideEveryNthUser selects which users carry overrides: user index i
 	// carries overrides when i % OverrideEveryNthUser == 0. 20 means ~5%.
 	OverrideEveryNthUser int
+	// HospitalsPerUser is how many of a tenant's hospitals - Keycloak
+	// organizations (issue #87) - each user is a member of. 2 makes
+	// multi-hospital membership the common case in the data rather than an
+	// edge case, per the §15 load model. Must be at least 1 and at most
+	// HospitalsPerTenant.
+	HospitalsPerUser int
 	// ResourceTypes are the FHIR resource types Resources() generates
 	// instances for. ResourceKey's own type is included automatically.
 	ResourceTypes []string
@@ -66,6 +72,7 @@ func DemoConfig() Config {
 		Users:                          50,
 		RolesPerUser:                   4,
 		OverrideEveryNthUser:           10,
+		HospitalsPerUser:               2,
 		ResourceTypes:                  []string{"condition"},
 		ActiveInstancesPerResourceType: 2,
 		LockedInstancesPerResourceType: 1,
@@ -74,7 +81,8 @@ func DemoConfig() Config {
 
 // FullLoadConfig is the exact §15 load model: 5 tenants, 20 hospitals (4 per
 // tenant), 250 canonical roles, 600,000 users, 70 roles per user (42,000,000
-// mappings), overrides on ~5% of users.
+// mappings), overrides on ~5% of users, every user a member of 2 of its
+// tenant's 4 hospitals (issue #87).
 func FullLoadConfig() Config {
 	return Config{
 		Tenants:                        5,
@@ -83,6 +91,7 @@ func FullLoadConfig() Config {
 		Users:                          600_000,
 		RolesPerUser:                   70,
 		OverrideEveryNthUser:           20,
+		HospitalsPerUser:               2,
 		ResourceTypes:                  []string{"condition", "observation", "medication_request"},
 		ActiveInstancesPerResourceType: 20,
 		LockedInstancesPerResourceType: 5,
@@ -106,6 +115,10 @@ func (c Config) Validate() error {
 		return fmt.Errorf("loadmodel: RolesPerUser (%d) exceeds CanonicalRoles (%d)", c.RolesPerUser, c.CanonicalRoles)
 	case c.OverrideEveryNthUser <= 0:
 		return fmt.Errorf("loadmodel: OverrideEveryNthUser must be positive")
+	case c.HospitalsPerUser <= 0:
+		return fmt.Errorf("loadmodel: HospitalsPerUser must be positive")
+	case c.HospitalsPerUser > c.HospitalsPerTenant:
+		return fmt.Errorf("loadmodel: HospitalsPerUser (%d) exceeds HospitalsPerTenant (%d)", c.HospitalsPerUser, c.HospitalsPerTenant)
 	}
 	if c.RolesPerUser > 1 {
 		// roleStep must be coprime with CanonicalRoles for User's role
@@ -178,18 +191,28 @@ func (p *Population) RoleNames() []string { return append([]string(nil), p.roleN
 const roleStep = 7
 
 // User is one generated identity. Fields mirror the population's dimensions:
-// TenantID and HospitalID place the user, RoleNames are exactly RolesPerUser
-// distinct canonical roles.
+// TenantID and HospitalIDs place the user, RoleNames are exactly
+// RolesPerUser distinct canonical roles.
 type User struct {
-	Index      int
-	Username   string
-	FirstName  string
-	LastName   string
-	Email      string
-	TenantID   string
-	HospitalID string
-	RoleNames  []string
+	Index     int
+	Username  string
+	FirstName string
+	LastName  string
+	Email     string
+	TenantID  string
+	// HospitalIDs are exactly HospitalsPerUser distinct hospitals - Keycloak
+	// organizations (issue #87) - this user belongs to. HospitalIDs[0] is
+	// this user's primary hospital: the one a generated override or
+	// resource-instance grant targets, and what HospitalID mirrors for a
+	// caller that only ever cared about one.
+	HospitalIDs []string
+	RoleNames   []string
 }
+
+// HospitalID is this user's primary hospital - HospitalIDs[0] - kept as its
+// own accessor so a caller from before issue #87 (a single hospital per
+// user) does not need to know the membership set exists.
+func (u User) HospitalID() string { return u.HospitalIDs[0] }
 
 // User computes the index-th user. Deterministic: calling it twice with the
 // same index on populations built from the same Config returns identical
@@ -197,7 +220,17 @@ type User struct {
 func (p *Population) User(index int) User {
 	tenant := p.tenantIDs[index%len(p.tenantIDs)]
 	hospitalsForTenant := p.hospitals[tenant]
-	hospital := hospitalsForTenant[(index/len(p.tenantIDs))%len(hospitalsForTenant)]
+
+	// HospitalsPerUser distinct hospitals, starting at the same
+	// deterministic offset single-membership users always used and
+	// stepping forward by one hospital per membership - distinct as long
+	// as HospitalsPerUser <= HospitalsPerTenant (Config.Validate's own
+	// check).
+	base := (index / len(p.tenantIDs)) % len(hospitalsForTenant)
+	hospitalIDs := make([]string, p.cfg.HospitalsPerUser)
+	for k := range hospitalIDs {
+		hospitalIDs[k] = hospitalsForTenant[(base+k)%len(hospitalsForTenant)]
+	}
 
 	roles := make([]string, p.cfg.RolesPerUser)
 	for j := range roles {
@@ -206,14 +239,14 @@ func (p *Population) User(index int) User {
 
 	username := fmt.Sprintf("load-user-%07d", index)
 	return User{
-		Index:      index,
-		Username:   username,
-		FirstName:  "Load",
-		LastName:   fmt.Sprintf("User%07d", index),
-		Email:      username + "@example.test",
-		TenantID:   tenant,
-		HospitalID: hospital,
-		RoleNames:  roles,
+		Index:       index,
+		Username:    username,
+		FirstName:   "Load",
+		LastName:    fmt.Sprintf("User%07d", index),
+		Email:       username + "@example.test",
+		TenantID:    tenant,
+		HospitalIDs: hospitalIDs,
+		RoleNames:   roles,
 	}
 }
 

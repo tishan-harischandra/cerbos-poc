@@ -120,6 +120,146 @@ func TestBulkLoadedUsersCanLogInWithTheCorrectClientRoleClaim(t *testing.T) {
 	}
 }
 
+// issue #87: bulk-loaded organizations and memberships must make Keycloak's
+// own direct grant accept scope=organization:<alias>, the same as one
+// created through the Admin REST API.
+func TestBulkLoadedUsersCarryOrganizationMembership(t *testing.T) {
+	adminURL, dsn := skipUnlessConfigured(t)
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
+	defer cancel()
+
+	realm := "kcbulkload-it-org-" + time.Now().UTC().Format("20060102150405")
+	clientID := "patient-app"
+	aliases := []string{"hospital-1", "hospital-2", "hospital-3"}
+
+	admin, err := keycloakbulkload.NewAdminClient(keycloakbulkload.AdminConfig{
+		BaseURL:       adminURL,
+		AdminUser:     "admin",
+		AdminPassword: envOr("KEYCLOAK_ADMIN_PASSWORD", "change-me"),
+	})
+	if err != nil {
+		t.Fatalf("NewAdminClient: %v", err)
+	}
+
+	_, roleIDByName, err := admin.EnsureRealm(ctx, keycloakbulkload.RealmSetup{
+		Realm:          realm,
+		ClientID:       clientID,
+		RoleNames:      []string{"doctor"},
+		PasswordPolicy: keycloakbulkload.LoadTestPasswordPolicy,
+		Organizations:  aliases,
+	})
+	if err != nil {
+		t.Fatalf("EnsureRealm: %v", err)
+	}
+
+	realmID, err := admin.RealmID(ctx, realm)
+	if err != nil {
+		t.Fatalf("RealmID: %v", err)
+	}
+
+	pool, err := pgxpool.New(ctx, dsn)
+	if err != nil {
+		t.Fatalf("connecting to keycloak's database: %v", err)
+	}
+	defer pool.Close()
+
+	groupIDByAlias, err := keycloakbulkload.OrganizationGroupIDs(ctx, pool, realmID)
+	if err != nil {
+		t.Fatalf("OrganizationGroupIDs: %v", err)
+	}
+	for _, alias := range aliases {
+		if _, ok := groupIDByAlias[alias]; !ok {
+			t.Fatalf("OrganizationGroupIDs is missing alias %q: %v", alias, groupIDByAlias)
+		}
+	}
+
+	cred, err := keycloakbulkload.NewSharedCredential("Load-Test-Only-P@ss1")
+	if err != nil {
+		t.Fatalf("NewSharedCredential: %v", err)
+	}
+
+	memberOf := []string{aliases[0], aliases[1]}
+	memberGroupIDs := make([]string, len(memberOf))
+	for i, alias := range memberOf {
+		memberGroupIDs[i] = groupIDByAlias[alias]
+	}
+
+	users := make(chan keycloakbulkload.UserRecord, 8)
+	go func() {
+		defer close(users)
+		users <- keycloakbulkload.UserRecord{
+			ID:               deterministicTestUUID(realm + ":user-0"),
+			Username:         "bulkload-it-org-user-0",
+			FirstName:        "Load",
+			LastName:         "TestUser",
+			Email:            "bulkload-it-org-user-0@example.test",
+			TenantID:         "tenant-a",
+			HospitalID:       memberOf[0],
+			RoleIDs:          []string{roleIDByName["doctor"]},
+			HospitalGroupIDs: memberGroupIDs,
+		}
+	}()
+
+	stats, err := keycloakbulkload.BulkLoad(ctx, pool, keycloakbulkload.LoadConfig{
+		RealmID:    realmID,
+		Credential: cred,
+		Now:        time.Now().UTC(),
+	}, users)
+	if err != nil {
+		t.Fatalf("BulkLoad: %v", err)
+	}
+	if stats.Memberships != 2 {
+		t.Fatalf("stats.Memberships = %d, want 2", stats.Memberships)
+	}
+
+	for _, alias := range memberOf {
+		token := organizationScopedPasswordGrant(t, adminURL, realm, clientID, "bulkload-it-org-user-0", "Load-Test-Only-P@ss1", alias)
+		claims := decodeJWTClaims(t, token)
+		orgs, _ := claims["organization"].([]any)
+		if len(orgs) != 1 || orgs[0] != alias {
+			t.Errorf("organization claim for alias %q = %v, want exactly [%q]", alias, orgs, alias)
+		}
+	}
+
+	// The third organization was created but never joined; the same
+	// direct-grant scope for it must be silently dropped (issue #75's
+	// finding), not honoured.
+	token := organizationScopedPasswordGrant(t, adminURL, realm, clientID, "bulkload-it-org-user-0", "Load-Test-Only-P@ss1", aliases[2])
+	claims := decodeJWTClaims(t, token)
+	if _, ok := claims["organization"]; ok {
+		t.Errorf("a non-membership organization scope was honoured: %v", claims["organization"])
+	}
+}
+
+func organizationScopedPasswordGrant(t *testing.T, baseURL, realm, clientID, username, password, alias string) string {
+	t.Helper()
+	form := url.Values{
+		"grant_type": {"password"},
+		"client_id":  {clientID},
+		"username":   {username},
+		"password":   {password},
+		"scope":      {"openid organization:" + alias},
+	}
+	resp, err := http.Post(baseURL+"/realms/"+realm+"/protocol/openid-connect/token",
+		"application/x-www-form-urlencoded", strings.NewReader(form.Encode()))
+	if err != nil {
+		t.Fatalf("organization-scoped password grant request: %v", err)
+	}
+	defer resp.Body.Close()
+	var body struct {
+		AccessToken string `json:"access_token"`
+		Error       string `json:"error"`
+		Description string `json:"error_description"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&body); err != nil {
+		t.Fatalf("decoding token response: %v", err)
+	}
+	if body.Error != "" {
+		t.Fatalf("organization-scoped password grant failed: %s: %s", body.Error, body.Description)
+	}
+	return body.AccessToken
+}
+
 func passwordGrant(t *testing.T, baseURL, realm, clientID, username, password string) (accessToken string, resourceAccess map[string][]string) {
 	t.Helper()
 	form := url.Values{
