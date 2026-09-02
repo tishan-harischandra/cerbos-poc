@@ -48,6 +48,7 @@ func run() error {
 	estimate := keycloakbulkload.PreflightEstimate{
 		Users:        cfg.Users,
 		RoleMappings: cfg.Users * cfg.RolesPerUser,
+		Memberships:  cfg.Users * cfg.HospitalsPerUser,
 	}
 	if err := keycloakbulkload.Preflight(estimate, dataDir); err != nil {
 		return err
@@ -80,7 +81,12 @@ func run() error {
 	if dbDSN == "" {
 		return fmt.Errorf("KEYCLOAK_LOADTEST_DB_DSN is not set")
 	}
-	realm := envOr("KEYCLOAK_LOADTEST_REALM", "tenant-a-loadtest")
+	// One Keycloak realm per tenant (issue #87's "five realms"), named
+	// from the tenant id the generator already produces
+	// ("tenant-1".."tenant-5") rather than a single fixed realm - the
+	// single-realm KEYCLOAK_LOADTEST_REALM this command used before issue
+	// #87 had no way to express that.
+	realmSuffix := envOr("KEYCLOAK_LOADTEST_REALM_SUFFIX", "-loadtest")
 	clientID := envOr("KEYCLOAK_LOADTEST_CLIENT_ID", "patient-app")
 	password := envOr("LOADSEED_PASSWORD", "Load-Test-Only-P@ss1")
 
@@ -89,21 +95,6 @@ func run() error {
 		AdminUser:     envOr("KEYCLOAK_ADMIN", "admin"),
 		AdminPassword: envOr("KEYCLOAK_ADMIN_PASSWORD", "change-me"),
 	})
-	if err != nil {
-		return err
-	}
-
-	log.Printf("loadseed: ensuring realm %q, client %q and %d roles exist", realm, clientID, len(pop.RoleNames()))
-	_, roleIDByName, err := admin.EnsureRealm(ctx, keycloakbulkload.RealmSetup{
-		Realm:          realm,
-		ClientID:       clientID,
-		RoleNames:      pop.RoleNames(),
-		PasswordPolicy: keycloakbulkload.LoadTestPasswordPolicy,
-	})
-	if err != nil {
-		return fmt.Errorf("setting up the realm: %w", err)
-	}
-	realmID, err := admin.RealmID(ctx, realm)
 	if err != nil {
 		return err
 	}
@@ -120,53 +111,112 @@ func run() error {
 	}
 
 	now := time.Now().UTC()
-	users := make(chan keycloakbulkload.UserRecord, 4*keycloakbulkload.DefaultBatchSize)
-	generateErr := make(chan error, 1)
-	go func() {
-		defer close(users)
-		defer close(generateErr)
-		pop.Users(func(u loadmodel.User) bool {
-			roleIDs := make([]string, len(u.RoleNames))
-			for i, name := range u.RoleNames {
-				id, ok := roleIDByName[name]
-				if !ok {
-					generateErr <- fmt.Errorf("role %q was not created in the realm", name)
-					return false
-				}
-				roleIDs[i] = id
-			}
-			users <- keycloakbulkload.UserRecord{
-				ID:         deterministicUserID(realm, u.Username),
-				Username:   u.Username,
-				FirstName:  u.FirstName,
-				LastName:   u.LastName,
-				Email:      u.Email,
-				TenantID:   u.TenantID,
-				HospitalID: u.HospitalID,
-				RoleIDs:    roleIDs,
-			}
-			return true
-		})
-	}()
-
-	log.Printf("loadseed: writing %d users / %d role mappings to keycloak (%s profile)",
-		cfg.Users, cfg.Users*cfg.RolesPerUser, profile)
+	totalStats := keycloakbulkload.LoadStats{}
 	started := time.Now()
-	stats, err := keycloakbulkload.BulkLoad(ctx, pool, keycloakbulkload.LoadConfig{
-		RealmID:    realmID,
-		Credential: cred,
-		Now:        now,
-	}, users)
-	if err != nil {
-		return fmt.Errorf("bulk loading keycloak: %w", err)
+
+	// Per-tenant results (issue #87's acceptance criterion): a shared
+	// Keycloak or database problem affecting one tenant must be visible
+	// against the others' results, not folded into one aggregate number.
+	for _, tenantID := range pop.TenantIDs() {
+		realm := tenantID + realmSuffix
+		hospitalAliases := pop.HospitalIDs(tenantID)
+
+		log.Printf("loadseed: [%s] ensuring realm %q, client %q, %d roles and %d organizations exist",
+			tenantID, realm, clientID, len(pop.RoleNames()), len(hospitalAliases))
+		_, roleIDByName, err := admin.EnsureRealm(ctx, keycloakbulkload.RealmSetup{
+			Realm:          realm,
+			ClientID:       clientID,
+			RoleNames:      pop.RoleNames(),
+			PasswordPolicy: keycloakbulkload.LoadTestPasswordPolicy,
+			Organizations:  hospitalAliases,
+		})
+		if err != nil {
+			return fmt.Errorf("[%s] setting up the realm: %w", tenantID, err)
+		}
+		realmID, err := admin.RealmID(ctx, realm)
+		if err != nil {
+			return fmt.Errorf("[%s] %w", tenantID, err)
+		}
+		groupIDByAlias, err := keycloakbulkload.OrganizationGroupIDs(ctx, pool, realmID)
+		if err != nil {
+			return fmt.Errorf("[%s] %w", tenantID, err)
+		}
+
+		users := make(chan keycloakbulkload.UserRecord, 4*keycloakbulkload.DefaultBatchSize)
+		generateErr := make(chan error, 1)
+		go func() {
+			defer close(users)
+			defer close(generateErr)
+			// Users are assigned tenants round-robin by index
+			// (loadmodel.Population.User), not in contiguous ranges, so
+			// every realm's pass filters the same generator rather than
+			// each keeping its own separate stream. Users() itself does
+			// no I/O, so the wasted iterations over other tenants' users
+			// cost nothing but a comparison.
+			pop.Users(func(u loadmodel.User) bool {
+				if u.TenantID != tenantID {
+					return true
+				}
+				roleIDs := make([]string, len(u.RoleNames))
+				for i, name := range u.RoleNames {
+					id, ok := roleIDByName[name]
+					if !ok {
+						generateErr <- fmt.Errorf("role %q was not created in realm %q", name, realm)
+						return false
+					}
+					roleIDs[i] = id
+				}
+				groupIDs := make([]string, len(u.HospitalIDs))
+				for i, alias := range u.HospitalIDs {
+					id, ok := groupIDByAlias[alias]
+					if !ok {
+						generateErr <- fmt.Errorf("organization %q was not created in realm %q", alias, realm)
+						return false
+					}
+					groupIDs[i] = id
+				}
+				users <- keycloakbulkload.UserRecord{
+					ID:               deterministicUserID(realm, u.Username),
+					Username:         u.Username,
+					FirstName:        u.FirstName,
+					LastName:         u.LastName,
+					Email:            u.Email,
+					TenantID:         u.TenantID,
+					HospitalID:       u.HospitalID(),
+					RoleIDs:          roleIDs,
+					HospitalGroupIDs: groupIDs,
+				}
+				return true
+			})
+		}()
+
+		tenantStarted := time.Now()
+		stats, err := keycloakbulkload.BulkLoad(ctx, pool, keycloakbulkload.LoadConfig{
+			RealmID:    realmID,
+			Credential: cred,
+			Now:        now,
+		}, users)
+		if err != nil {
+			return fmt.Errorf("[%s] bulk loading keycloak: %w", tenantID, err)
+		}
+		if genErr := <-generateErr; genErr != nil {
+			return fmt.Errorf("[%s] %w", tenantID, genErr)
+		}
+		tenantElapsed := time.Since(tenantStarted)
+		log.Printf("loadseed: [%s] done - %d users, %d role mappings, %d memberships, %d batches (%d already loaded, skipped), %s (%.0f users/sec)",
+			tenantID, stats.Users, stats.RoleMappings, stats.Memberships, stats.Batches, stats.SkippedBatches, tenantElapsed,
+			float64(stats.Users)/tenantElapsed.Seconds())
+
+		totalStats.Users += stats.Users
+		totalStats.RoleMappings += stats.RoleMappings
+		totalStats.Memberships += stats.Memberships
+		totalStats.Batches += stats.Batches
 	}
-	if genErr := <-generateErr; genErr != nil {
-		return genErr
-	}
+
 	elapsed := time.Since(started)
-	log.Printf("loadseed: keycloak done - %d users, %d role mappings, %d batches, %s (%.0f users/sec, %.0f mappings/sec)",
-		stats.Users, stats.RoleMappings, stats.Batches, elapsed,
-		float64(stats.Users)/elapsed.Seconds(), float64(stats.RoleMappings)/elapsed.Seconds())
+	log.Printf("loadseed: keycloak done for all %d tenants - %d users, %d role mappings, %d memberships, %d batches, %s (%.0f users/sec, %.0f mappings/sec)",
+		len(pop.TenantIDs()), totalStats.Users, totalStats.RoleMappings, totalStats.Memberships, totalStats.Batches, elapsed,
+		float64(totalStats.Users)/elapsed.Seconds(), float64(totalStats.RoleMappings)/elapsed.Seconds())
 
 	if dsn := os.Getenv("ASSIGNMENTSTORE_POSTGRES_DSN"); dsn != "" {
 		if err := seedAssignmentStore(ctx, dsn, pop, now); err != nil {

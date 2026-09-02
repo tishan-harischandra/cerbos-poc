@@ -4,18 +4,18 @@
 // serves it.
 import http from 'k6/http';
 import { check, sleep } from 'k6';
-import { BASE_URL, TENANT_ID, HOSPITAL_ID } from '../lib/config.js';
+import { BASE_URL } from '../lib/config.js';
 import { ensureFreshToken, authHeader } from '../lib/auth.js';
 import { warmDecisionLatency, businessOpWithoutAllow, businessAuthzRequests } from '../lib/metrics.js';
-import { usernameForVU } from '../lib/identity.js';
+import { identityForVU } from '../lib/identity.js';
 
 // Each VU is its own JS VM instance in k6, so this module-level state is
 // already per-VU - no VU-indexed map is needed.
 let tokenSet = null;
 
 export function businessAuthz() {
-  const username = usernameForVU();
-  tokenSet = ensureFreshToken(username, tokenSet);
+  const identity = identityForVU();
+  tokenSet = ensureFreshToken(identity, tokenSet);
   if (!tokenSet) {
     sleep(1);
     return;
@@ -26,7 +26,7 @@ export function businessAuthz() {
       {
         kind: 'patient_record',
         id: `loadtest-patient-${__VU}`,
-        attributes: { tenantId: TENANT_ID, hospitalId: HOSPITAL_ID, status: 'ACTIVE' },
+        attributes: { tenantId: identity.tenantId, hospitalId: identity.hospitalId, status: 'ACTIVE' },
         actions: ['read'],
       },
     ],

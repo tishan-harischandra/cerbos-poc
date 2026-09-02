@@ -91,7 +91,7 @@ func (p *Population) Overrides(index int, at time.Time) []assignmentstore.UserOv
 		overrides = append(overrides, assignmentstore.UserOverride{
 			Key: assignmentstore.UserOverrideKey{
 				TenantID:           user.TenantID,
-				HospitalID:         user.HospitalID,
+				HospitalID:         user.HospitalID(),
 				UserExternalID:     user.Username,
 				ResourceKey:        ResourceKey,
 				ActionKey:          action,

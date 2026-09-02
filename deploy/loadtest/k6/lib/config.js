@@ -13,22 +13,32 @@ export const ADMIN_SERVICE_URL = __ENV.LOADTEST_ADMIN_SERVICE_URL || 'http://adm
 // The load-test identity provider (issue #24), not the demo Keycloak: the
 // full population only exists there.
 export const KEYCLOAK_URL = __ENV.LOADTEST_KEYCLOAK_URL || 'http://keycloak-loadtest:8080';
-export const REALM = __ENV.LOADTEST_REALM || 'tenant-a-loadtest';
+// REALM_SUFFIX mirrors libs/keycloakbulkload/cmd/loadseed's own
+// KEYCLOAK_LOADTEST_REALM_SUFFIX (issue #87): one Keycloak realm per
+// tenant, named "<tenantId><suffix>", so a VU's realm is derived from its
+// own tenant rather than fixed to one realm the way a single-tenant load
+// model let it be before #87.
+export const REALM_SUFFIX = __ENV.LOADTEST_REALM_SUFFIX || '-loadtest';
 export const CLIENT_ID = __ENV.LOADTEST_CLIENT_ID || 'patient-app';
 export const PASSWORD = __ENV.LOADTEST_PASSWORD || 'Load-Test-Only-P@ss1';
 
-// libs/loadmodel.FullLoadConfig: 600,000 users named load-user-0000000
-// through load-user-0599999 (libs/loadmodel.loadmodel.go's Username format).
+// libs/loadmodel.FullLoadConfig (issue #87): 5 tenants sharing 600,000
+// users named load-user-0000000 through load-user-0599999
+// (libs/loadmodel.loadmodel.go's Username format), 4 hospitals per
+// tenant, 2 hospital memberships per user.
 export const TOTAL_LOAD_USERS = Number(__ENV.LOADTEST_TOTAL_USERS || 600000);
 export const USERNAME_PREFIX = __ENV.LOADTEST_USERNAME_PREFIX || 'load-user-';
 export const USERNAME_DIGITS = Number(__ENV.LOADTEST_USERNAME_DIGITS || 7);
-
-export const TENANT_ID = __ENV.LOADTEST_TENANT_ID || 'tenant-0';
-export const HOSPITAL_ID = __ENV.LOADTEST_HOSPITAL_ID || 'hospital-0-0';
+export const TENANTS = Number(__ENV.LOADTEST_TENANTS || 5);
+export const HOSPITALS_PER_TENANT = Number(__ENV.LOADTEST_HOSPITALS_PER_TENANT || 4);
+export const HOSPITALS_PER_USER = Number(__ENV.LOADTEST_HOSPITALS_PER_USER || 2);
 
 // The role matrix row the mutation-convergence scenario flips mid-run
-// (§10, §15.3's "permission convergence" objective).
-export const MUTATION_ROLE = __ENV.LOADTEST_MUTATION_ROLE || 'canonical-role-0000';
+// (§10, §15.3's "permission convergence" objective). load-role-000 is
+// libs/loadmodel.loadmodel.go's own canonical role name format
+// (issue #87 found the previous default, "canonical-role-0000", never
+// matched a role the load model actually generates).
+export const MUTATION_ROLE = __ENV.LOADTEST_MUTATION_ROLE || 'load-role-000';
 export const MUTATION_RESOURCE = __ENV.LOADTEST_MUTATION_RESOURCE || 'patient_record';
 export const MUTATION_ACTION = __ENV.LOADTEST_MUTATION_ACTION || 'read';
 

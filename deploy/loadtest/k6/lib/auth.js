@@ -5,33 +5,40 @@
 // scenario measures in isolation.
 import http from 'k6/http';
 import { check } from 'k6';
-import { KEYCLOAK_URL, REALM, CLIENT_ID, PASSWORD, TOKEN_REUSE_SECONDS } from './config.js';
+import { KEYCLOAK_URL, CLIENT_ID, PASSWORD, TOKEN_REUSE_SECONDS } from './config.js';
 
-const TOKEN_URL = `${KEYCLOAK_URL}/realms/${REALM}/protocol/openid-connect/token`;
+function tokenURLFor(realm) {
+  return `${KEYCLOAK_URL}/realms/${realm}/protocol/openid-connect/token`;
+}
 
-// passwordGrant exchanges a username/password for a token pair. Called
+// passwordGrant exchanges a username/password for a token pair, scoped to
+// realm and, when organizationAlias is given, to that hospital
+// (scope=organization:<alias> - issue #75's finding, exercised at scale by
+// issue #87: a direct grant, no browser, no authenticator flow). Called
 // exactly once per VU per scenario (in that scenario's setup/first
 // iteration), never per request.
-export function passwordGrant(username) {
-  const res = http.post(
-    TOKEN_URL,
-    {
-      grant_type: 'password',
-      client_id: CLIENT_ID,
-      username,
-      password: PASSWORD,
-    },
-    { tags: { name: 'token_password_grant' } }
-  );
+export function passwordGrant(username, realm, organizationAlias) {
+  const form = {
+    grant_type: 'password',
+    client_id: CLIENT_ID,
+    username,
+    password: PASSWORD,
+  };
+  if (organizationAlias) {
+    form.scope = `openid organization:${organizationAlias}`;
+  }
+  const res = http.post(tokenURLFor(realm), form, { tags: { name: 'token_password_grant' } });
   check(res, { 'password grant returned a token': (r) => r.status === 200 && !!r.json('access_token') });
   return tokenSetFrom(res);
 }
 
 // refreshGrant rotates a refresh token for a new token pair without a
-// password round trip.
-export function refreshGrant(refreshToken) {
+// password round trip. The refresh token itself already carries whatever
+// scope the original grant requested (issue #75's finding: it is never
+// widened by a refresh), so nothing here needs to name one again.
+export function refreshGrant(refreshToken, realm) {
   const res = http.post(
-    TOKEN_URL,
+    tokenURLFor(realm),
     {
       grant_type: 'refresh_token',
       client_id: CLIENT_ID,
@@ -56,21 +63,23 @@ function tokenSetFrom(res) {
   };
 }
 
-// ensureFreshToken returns a token set for `username`, minting one with a
-// password grant on first use and rotating it with a refresh grant once it
-// is within TOKEN_REUSE_SECONDS of expiry - the "refresh is a small fraction
-// of request volume" property, driven by the real per-VU call rate rather
-// than a fixed schedule.
-export function ensureFreshToken(username, current) {
+// ensureFreshToken returns a token set for `identity`
+// (lib/identity.js's identityFor/identityForVU shape: username, realm,
+// hospitalId), minting one with a password grant on first use and
+// rotating it with a refresh grant once it is within TOKEN_REUSE_SECONDS
+// of expiry - the "refresh is a small fraction of request volume"
+// property, driven by the real per-VU call rate rather than a fixed
+// schedule.
+export function ensureFreshToken(identity, current) {
   if (!current) {
-    return passwordGrant(username);
+    return passwordGrant(identity.username, identity.realm, identity.hospitalId);
   }
   const ageSeconds = (Date.now() - current.obtainedAt) / 1000;
   if (ageSeconds < current.expiresInSeconds - TOKEN_REUSE_SECONDS) {
     return current;
   }
-  const refreshed = refreshGrant(current.refreshToken);
-  return refreshed || passwordGrant(username);
+  const refreshed = refreshGrant(current.refreshToken, identity.realm);
+  return refreshed || passwordGrant(identity.username, identity.realm, identity.hospitalId);
 }
 
 export function authHeader(tokenSet) {

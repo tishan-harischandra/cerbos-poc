@@ -39,7 +39,7 @@ run_with() {
   K6_SH="$(fake_k6 "${exit_code}")" \
   LOADTEST_RESULTS_ROOT="${results_root}" \
   GO_NETWORK="test-network" \
-  LOADTEST_TENANT_ID="tenant-test" \
+  LOADTEST_REALM_SUFFIX="-tenant-test" \
     bash "${RUN_SCRIPT}" >/dev/null 2>&1
   echo "$?"
 }
@@ -61,8 +61,8 @@ check "the results directory name is tagged with the current git SHA" \
      [[ "${result_dir}" == *"-${git_sha}" ]] && echo true || echo false)"
 
 check "config.json records the run's configuration" \
-  "tenant-test" \
-  "$(jq -r '.environment.LOADTEST_TENANT_ID' "${result_dir}/config.json" 2>/dev/null)"
+  "-tenant-test" \
+  "$(jq -r '.environment.LOADTEST_REALM_SUFFIX' "${result_dir}/config.json" 2>/dev/null)"
 
 check "config.json records the git SHA" \
   "true" \

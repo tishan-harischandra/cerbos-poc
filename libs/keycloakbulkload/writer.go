@@ -28,6 +28,12 @@ type UserRecord struct {
 	TenantID   string
 	HospitalID string
 	RoleIDs    []string
+	// HospitalGroupIDs are the Keycloak group ids (issue #87) backing this
+	// user's organization memberships - OrganizationGroupIDs's values, one
+	// per hospital the generator placed this user in. Resolved once by the
+	// caller, the same way RoleIDs already is, so a batch never repeats an
+	// alias-to-group-id lookup per row.
+	HospitalGroupIDs []string
 }
 
 // LoadConfig is everything BulkLoad needs beyond the users themselves.
@@ -47,8 +53,13 @@ type LoadConfig struct {
 type LoadStats struct {
 	Users        int
 	RoleMappings int
+	Memberships  int
 	Batches      int
-	Elapsed      time.Duration
+	// SkippedBatches is how many batches BulkLoad found already written by
+	// an earlier, interrupted run (issue #87's "seeding is idempotent and
+	// resumable") and left untouched rather than re-inserting.
+	SkippedBatches int
+	Elapsed        time.Duration
 }
 
 // BulkLoad reads users from the channel until it closes, and writes
@@ -85,12 +96,27 @@ func BulkLoad(ctx context.Context, pool *pgxpool.Pool, cfg LoadConfig, users <-c
 		if len(batch) == 0 {
 			return nil
 		}
+		// Issue #87's "seeding is idempotent and resumable": every user
+		// in one batch commits in a single transaction (see writeBatch),
+		// so a batch this run finds already fully written is exactly what
+		// an earlier, interrupted run left behind - never a partial one -
+		// and is safe to skip rather than fail on a primary-key conflict.
+		already, err := batchAlreadyLoaded(ctx, pool, batch)
+		if err != nil {
+			return err
+		}
+		if already {
+			stats.SkippedBatches++
+			batch = batch[:0]
+			return nil
+		}
 		if err := writeBatch(ctx, pool, cfg.RealmID, cfg.Credential, createdTimestamp, batch); err != nil {
 			return err
 		}
 		stats.Users += len(batch)
 		for _, u := range batch {
 			stats.RoleMappings += len(u.RoleIDs)
+			stats.Memberships += len(u.HospitalGroupIDs)
 		}
 		stats.Batches++
 		batch = batch[:0]
@@ -111,6 +137,25 @@ func BulkLoad(ctx context.Context, pool *pgxpool.Pool, cfg LoadConfig, users <-c
 
 	stats.Elapsed = time.Since(started)
 	return stats, nil
+}
+
+// batchAlreadyLoaded reports whether every user in batch already has a
+// user_entity row - the whole-batch-or-nothing signature of a batch a prior
+// run already committed (writeBatch's one transaction per batch), as
+// opposed to a batch this run has never attempted or one a killed run left
+// only partially written and therefore never actually committed.
+func batchAlreadyLoaded(ctx context.Context, pool *pgxpool.Pool, batch []UserRecord) (bool, error) {
+	ids := make([]string, len(batch))
+	for i, u := range batch {
+		ids[i] = u.ID
+	}
+	var count int
+	if err := pool.QueryRow(ctx,
+		`SELECT count(*) FROM user_entity WHERE id = ANY($1)`, ids,
+	).Scan(&count); err != nil {
+		return false, fmt.Errorf("keycloakbulkload: checking whether a batch was already loaded: %w", err)
+	}
+	return count == len(batch), nil
 }
 
 func writeBatch(ctx context.Context, pool *pgxpool.Pool, realmID string, cred SharedCredential, createdTimestamp int64, batch []UserRecord) error {
@@ -151,6 +196,14 @@ func writeBatch(ctx context.Context, pool *pgxpool.Pool, realmID string, cred Sh
 		&roleMappingRows{batch: batch},
 	); err != nil {
 		return fmt.Errorf("keycloakbulkload: copying user_role_mapping: %w", err)
+	}
+
+	if _, err := tx.CopyFrom(ctx,
+		pgx.Identifier{"user_group_membership"},
+		[]string{"group_id", "user_id", "membership_type"},
+		&membershipRows{batch: batch},
+	); err != nil {
+		return fmt.Errorf("keycloakbulkload: copying user_group_membership: %w", err)
 	}
 
 	if err := tx.Commit(ctx); err != nil {

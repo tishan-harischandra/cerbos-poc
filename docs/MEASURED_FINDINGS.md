@@ -298,6 +298,120 @@ administrator can bring up an arbitrary new tenant. A production
 deployment wanting to restrict this would need a platform-operator
 credential this prototype does not have a design for yet.
 
+## Keycloak 26.4's organization schema, for the direct-SQL bulk loader (issue #87)
+
+`libs/keycloakbulkload` writes users, credentials and role mappings straight
+into Keycloak's PostgreSQL schema because the Admin REST API cannot reach
+600,000 users in a bounded time (see the package doc comment). Issue #87
+needs the same throughput for organizations and memberships, and Keycloak
+publishes no schema documentation for either. Measured directly: created a
+realm with `organizationsEnabled: true`, an organization and a membership
+through the real Admin REST API against a Postgres-backed Keycloak 26.4
+(`docker compose --profile loadtest up keycloak-db keycloak-loadtest`, with
+`--features=organization`), then inspected the rows with `psql`.
+
+**Finding: a Keycloak organization is a `KEYCLOAK_GROUP` row with
+`type = 1`, plus one `ORG` row pointing at it.** Membership is an ordinary
+`USER_GROUP_MEMBERSHIP` row against that group - organizations are not a
+separate membership mechanism, they are the existing group model with a
+marker.
+
+| Table | Columns that matter | Notes |
+|---|---|---|
+| `keycloak_group` | `id`, `name`, `parent_group`, `realm_id`, `type` | `type = 1` marks an organization-backed group (`0` is an ordinary group). `name` holds the **organization's own id**, not a display name. `parent_group` is `''` (empty string), not `NULL`, for a top-level group. |
+| `org` | `id`, `enabled`, `realm_id`, `group_id`, `name`, `description`, `alias`, `redirect_url` | `group_id` is a unique FK to the `keycloak_group` row above. `alias` is what a direct grant's `scope=organization:<alias>` matches against. |
+| `org_domain` | `id`, `name`, `verified`, `org_id` | Optional; not required for a direct grant to carry the `organization` claim. |
+| `user_group_membership` | `group_id`, `user_id`, `membership_type` | `membership_type = 'UNMANAGED'` is what the Admin REST API itself writes for a member added directly (as opposed to via an invitation). |
+
+Confirmed end to end: inserting these four tables' rows directly with `psql`
+(no Admin REST call) for a user already loaded by the bulk writer produced a
+direct grant (`scope=openid organization:<alias>`) whose access token
+carried `"organization": ["<alias>"]`, identical in shape to one obtained
+through a real invitation. No custom provider jar or authenticator is
+required for this - only `--features=organization` on the Keycloak command
+line, confirming issue #75's finding again at this lower level.
+
+**Finding: specifying `optionalClientScopes` at all on client creation
+disables Keycloak's own default-scope assignment, rather than merging with
+it.** Tried to add `"organization"` to a newly created client's optional
+scopes explicitly, on the assumption it would be additive. It is not: a
+client created with `optionalClientScopes: ["organization"]` came back with
+`defaultClientScopes: []` - no `roles`, no `profile`, no `email` - so a
+token for that client carried no `resource_access` claim at all, breaking
+the existing (non-organization) integration test. Confirmed the same
+client created with *neither* field set gets Keycloak's full built-in
+default set, and `"organization"` is already present in the auto-assigned
+optional set the moment `--features=organization` is on the server, with
+no per-client configuration needed at all. `EnsureRealm` therefore sets
+neither field.
+
+## A refresh grant preserves the organization scope unasked (issue #87)
+
+Confirmed directly against the bulk-loaded population: a plain
+`grant_type=refresh_token` request naming no scope at all still carries
+the original `organization` claim in the new access token, byte for byte
+the same alias as the token it refreshed. This is the case issue #75's
+finding about *widening* scope on refresh did not directly test - that
+one was about asking for a *different* organization on refresh (silently
+dropped) - but the load harness's own token-reuse path only ever asks for
+the same scope it already has, and that path works exactly as the §15
+load model assumes: `deploy/loadtest/k6/lib/auth.js`'s `refreshGrant`
+does not need to (and must not) send `scope` again.
+
+## Running the load harness's business/capability/mutation scenarios needs the ADS to trust the loadtest realms too (issue #87)
+
+`scripts/loadtest-seed.sh` writes `tenant-<n>-loadtest` realms into
+Keycloak, but `make loadtest` runs the k6 suite against the *demo*
+`ads`/`admin-service` containers (`make up`'s own stack), whose tenant
+registry only ever names `tenant-a`/`tenant-b` - never a loadtest realm.
+This predates issue #87: even the single-realm `tenant-a-loadtest` this
+harness used before would have hit the same wall the first time a
+scenario's decision reached a real ADS, since `deploy/tenant-registry.yaml`
+never named it either. Confirmed a *direct grant* against a bulk-loaded
+loadtest realm carries a correct `organization` claim (this issue's own
+finding above, and issue #75's), so the gap is specifically that nothing
+registers `tenant-<n>-loadtest` into the `tenant_registry` table the demo
+ADS's tenant-discovery loop (issue #86) polls - not the token itself.
+
+**Finding: the token-acquisition and scope-request path this issue asks
+for is real and verified; a decision made from that token reaching a real
+ADS is not, and needs the loadtest realms onboarded into the same tenant
+registry the demo stack's ADS already discovers dynamically (issue #86).**
+Recorded here rather than silently declared complete; closing it is
+future work; the `business_authz`/`capability_*`/`mutation_convergence`
+k6 scenarios will get `401`s from a real ADS until it is.
+
+## Wall-clock cost of seeding five realms with organizations (issue #87)
+
+Measured against the demo profile (2 tenants, 4 hospitals, 50 users) on
+this environment: `scripts/loadtest-seed.sh demo` wrote both realms,
+their organizations, every user, role mapping and membership, and the
+authorization database's overrides, in under 30 seconds end to end,
+logged per tenant by `loadseed` itself:
+
+```
+loadseed: [tenant-1] done - 25 users, 100 role mappings, 50 memberships, 1 batches (0 already loaded, skipped), 141ms (176 users/sec)
+loadseed: [tenant-2] done - 25 users, 100 role mappings, 50 memberships, 1 batches (0 already loaded, skipped), 82ms (306 users/sec)
+loadseed: keycloak done for all 2 tenants - 50 users, 200 role mappings, 100 memberships, 2 batches, 27.9s (2 users/sec, 7 mappings/sec)
+```
+
+The per-tenant Keycloak writes themselves are fast (hundreds of
+users/sec, consistent with the existing single-realm measurement in this
+file); the wall-clock total is dominated by `EnsureRealm`/
+`EnsureOrganizations`'s Admin REST round trips (one realm, one client, N
+roles, 4 organizations - all one-time per tenant, not per user) rather
+than the bulk write.
+
+**Not measured: the full profile's actual wall-clock cost** (5 realms,
+600,000 users, 42,000,000 role mappings, 6,000,000 organization
+memberships) - that run is the load run itself, not something this
+investigation could run to completion in this environment. Extrapolating
+naively from the demo numbers is exactly the kind of unmeasured guess this
+document exists to avoid; the honest statement is that the mechanism is
+proven correct at small scale and the real number needs a dedicated run
+on real hardware, the same caveat issue #24's original single-realm
+measurement already carried.
+
 ## What has not been measured
 
 Stated plainly, so nobody mistakes an absence for a pass:

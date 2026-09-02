@@ -141,3 +141,36 @@ func (r *roleMappingRows) Values() ([]any, error) {
 }
 
 func (r *roleMappingRows) Err() error { return nil }
+
+// membershipRows writes one user_group_membership row per hospital in
+// HospitalGroupIDs (issue #87), the same "flatten a per-user slice" shape
+// roleMappingRows already uses for RoleIDs.
+type membershipRows struct {
+	batch []UserRecord
+	i     int
+	j     int
+}
+
+func (r *membershipRows) Next() bool {
+	for {
+		if r.i >= len(r.batch) {
+			return false
+		}
+		if r.j < len(r.batch[r.i].HospitalGroupIDs) {
+			r.j++
+			return true
+		}
+		r.i++
+		r.j = 0
+	}
+}
+
+func (r *membershipRows) Values() ([]any, error) {
+	u := r.batch[r.i]
+	// UNMANAGED is what the Admin REST API itself writes for a member
+	// added directly rather than through an invitation (measured
+	// alongside the schema itself; see docs/MEASURED_FINDINGS.md).
+	return []any{u.HospitalGroupIDs[r.j-1], u.ID, "UNMANAGED"}, nil
+}
+
+func (r *membershipRows) Err() error { return nil }

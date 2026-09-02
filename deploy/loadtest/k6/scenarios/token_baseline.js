@@ -6,7 +6,7 @@
 // uncontaminated by anything else this suite measures.
 import { passwordGrant } from '../lib/auth.js';
 import { tokenBaselineRequests } from '../lib/metrics.js';
-import { usernameFor } from '../lib/config.js';
+import { identityFor } from '../lib/identity.js';
 import { sleep } from 'k6';
 
 let counter = 0;
@@ -14,10 +14,10 @@ let counter = 0;
 export function tokenBaseline() {
   // A distinct user per iteration (not just per VU) so the baseline never
   // degenerates into measuring one cached session.
-  const username = usernameFor(__VU * 1000000 + counter);
+  const identity = identityFor(__VU * 1000000 + counter);
   counter += 1;
 
-  passwordGrant(username);
+  passwordGrant(identity.username, identity.realm, identity.hospitalId);
   tokenBaselineRequests.add(1);
 
   sleep(1);

@@ -45,3 +45,21 @@ func TestPreflightRefusalNamesThePopulationSize(t *testing.T) {
 		t.Errorf("refusal message does not name the population size: %v", err)
 	}
 }
+
+// issue #87: five realms' organization memberships are millions of rows,
+// the same order of magnitude as the role mappings this estimate already
+// counted - so a run that would exhaust disk on memberships alone must
+// still be refused.
+func TestPreflightAccountsForOrganizationMemberships(t *testing.T) {
+	estimate := keycloakbulkload.PreflightEstimate{
+		Users:       1,
+		Memberships: 1_000_000_000_000,
+	}
+	err := keycloakbulkload.Preflight(estimate, "/tmp")
+	if err == nil {
+		t.Fatal("Preflight accepted a membership count that needs more disk than any real host has")
+	}
+	if !strings.Contains(err.Error(), "1000000000000") {
+		t.Errorf("refusal message does not name the membership count: %v", err)
+	}
+}

@@ -15,6 +15,12 @@ type PreflightEstimate struct {
 	Users int
 	// RoleMappings is the total number of user_role_mapping rows.
 	RoleMappings int
+	// Memberships is the total number of user_group_membership rows
+	// (issue #87): 5 realms x 600,000 users x 2 hospitals each is
+	// 6,000,000 rows, the same order of magnitude as the role mappings
+	// this estimate already accounts for, so a five-realm population's
+	// disk estimate must count them too.
+	Memberships int
 }
 
 // bytesPerUser and bytesPerMapping are conservative, measured-order-of-
@@ -27,6 +33,10 @@ type PreflightEstimate struct {
 const (
 	bytesPerUser    = 2048 // user_entity + two user_attribute rows + one credential row, plus indexes
 	bytesPerMapping = 96   // one user_role_mapping row plus its primary key index
+	// bytesPerMembership mirrors bytesPerMapping: user_group_membership is
+	// the same two-column-plus-a-string shape as user_role_mapping, with
+	// the same primary key index cost.
+	bytesPerMembership = 96
 
 	// minFreeRAMBytes is the smallest amount of available RAM this package
 	// will start a run under. BulkLoad itself holds at most one
@@ -45,7 +55,7 @@ const (
 // EstimatedDiskBytes is how much disk PreflightEstimate expects the run to
 // consume, before diskHeadroomFactor.
 func (e PreflightEstimate) rawBytes() int64 {
-	return int64(e.Users)*bytesPerUser + int64(e.RoleMappings)*bytesPerMapping
+	return int64(e.Users)*bytesPerUser + int64(e.RoleMappings)*bytesPerMapping + int64(e.Memberships)*bytesPerMembership
 }
 
 // EstimatedDiskBytes is the disk footprint Preflight refuses to start
@@ -71,9 +81,11 @@ func Preflight(estimate PreflightEstimate, dataDir string) error {
 	if freeDisk < needDisk {
 		return fmt.Errorf(
 			"keycloakbulkload: refusing to start - %s has %s free but this population "+
-				"(%d users, %d role mappings) needs at least %s (including %dx headroom for "+
-				"MVCC bloat and WAL); free up disk or reduce the population and try again",
-			dataDir, humanBytes(freeDisk), estimate.Users, estimate.RoleMappings, humanBytes(needDisk), diskHeadroomFactor)
+				"(%d users, %d role mappings, %d organization memberships) needs at least %s "+
+				"(including %dx headroom for MVCC bloat and WAL); free up disk or reduce the "+
+				"population and try again",
+			dataDir, humanBytes(freeDisk), estimate.Users, estimate.RoleMappings, estimate.Memberships,
+			humanBytes(needDisk), diskHeadroomFactor)
 	}
 
 	freeRAM, err := freeRAMBytes()

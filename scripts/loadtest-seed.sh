@@ -34,11 +34,14 @@ export KEYCLOAK_LOADTEST_ADMIN_URL="http://keycloak-loadtest:8080"
 export KEYCLOAK_LOADTEST_DB_DSN="postgres://${KEYCLOAK_DB_USER:-keycloak}:${KEYCLOAK_DB_PASSWORD:-change-me}@keycloak-db:5432/${KEYCLOAK_DB_NAME:-keycloak}?sslmode=disable"
 export KEYCLOAK_ADMIN="${KEYCLOAK_ADMIN:-admin}"
 export KEYCLOAK_ADMIN_PASSWORD="${KEYCLOAK_ADMIN_PASSWORD:-change-me}"
-export KEYCLOAK_LOADTEST_REALM="${KEYCLOAK_LOADTEST_REALM:-tenant-a-loadtest}"
+# One realm per tenant (issue #87), named "<tenantId><suffix>" -
+# "tenant-1-loadtest".."tenant-5-loadtest" for the full profile, replacing
+# the single fixed KEYCLOAK_LOADTEST_REALM this script used before #87.
+export KEYCLOAK_LOADTEST_REALM_SUFFIX="${KEYCLOAK_LOADTEST_REALM_SUFFIX:--loadtest}"
 export ASSIGNMENTSTORE_POSTGRES_DSN="postgres://${POSTGRES_USER:-cerbos_poc}:${POSTGRES_PASSWORD:-change-me}@${POSTGRES_HOST:-postgres}:${POSTGRES_PORT:-5432}/${POSTGRES_DB:-cerbos_poc}?sslmode=disable"
 export LOADSEED_DATA_DIR="/workspace"
 export LOADSEED_SKIP_KEYCLOAK="${LOADSEED_SKIP_KEYCLOAK:-}"
-export GO_ENV_PASS="LOADSEED_PROFILE KEYCLOAK_LOADTEST_ADMIN_URL KEYCLOAK_LOADTEST_DB_DSN KEYCLOAK_ADMIN KEYCLOAK_ADMIN_PASSWORD KEYCLOAK_LOADTEST_REALM ASSIGNMENTSTORE_POSTGRES_DSN LOADSEED_DATA_DIR LOADSEED_SKIP_KEYCLOAK"
+export GO_ENV_PASS="LOADSEED_PROFILE KEYCLOAK_LOADTEST_ADMIN_URL KEYCLOAK_LOADTEST_DB_DSN KEYCLOAK_ADMIN KEYCLOAK_ADMIN_PASSWORD KEYCLOAK_LOADTEST_REALM_SUFFIX ASSIGNMENTSTORE_POSTGRES_DSN LOADSEED_DATA_DIR LOADSEED_SKIP_KEYCLOAK"
 
 echo "--- starting the loadtest profile's keycloak (if not already running) ---"
 docker compose --profile loadtest up --detach keycloak-db keycloak-loadtest

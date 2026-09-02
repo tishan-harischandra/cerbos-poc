@@ -7,13 +7,12 @@ import { check, sleep } from 'k6';
 import { BASE_URL } from '../lib/config.js';
 import { ensureFreshToken, authHeader } from '../lib/auth.js';
 import { capabilityRowRequests } from '../lib/metrics.js';
-import { usernameForVU } from '../lib/identity.js';
+import { identityForVU } from '../lib/identity.js';
 
 let tokenSet = null;
 
 export function capabilityRow() {
-  const username = usernameForVU();
-  tokenSet = ensureFreshToken(username, tokenSet);
+  tokenSet = ensureFreshToken(identityForVU(), tokenSet);
   if (!tokenSet) {
     sleep(1);
     return;

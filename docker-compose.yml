@@ -162,7 +162,12 @@ services:
     image: quay.io/keycloak/keycloak:26.4
     profiles:
       - loadtest
-    command: ["start-dev"]
+    # --features=organization (issue #87): the load model's hospital is a
+    # Keycloak organization, the same as the demo realms, and a direct
+    # grant's organization-scoped claim is native to this preview feature -
+    # no custom provider jar required for it (§75's finding: "no browser,
+    # no custom authenticator SPI in the path").
+    command: ["start-dev", "--features=organization"]
     environment:
       KC_BOOTSTRAP_ADMIN_USERNAME: ${KEYCLOAK_ADMIN:-admin}
       KC_BOOTSTRAP_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD:-change-me}

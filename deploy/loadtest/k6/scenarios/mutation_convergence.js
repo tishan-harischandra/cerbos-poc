@@ -11,20 +11,20 @@ import { check, sleep } from 'k6';
 import {
   ADMIN_SERVICE_URL,
   BASE_URL,
-  TENANT_ID,
-  HOSPITAL_ID,
   MUTATION_ROLE,
   MUTATION_RESOURCE,
   MUTATION_ACTION,
 } from '../lib/config.js';
 import { ensureFreshToken, authHeader } from '../lib/auth.js';
 import { permissionConvergenceLatency, revocationConvergenceLatency } from '../lib/metrics.js';
-import { usernameFor } from '../lib/config.js';
+import { identityFor } from '../lib/identity.js';
 
 // libs/loadmodel assigns canonical role index 0 - MUTATION_ROLE's default -
 // to user index 0 by construction (role step 7, j=0 selects role index 0),
 // so this probe user is deterministic without a directory lookup.
-const PROBE_USER = usernameFor(0);
+const PROBE = identityFor(0);
+const TENANT_ID = PROBE.tenantId;
+const HOSPITAL_ID = PROBE.hospitalId;
 const POLL_TIMEOUT_MS = 10000;
 const POLL_INTERVAL_MS = 200;
 
@@ -32,8 +32,8 @@ let adminTokenSet = null;
 let probeTokenSet = null;
 
 export function mutationConvergence() {
-  adminTokenSet = ensureFreshToken(PROBE_USER, adminTokenSet);
-  probeTokenSet = ensureFreshToken(PROBE_USER, probeTokenSet);
+  adminTokenSet = ensureFreshToken(PROBE, adminTokenSet);
+  probeTokenSet = ensureFreshToken(PROBE, probeTokenSet);
   if (!adminTokenSet || !probeTokenSet) {
     sleep(2);
     return;
