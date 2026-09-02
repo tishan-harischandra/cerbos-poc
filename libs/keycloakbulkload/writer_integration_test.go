@@ -231,6 +231,103 @@ func TestBulkLoadedUsersCarryOrganizationMembership(t *testing.T) {
 	}
 }
 
+// issue #87: a run that finds a batch already fully written - the shape an
+// earlier, interrupted run leaves behind, since a batch commits inside one
+// transaction - skips it rather than failing on a primary-key conflict, and
+// still starts fresh users it has never attempted.
+func TestBulkLoadIsResumableAfterAnInterruptedRun(t *testing.T) {
+	adminURL, dsn := skipUnlessConfigured(t)
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
+	defer cancel()
+
+	realm := "kcbulkload-it-resume-" + time.Now().UTC().Format("20060102150405")
+	clientID := "patient-app"
+
+	admin, err := keycloakbulkload.NewAdminClient(keycloakbulkload.AdminConfig{
+		BaseURL:       adminURL,
+		AdminUser:     "admin",
+		AdminPassword: envOr("KEYCLOAK_ADMIN_PASSWORD", "change-me"),
+	})
+	if err != nil {
+		t.Fatalf("NewAdminClient: %v", err)
+	}
+	_, roleIDByName, err := admin.EnsureRealm(ctx, keycloakbulkload.RealmSetup{
+		Realm:          realm,
+		ClientID:       clientID,
+		RoleNames:      []string{"doctor"},
+		PasswordPolicy: keycloakbulkload.LoadTestPasswordPolicy,
+	})
+	if err != nil {
+		t.Fatalf("EnsureRealm: %v", err)
+	}
+	realmID, err := admin.RealmID(ctx, realm)
+	if err != nil {
+		t.Fatalf("RealmID: %v", err)
+	}
+
+	pool, err := pgxpool.New(ctx, dsn)
+	if err != nil {
+		t.Fatalf("connecting to keycloak's database: %v", err)
+	}
+	defer pool.Close()
+
+	cred, err := keycloakbulkload.NewSharedCredential("Load-Test-Only-P@ss1")
+	if err != nil {
+		t.Fatalf("NewSharedCredential: %v", err)
+	}
+
+	record := func(i int) keycloakbulkload.UserRecord {
+		return keycloakbulkload.UserRecord{
+			ID:        deterministicTestUUID(realm + ":resume-user-" + string(rune('0'+i))),
+			Username:  "bulkload-it-resume-user-" + string(rune('0'+i)),
+			FirstName: "Load", LastName: "TestUser",
+			Email:      "bulkload-it-resume-user-" + string(rune('0'+i)) + "@example.test",
+			TenantID:   "tenant-a",
+			HospitalID: "hospital-1",
+			RoleIDs:    []string{roleIDByName["doctor"]},
+		}
+	}
+
+	// The "interrupted run": one small batch, all committed.
+	firstRun := make(chan keycloakbulkload.UserRecord, 2)
+	firstRun <- record(1)
+	firstRun <- record(2)
+	close(firstRun)
+	firstStats, err := keycloakbulkload.BulkLoad(ctx, pool, keycloakbulkload.LoadConfig{
+		RealmID: realmID, Credential: cred, Now: time.Now().UTC(), BatchSize: 2,
+	}, firstRun)
+	if err != nil {
+		t.Fatalf("BulkLoad (first run): %v", err)
+	}
+	if firstStats.Users != 2 || firstStats.SkippedBatches != 0 {
+		t.Fatalf("first run stats = %+v, want 2 users written and nothing skipped", firstStats)
+	}
+
+	// The "resumed run": the same batch again, plus one genuinely new user.
+	secondRun := make(chan keycloakbulkload.UserRecord, 3)
+	secondRun <- record(1)
+	secondRun <- record(2)
+	secondRun <- record(3)
+	close(secondRun)
+	secondStats, err := keycloakbulkload.BulkLoad(ctx, pool, keycloakbulkload.LoadConfig{
+		RealmID: realmID, Credential: cred, Now: time.Now().UTC(), BatchSize: 2,
+	}, secondRun)
+	if err != nil {
+		t.Fatalf("BulkLoad (resumed run): %v", err)
+	}
+	if secondStats.SkippedBatches != 1 {
+		t.Errorf("resumed run SkippedBatches = %d, want 1 (the already-loaded pair)", secondStats.SkippedBatches)
+	}
+	if secondStats.Users != 1 {
+		t.Errorf("resumed run Users = %d, want 1 (only the genuinely new user)", secondStats.Users)
+	}
+
+	token, _ := passwordGrant(t, adminURL, realm, clientID, "bulkload-it-resume-user-3", "Load-Test-Only-P@ss1")
+	if token == "" {
+		t.Error("the user from the resumed batch cannot log in")
+	}
+}
+
 func organizationScopedPasswordGrant(t *testing.T, baseURL, realm, clientID, username, password, alias string) string {
 	t.Helper()
 	form := url.Values{
