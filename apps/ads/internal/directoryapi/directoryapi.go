@@ -29,12 +29,22 @@ type Config struct {
 	// different realm's service account. Directory is ignored when this is
 	// set.
 	Directories map[string]idpdirectory.IdentityDirectory
-	Logger      *slog.Logger
+	// DirectoriesLookup, when set, takes priority over Directories. It
+	// exists for a lookup backed by something more dynamic than a plain
+	// map - idpdirectory.Registry (issue #86), so a tenant onboarded at
+	// runtime is reachable through this same handler with no restart -
+	// without requiring every existing caller that builds a Config with a
+	// literal Directories map to change.
+	DirectoriesLookup func(tenantID string) (idpdirectory.IdentityDirectory, bool)
+	Logger            *slog.Logger
 }
 
 // directoryFor resolves the identity directory for the caller's own
 // verified tenant, never one named by request input.
 func directoryFor(cfg Config, tenantID string) (idpdirectory.IdentityDirectory, bool) {
+	if cfg.DirectoriesLookup != nil {
+		return cfg.DirectoriesLookup(tenantID)
+	}
 	if cfg.Directories != nil {
 		directory, ok := cfg.Directories[tenantID]
 		return directory, ok

@@ -159,6 +159,35 @@ func TestTheTenantComesFromTheVerifiedIdentity(t *testing.T) {
 	}
 }
 
+// issue #86: a tenant onboarded at runtime is reachable through a lookup
+// backed by something more dynamic than a plain map - idpdirectory.Registry
+// in production - without disturbing any caller still using Directories.
+func TestDirectoriesLookupTakesPriorityOverDirectories(t *testing.T) {
+	staleMap := &recordingDirectory{}
+	dynamic := &recordingDirectory{
+		users: idpdirectory.Page[idpdirectory.UserRef]{Items: []idpdirectory.UserRef{{ExternalID: "user-onboarded"}}},
+	}
+	handler := directoryapi.NewUsersHandler(directoryapi.Config{
+		Directories: map[string]idpdirectory.IdentityDirectory{"tenant-a": staleMap},
+		DirectoriesLookup: func(tenantID string) (idpdirectory.IdentityDirectory, bool) {
+			return dynamic, tenantID == "tenant-a"
+		},
+	})
+
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, get("/internal/directory/users"))
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, want %d: %s", rec.Code, http.StatusOK, rec.Body)
+	}
+	if staleMap.calls != 0 {
+		t.Error("the stale Directories map was consulted even though DirectoriesLookup was set")
+	}
+	if dynamic.calls != 1 {
+		t.Error("DirectoriesLookup's own directory was never consulted")
+	}
+}
+
 func TestRoleSearchReportsCanonicalIdentifiers(t *testing.T) {
 	directory := &recordingDirectory{
 		roles: idpdirectory.Page[idpdirectory.RoleRef]{
