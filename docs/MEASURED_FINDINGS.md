@@ -276,6 +276,28 @@ ever ships a narrower fine-grained permission for organization reads,
 this grant should be narrowed to match; recorded here so that gap is
 visible rather than silently accepted.
 
+## Tenant onboarding trusts any authenticated caller (issue #86)
+
+Every other write this platform's Admin Service exposes - the role matrix,
+a user override - is scoped by `authority.Validate` to the caller's own
+tenant and hospital (§9.4). Tenant onboarding cannot be: the tenant being
+onboarded does not exist yet, so there is no existing scope to validate
+authority against, and this codebase has no separate "platform operator"
+credential anywhere to reuse - every administration route authenticates
+the same way, with an OIDC bearer token from one of the already-registered
+realms, and none of them restrict a write to a specific role (role-based
+business authorization is Cerbos policy's job for business resources, not
+this administration surface's).
+
+**Decision**: `apps/admin-service/internal/tenantonboarding` accepts any
+authenticated caller, from any already-registered realm, to onboard a new
+one. This is consistent with the rest of the administration surface
+rather than a narrower rule invented just for this endpoint, but it is a
+real widening worth naming plainly: tenant-a's least-privileged
+administrator can bring up an arbitrary new tenant. A production
+deployment wanting to restrict this would need a platform-operator
+credential this prototype does not have a design for yet.
+
 ## What has not been measured
 
 Stated plainly, so nobody mistakes an absence for a pass:

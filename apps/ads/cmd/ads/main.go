@@ -27,6 +27,7 @@ import (
 	"github.com/tishan-harischandra/cerbos-poc/apps/ads/internal/netprobe"
 	"github.com/tishan-harischandra/cerbos-poc/apps/ads/internal/revisionmetrics"
 	"github.com/tishan-harischandra/cerbos-poc/apps/ads/internal/server"
+	"github.com/tishan-harischandra/cerbos-poc/apps/ads/internal/tenantdiscovery"
 	"github.com/tishan-harischandra/cerbos-poc/apps/ads/internal/tokenauth"
 	"github.com/tishan-harischandra/cerbos-poc/libs/assignmentstore"
 	"github.com/tishan-harischandra/cerbos-poc/libs/assignmentstore/postgresstore"
@@ -165,10 +166,15 @@ func main() {
 	}
 
 	verifiers := tokenverifier.NewRegistry()
-	directories := make(map[string]idpdirectory.IdentityDirectory, len(installations))
+	directories := idpdirectory.NewRegistry()
+	knownRealms := make([]string, 0, len(installations))
 	for realm, installation := range installations {
 		verifiers.Register(installation.Config.Issuer, installation.Verifier)
-		directories[realm] = installation.Directory
+		directories.Register(idpdirectory.TenantID(realm), installation.Directory)
+		knownRealms = append(knownRealms, realm)
+	}
+	directoriesLookup := func(tenantID string) (idpdirectory.IdentityDirectory, bool) {
+		return directories.Get(idpdirectory.TenantID(tenantID))
 	}
 
 	// One middleware, applied to every route that acts on a caller's behalf.
@@ -270,6 +276,45 @@ func main() {
 	})
 	go reconciler.Run(ctx)
 
+	// A tenant onboarded at runtime (issue #86) becomes usable with no
+	// restart: the same tenant registry poll pattern as the reconciler
+	// above, discovering a realm this replica has not built an
+	// Installation for yet and registering it into the same verifiers and
+	// directories every request already resolves through.
+	discoverer := tenantdiscovery.New(tenantdiscovery.Config{
+		Store: store,
+		Known: knownRealms,
+		OnNewTenant: func(_ context.Context, tenant assignmentstore.Tenant) error {
+			installationCfg, err := provider.ConfigFromTenant(os.LookupEnv, provider.Tenant{
+				Realm:               tenant.Realm,
+				Issuer:              tenant.Issuer,
+				BrowserClientID:     tenant.BrowserClientID,
+				ServiceClientID:     tenant.ServiceClientID,
+				CredentialSecretRef: tenant.CredentialSecretRef,
+			})
+			if err != nil {
+				return err
+			}
+			directory, err := provider.New(installationCfg)
+			if err != nil {
+				return err
+			}
+			verifier, err := provider.NewVerifier(installationCfg)
+			if err != nil {
+				return err
+			}
+			verifiers.Register(installationCfg.Issuer, verifier)
+			directories.Register(idpdirectory.TenantID(tenant.Realm), directory)
+			logger.Info("discovered a tenant onboarded at runtime",
+				slog.String("realm", tenant.Realm))
+			return nil
+		},
+		OnError: func(err error) {
+			logger.Error("tenant discovery error", slog.Any("error", err))
+		},
+	})
+	go discoverer.Run(ctx)
+
 	// §17.1's revision gauges: a read-only observer, independent of the
 	// reconciler above, which is the one thing allowed to act on drift.
 	revisionPoller := revisionmetrics.NewPoller(revisionmetrics.PollerConfig{
@@ -313,28 +358,28 @@ func main() {
 			RootPolicyRevision: cfg.RootPolicyRevision,
 		})),
 		DirectoryUsersHandler: authenticated(directoryapi.NewUsersHandler(directoryapi.Config{
-			Directories: directories,
-			Logger:      logger,
+			DirectoriesLookup: directoriesLookup,
+			Logger:            logger,
 		})),
 		DirectoryRolesHandler: authenticated(directoryapi.NewRolesHandler(directoryapi.Config{
-			Directories: directories,
-			Logger:      logger,
+			DirectoriesLookup: directoriesLookup,
+			Logger:            logger,
 		})),
 		DirectoryUserRolesHandler: authenticated(directoryapi.NewUserRolesHandler(directoryapi.Config{
-			Directories: directories,
-			Logger:      logger,
+			DirectoriesLookup: directoriesLookup,
+			Logger:            logger,
 		})),
 		DirectoryOrganizationsHandler: authenticated(directoryapi.NewOrganizationsHandler(directoryapi.Config{
-			Directories: directories,
-			Logger:      logger,
+			DirectoriesLookup: directoriesLookup,
+			Logger:            logger,
 		})),
 		DirectoryOrganizationMembersHandler: authenticated(directoryapi.NewOrganizationMembersHandler(directoryapi.Config{
-			Directories: directories,
-			Logger:      logger,
+			DirectoriesLookup: directoriesLookup,
+			Logger:            logger,
 		})),
 		DirectoryUserOrganizationsHandler: authenticated(directoryapi.NewUserOrganizationsHandler(directoryapi.Config{
-			Directories: directories,
-			Logger:      logger,
+			DirectoriesLookup: directoriesLookup,
+			Logger:            logger,
 		})),
 		CapabilityHandler: authenticated(capability.NewHandler(capability.Config{
 			PDP:               pdp,

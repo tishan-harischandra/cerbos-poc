@@ -14,6 +14,7 @@ import (
 	"github.com/tishan-harischandra/cerbos-poc/apps/admin-service/internal/platformstatus"
 	"github.com/tishan-harischandra/cerbos-poc/apps/admin-service/internal/rolematrix"
 	"github.com/tishan-harischandra/cerbos-poc/apps/admin-service/internal/simulate"
+	"github.com/tishan-harischandra/cerbos-poc/apps/admin-service/internal/tenantonboarding"
 	"github.com/tishan-harischandra/cerbos-poc/apps/admin-service/internal/tokenauth"
 	"github.com/tishan-harischandra/cerbos-poc/apps/admin-service/internal/useroverride"
 	"github.com/tishan-harischandra/cerbos-poc/libs/tenantregistry"
@@ -66,6 +67,10 @@ type Config struct {
 	// diagnostics endpoints (issue #22). Nil means the routes are not
 	// registered.
 	PlatformStatus *platformstatus.Handler
+
+	// TenantOnboarding serves POST /admin/authz/tenants (issue #86). Nil
+	// means the route is not registered.
+	TenantOnboarding *tenantonboarding.Handler
 
 	// Console serves the Admin Console: its bundle, its runtime
 	// environment, and the ADS calls it makes through this origin
@@ -123,6 +128,9 @@ func New(cfg Config) (http.Handler, error) {
 			mux.Handle("GET /admin/authz/policy-releases", authenticated(cfg.PlatformStatus.PolicyReleases))
 			mux.Handle("GET /admin/authz/tenants/{tenant}/convergence", authenticated(cfg.PlatformStatus.Convergence))
 			mux.Handle("GET /admin/idp/diagnostics", authenticated(cfg.PlatformStatus.IdPDiagnostics))
+		}
+		if cfg.TenantOnboarding != nil {
+			mux.Handle("POST /admin/authz/tenants", authenticated(cfg.TenantOnboarding.Onboard))
 		}
 	}
 
