@@ -9,13 +9,17 @@ role and user assignments live in a database and reach the decision path as data
 ### Tenancy and identity
 
 **Installation**:
-One deployment of the platform, with exactly one active identity provider.
+One deployment of the platform, with exactly one active identity provider, serving every trusted **Tenant**.
 
 **Tenant**:
-The top-level isolation boundary that assignment data is partitioned by.
+A Keycloak realm, and the top-level isolation boundary that assignment data is partitioned by. `tenantId` is the realm name verbatim (ADR-010) — the tenant a decision is made for is the realm that verifiably signed the token, never a claim inside it.
 
 **Hospital**:
-A sub-scope within a **Tenant** that an assignment or override may be narrowed to.
+A Keycloak organization inside a **Tenant**'s realm, and a sub-scope within it that an assignment or override may be narrowed to. `hospitalId` is the organization's alias. A user may belong to **many** organizations at once; a session has exactly one active hospital, taken from the organization the user selected during login (ADR-012), or none — which means tenant-wide, and is reachable only by an administrator's explicit choice.
+_Avoid_: implying a hospital is a free-form attribute — it is a real membership Keycloak confirmed, not a claim the platform trusts on its own.
+
+**Tenant Registry**:
+The declared set of realms this installation trusts — file-seeded, then a database of record (ADR-011). A token from a realm outside it is refused outright.
 
 **Identity Directory**:
 The provider-neutral port for reading users and roles from the installation's identity provider.
@@ -90,6 +94,7 @@ The **Election** that drains committed outbox rows to Kafka.
 ## Relationships
 
 - A **Tenant** contains many **Hospitals**; assignment data is partitioned by both
+- A user may belong to many **Hospitals** within one **Tenant**, but a session's active hospital is exactly one, or none
 - A **Role Matrix** entry and a **User Override** both resolve to resource-action leaves; a **User Override** wins under **Precedence**
 - The **ADS** assembles **permissionContext** and the **PDP** applies **Precedence** to it
 - One **Capability** composes many permission leaves; one leaf contributes to many **Capabilities**
@@ -119,3 +124,9 @@ The **Election** that drains committed outbox rows to Kafka.
 - **"lock"** was used for both the mechanism and the singleton role. Resolved:
   the role is an **Election**; a lock, lease or advisory lock is one adapter's
   mechanism for holding one.
+- **"Tenant" and "Hospital"** were originally understood as an editable user
+  attribute claim (`tenant_id`/`hospital_id`) — a misunderstanding the
+  platform was actually built on for a time. Resolved (ADR-010): a **Tenant**
+  is a realm and a **Hospital** is an organization, and neither is trusted
+  from a claim the platform did not itself verify against the identity
+  provider's own structure.

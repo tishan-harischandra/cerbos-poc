@@ -90,6 +90,19 @@ A query plan is a filter pushed into a data store, and this prototype's data
 access is a page at a time behind a PEP. Batching is what the measured path
 needs; the query plan would be machinery built against a guess.
 
+### S8. No `tenantMappingMode` configuration (§7.1)
+
+§7.1 imagines an installation-level `tenantMappingMode` choosing how tenant
+is derived. This platform removed that axis of configuration entirely: a
+tenant is a Keycloak realm, full stop, with no mapping layer and no other
+mode to select (ADR-010).
+
+The realm name is already embedded in every canonical role identifier
+(`kc:<realm>:...`, §7.5); a second, configurable source of the tenant would
+be a second source of truth that could disagree with the first. This is a
+knowing deviation from the design document, not an omission - the design
+and the code disagree here on purpose, and ADR-010 records why.
+
 ## Narrowings
 
 ### N1. No Cerbos scoped policies (§5.3)
@@ -182,3 +195,50 @@ A collection- or module-scoped `targetRef` names no instance, so it resolves
 to the hospital and carries `status: ACTIVE`. That is a choice the design does
 not make for us: a collection cannot be locked, and the locked-record rule
 guards only the instance actions.
+
+### A5. A tenant registry and organization-scoped login (§7)
+
+The design document has no concept of a declared set of trusted realms or
+of an organization membership confirmed at login. Both exist here:
+`libs/tenantregistry` plus `apps/admin-service/internal/tenantonboarding`
+(ADR-011), and `apps/keycloak-org-selector`'s in-flow selection
+authenticator (ADR-012).
+
+These are not narrowings or substitutions for anything §7 describes - §7.1
+assumed a single realm per installation and a claim-derived tenant/hospital,
+which this platform found not to be how the identity provider is actually
+structured (ADR-010). The registry and the login authenticator are what
+make operating several realms, and several organization memberships per
+user, possible at all.
+
+## Known limitations
+
+Not a substitution, narrowing or addition against the design document -
+these are accepted gaps in this platform's own realm/organization model
+(ADR-010, ADR-011), recorded so they are a documented choice rather than a
+surprise.
+
+### L1. An organization rename orphans assignment rows
+
+`hospitalId` is the organization's Keycloak **alias**, chosen because it
+already appears in the `organization` claim and the scope request and keeps
+policies, tests and seed data legible as hospital names rather than opaque
+ids. Keycloak is the sole system of record for organizations (ADR-010), and
+this platform is never told when an alias changes: every `role_permission`,
+`user_permission_override` and `fhir_resource` row keyed on the old alias
+becomes unreachable, silently, with no error at the point of rename.
+
+Accepted for a prototype, where every organization is created once by seed
+data and never renamed. A production deployment would need either a stable
+internal id carried alongside the alias for assignment keys, or a
+documented, enforced procedure that re-keys assignment data as part of any
+rename - this platform implements neither.
+
+### L2. Tenant onboarding trusts any authenticated caller
+
+Recorded in full in `docs/MEASURED_FINDINGS.md` (issue #86): the tenant
+onboarding endpoint accepts a token for *any* already-registered tenant, not
+a distinct platform-operator credential. Acceptable while every realm in
+this installation is created by the same operator; a production deployment
+onboarding tenants it does not itself control would need a real
+platform-operator role first.
