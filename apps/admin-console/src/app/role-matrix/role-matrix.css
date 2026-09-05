@@ -1,26 +1,104 @@
-.error {
-  color: #b00020;
+/* Two panes: the role list stays in view while the matrix beside it is
+ * edited, so an administrator never loses the role they are working on.
+ */
+
+.matrix-layout {
+  display: grid;
+  gap: var(--gp-space-4);
+  grid-template-columns: minmax(16rem, 20rem) minmax(0, 1fr);
+  align-items: start;
+}
+
+.role-picker {
+  position: sticky;
+  top: 4rem;
+  display: flex;
+  flex-direction: column;
+  gap: var(--gp-space-3);
+  max-height: calc(100vh - 6rem);
+  overflow-y: auto;
+}
+
+.role-list {
+  gap: 2px;
+}
+
+/* The role name must always be readable in full - it is the primary
+ * identifier an administrator picks a role by - so the option stacks the
+ * name above its (optional) canonical-id hint rather than squeezing both
+ * onto one row and ellipsising the name to make room.
+ */
+.role-list .option {
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+}
+
+.role-list__name {
+  overflow-wrap: break-word;
+  word-break: break-word;
+  white-space: normal;
 }
 
 .unresolved {
-  color: #b00020;
-  font-style: italic;
+  border-color: var(--gp-danger-border);
+  background: var(--gp-danger-bg);
+  color: var(--gp-danger-fg);
 }
 
 .informational {
-  color: #666;
-  font-size: 0.85em;
+  color: var(--gp-fg-subtle);
+  font-family: var(--gp-font-mono);
+  font-size: var(--gp-text-xs);
+  font-weight: 400;
 }
 
 .checkbox-note {
-  font-style: italic;
-  color: #444;
+  max-width: 60ch;
 }
 
-.domain-group {
-  margin-bottom: 0.5rem;
+.domain-group__body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--gp-space-2);
+  padding: var(--gp-space-3);
 }
 
-fieldset {
-  margin: 0.25rem 0;
+.action-grid {
+  display: grid;
+  gap: 0 var(--gp-space-4);
+  grid-template-columns: repeat(auto-fill, minmax(13rem, 1fr));
+}
+
+.impact-preview {
+  display: flex;
+  flex-direction: column;
+  gap: var(--gp-space-3);
+  padding: var(--gp-space-4);
+  border: 1px solid var(--gp-border-strong);
+  border-radius: var(--gp-radius);
+  background: var(--gp-surface-sunken);
+}
+
+.impact-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--gp-space-2);
+  align-items: center;
+  padding: var(--gp-space-2) var(--gp-space-3);
+  border: 1px solid var(--gp-border);
+  border-radius: var(--gp-radius);
+  background: var(--gp-surface);
+  font-size: var(--gp-text-sm);
+}
+
+@media (max-width: 68rem) {
+  .matrix-layout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .role-picker {
+    position: static;
+    max-height: 24rem;
+  }
 }

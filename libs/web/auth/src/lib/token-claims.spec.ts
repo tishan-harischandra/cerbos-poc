@@ -7,14 +7,14 @@ function fakeJwt(payload: Record<string, unknown>): string {
 }
 
 describe('decodeAccessToken', () => {
-  it('extracts the tenant, hospital and client roles from a token', () => {
+  it('extracts the tenant, hospital and realm roles from a token', () => {
     const token = fakeJwt({
       sub: 'user-1',
       preferred_username: 'doctor',
       iss: 'https://localhost:8443/realms/tenant-a',
       organization: ['hospital-1'],
       exp: 1893456000,
-      resource_access: { 'patient-app': { roles: ['doctor'] } },
+      realm_access: { roles: ['doctor'] },
     });
 
     const claims = decodeAccessToken(token, 'patient-app');
@@ -57,12 +57,10 @@ describe('decodeAccessToken', () => {
     expect(decodeAccessToken(token, 'patient-app').hospitalId).toEqual('');
   });
 
-  it('reads only the configured client role claim, never another client', () => {
+  it('reads the realm role claim regardless of the configured client', () => {
     const token = fakeJwt({
-      resource_access: {
-        'patient-app': { roles: ['doctor'] },
-        'another-app': { roles: ['administrator'] },
-      },
+      realm_access: { roles: ['doctor'] },
+      resource_access: { 'another-app': { roles: ['administrator'] } },
     });
 
     const claims = decodeAccessToken(token, 'patient-app');

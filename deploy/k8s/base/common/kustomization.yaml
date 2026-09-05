@@ -22,7 +22,7 @@ configMapGenerator:
       - IDP_TYPE=KEYCLOAK
       - IDP_BASE_URL=http://keycloak:8080
       - IDP_ADDR=keycloak:8080
-      - IDP_ROLE_SOURCE=CLIENT
+      - IDP_ROLE_SOURCE=REALM
   # Which mechanism elects the singleton workloads (ADR-009). K8S_LEASE is
   # the natural choice here: the control plane already keeps Leases
   # available, an operator can read the election with kubectl, and the

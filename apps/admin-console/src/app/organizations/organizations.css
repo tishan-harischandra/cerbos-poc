@@ -1,3 +1,18 @@
-.error {
-  color: darkred;
+.organizations-layout {
+  display: grid;
+  gap: var(--gp-space-4);
+  grid-template-columns: minmax(15rem, 19rem) minmax(0, 1fr);
+  align-items: start;
+}
+
+.organization-picker {
+  display: flex;
+  flex-direction: column;
+  gap: var(--gp-space-3);
+}
+
+@media (max-width: 60rem) {
+  .organizations-layout {
+    grid-template-columns: minmax(0, 1fr);
+  }
 }

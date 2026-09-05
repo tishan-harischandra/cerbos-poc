@@ -307,7 +307,7 @@ func TestStringSliceAttributesSurviveEncoding(t *testing.T) {
 		Principal: cerbosclient.Principal{
 			ID: "user-123",
 			Attr: map[string]any{
-				"idpRoles": []string{"kc:tenant-a:patient-app:doctor", "kc:tenant-a:patient-app:nurse"},
+				"idpRoles": []string{"kc:tenant-a:realm:doctor", "kc:tenant-a:realm:nurse"},
 			},
 		},
 		Resources: []cerbosclient.ResourceCheck{{
@@ -330,7 +330,7 @@ func TestStringSliceAttributesSurviveEncoding(t *testing.T) {
 	if len(values) != 2 {
 		t.Fatalf("idpRoles arrived as %v, want a two-element list", roles)
 	}
-	if got := values[0].GetStringValue(); got != "kc:tenant-a:patient-app:doctor" {
+	if got := values[0].GetStringValue(); got != "kc:tenant-a:realm:doctor" {
 		t.Errorf("idpRoles[0] = %q, want the role the caller presented", got)
 	}
 }

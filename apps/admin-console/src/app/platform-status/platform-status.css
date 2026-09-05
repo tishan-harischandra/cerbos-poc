@@ -1,34 +1,27 @@
-.platform-status {
-  font-family: system-ui, sans-serif;
-  margin: 3rem auto;
-  max-width: 32rem;
-  text-align: center;
+/* A service readout belongs in the chrome, not in the middle of the page:
+ * an administrator needs to know the ADS answers, not to read a banner.
+ */
+
+:host {
+  display: block;
+  min-width: 0;
 }
 
-.platform-status__label {
-  color: #52525b;
-  margin-bottom: 0.25rem;
+.service-status {
+  display: inline-flex;
+  gap: var(--gp-space-2);
+  align-items: center;
 }
 
-.status {
-  border-radius: 999px;
-  display: inline-block;
+.service-status__label {
+  color: var(--gp-fg-muted);
+  font-size: var(--gp-text-xs);
   font-weight: 600;
-  padding: 0.35rem 1.1rem;
-  text-transform: capitalize;
+  letter-spacing: 0.02em;
 }
 
-.status-checking {
-  background: #f4f4f5;
-  color: #52525b;
-}
-
-.status-healthy {
-  background: #dcfce7;
-  color: #15803d;
-}
-
-.status-unreachable {
-  background: #fee2e2;
-  color: #b91c1c;
+@media (max-width: 48rem) {
+  .service-status__label {
+    display: none;
+  }
 }

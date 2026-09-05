@@ -15,7 +15,7 @@ principals:
       tenantId: tenant-a
       hospitalId: hospital-1
       idpRoles:
-        - "kc:tenant-a:patient-app:doctor"
+        - "kc:tenant-a:realm:doctor"
 
   doctor_of_other_tenant:
     id: idp-user-999
@@ -25,7 +25,7 @@ principals:
       tenantId: tenant-b
       hospitalId: hospital-1
       idpRoles:
-        - "kc:tenant-a:patient-app:doctor"
+        - "kc:tenant-a:realm:doctor"
 
   doctor_of_other_hospital:
     id: idp-user-888
@@ -35,7 +35,7 @@ principals:
       tenantId: tenant-a
       hospitalId: hospital-2
       idpRoles:
-        - "kc:tenant-a:patient-app:doctor"
+        - "kc:tenant-a:realm:doctor"
 
   administrator_tenant_wide:
     id: idp-user-777
@@ -45,7 +45,7 @@ principals:
       tenantId: tenant-a
       hospitalId: ""
       idpRoles:
-        - "kc:tenant-a:patient-app:administrator"
+        - "kc:tenant-a:realm:administrator"
 
 resources:
   revoked_over_role_grant:

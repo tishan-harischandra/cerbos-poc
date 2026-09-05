@@ -1,15 +1,45 @@
-<h1>Identity provider diagnostics</h1>
+<div class="page">
+  <header class="page-header">
+    <div class="page-header__text">
+      <h1>Identity provider</h1>
+      <p class="page-subtitle">
+        Where users and roles are read from, and whether that directory is answering right
+        now. Runtime authorization does not depend on it.
+      </p>
+    </div>
+  </header>
 
-@if (diagnostics(); as status) {
-  <p data-testid="idp-provider">Provider: {{ status.provider }}</p>
-  <p>Role source: {{ status.roleSource }}</p>
-  <p data-testid="idp-connectivity" [attr.data-status]="status.connectivity">
-    Connectivity: {{ status.connectivity }}
-    @if (status.connectivity === 'degraded') {
-      - the identity provider's admin API is unreachable. User and role search are degraded;
-      runtime authorization is unaffected.
-    }
-  </p>
-} @else if (error()) {
-  <p data-testid="idp-diagnostics-error" class="error">{{ error() }}</p>
-}
+  @if (diagnostics(); as status) {
+    <section class="card">
+      <dl class="diagnostics">
+        <div class="diagnostics__item">
+          <dt class="eyebrow">Provider</dt>
+          <dd data-testid="idp-provider">{{ status.provider }}</dd>
+        </div>
+        <div class="diagnostics__item">
+          <dt class="eyebrow">Role source</dt>
+          <dd>{{ status.roleSource }}</dd>
+        </div>
+        <div class="diagnostics__item">
+          <dt class="eyebrow">Connectivity</dt>
+          <dd data-testid="idp-connectivity" [attr.data-status]="status.connectivity">
+            <span
+              class="badge"
+              [class.badge-success]="status.connectivity === 'ok'"
+              [class.badge-warning]="status.connectivity === 'degraded'"
+              >{{ status.connectivity }}</span
+            >
+            @if (status.connectivity === 'degraded') {
+              <span class="hint">
+                - the identity provider's admin API is unreachable. User and role search are
+                degraded; runtime authorization is unaffected.
+              </span>
+            }
+          </dd>
+        </div>
+      </dl>
+    </section>
+  } @else if (error()) {
+    <p data-testid="idp-diagnostics-error" class="error" role="alert">{{ error() }}</p>
+  }
+</div>

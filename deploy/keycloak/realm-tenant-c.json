@@ -77,14 +77,12 @@
     }
   ],
   "roles": {
-    "client": {
-      "patient-app": [
-        {
-          "name": "doctor",
-          "description": "Treating clinician"
-        }
-      ]
-    }
+    "realm": [
+      {
+        "name": "doctor",
+        "description": "Treating clinician"
+      }
+    ]
   },
   "users": [
     {
@@ -96,7 +94,7 @@
       "lastName": "Doctor",
       "email": "casey.doctor@tenant-c.example.test",
       "credentials": [{ "type": "password", "value": "demo-password", "temporary": false }],
-      "clientRoles": { "patient-app": ["doctor"] }
+      "realmRoles": ["doctor"]
     },
     {
       "username": "service-account-authorization-admin-service",

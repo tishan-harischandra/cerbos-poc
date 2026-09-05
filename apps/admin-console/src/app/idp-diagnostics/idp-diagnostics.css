@@ -1,3 +1,22 @@
-.error {
-  color: #b00020;
+.diagnostics {
+  display: grid;
+  gap: var(--gp-space-4);
+  grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr));
+  margin: 0;
+}
+
+.diagnostics__item {
+  display: flex;
+  flex-direction: column;
+  gap: var(--gp-space-1);
+}
+
+.diagnostics dd {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--gp-space-2);
+  align-items: center;
+  margin: 0;
+  font-family: var(--gp-font-mono);
+  font-size: var(--gp-text-sm);
 }

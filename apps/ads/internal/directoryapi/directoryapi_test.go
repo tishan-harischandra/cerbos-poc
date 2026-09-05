@@ -192,7 +192,7 @@ func TestRoleSearchReportsCanonicalIdentifiers(t *testing.T) {
 	directory := &recordingDirectory{
 		roles: idpdirectory.Page[idpdirectory.RoleRef]{
 			Items: []idpdirectory.RoleRef{{
-				CanonicalID: "kc:tenant-a:patient-app:doctor",
+				CanonicalID: "kc:tenant-a:realm:doctor",
 				ExternalID:  "58d1e7c8-role",
 				Name:        "doctor",
 			}},
@@ -209,7 +209,7 @@ func TestRoleSearchReportsCanonicalIdentifiers(t *testing.T) {
 	}
 	// The canonical identifier is what the role-permission matrix is keyed by,
 	// so a console that could not read it could not write a matrix row.
-	if !strings.Contains(rec.Body.String(), "kc:tenant-a:patient-app:doctor") {
+	if !strings.Contains(rec.Body.String(), "kc:tenant-a:realm:doctor") {
 		t.Errorf("response carries no canonical identifier: %s", rec.Body)
 	}
 }
@@ -359,7 +359,7 @@ func TestAnUnreadablePageWindowIsRefusedRatherThanGuessed(t *testing.T) {
 func TestUserRolesReportsTheRolesDirectlyAssignedToThatUser(t *testing.T) {
 	directory := &recordingDirectory{
 		userRoles: []idpdirectory.RoleRef{
-			{CanonicalID: "kc:tenant-a:patient-app:doctor", ExternalID: "58d1e7c8-role", Name: "doctor"},
+			{CanonicalID: "kc:tenant-a:realm:doctor", ExternalID: "58d1e7c8-role", Name: "doctor"},
 		},
 	}
 	handler := directoryapi.NewUserRolesHandler(directoryapi.Config{Directory: directory})
@@ -372,7 +372,7 @@ func TestUserRolesReportsTheRolesDirectlyAssignedToThatUser(t *testing.T) {
 	if rec.Code != http.StatusOK {
 		t.Fatalf("status = %d, want %d: %s", rec.Code, http.StatusOK, rec.Body)
 	}
-	if !strings.Contains(rec.Body.String(), "kc:tenant-a:patient-app:doctor") {
+	if !strings.Contains(rec.Body.String(), "kc:tenant-a:realm:doctor") {
 		t.Errorf("response carries no canonical identifier: %s", rec.Body)
 	}
 	if directory.userRolesFor != "user-doctor" {
@@ -403,7 +403,7 @@ func get(target string) *http.Request {
 		PrincipalID: "user-admin",
 		TenantID:    "tenant-a",
 		HospitalID:  "hospital-1",
-		Roles:       []string{"kc:tenant-a:patient-app:administrator"},
+		Roles:       []string{"kc:tenant-a:realm:administrator"},
 	}))
 }
 

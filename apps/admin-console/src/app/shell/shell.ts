@@ -1,5 +1,5 @@
 import { Component, inject } from '@angular/core';
-import { RouterLink, RouterOutlet } from '@angular/router';
+import { RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
 
 import { AuthService } from '../auth/auth.service';
 import { PlatformStatus } from '../platform-status/platform-status';
@@ -12,7 +12,7 @@ import { PlatformStatus } from '../platform-status/platform-status';
  */
 @Component({
   standalone: true,
-  imports: [RouterLink, RouterOutlet, PlatformStatus],
+  imports: [RouterLink, RouterLinkActive, RouterOutlet, PlatformStatus],
   selector: 'app-shell',
   templateUrl: './shell.html',
   styleUrl: './shell.css',

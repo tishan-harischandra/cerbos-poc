@@ -18,7 +18,7 @@ principals:
       tenantId: tenant-a
       hospitalId: hospital-1
       idpRoles:
-        - "kc:tenant-a:patient-app:doctor"
+        - "kc:tenant-a:realm:doctor"
 
   principal_without_tenant:
     id: idp-user-124

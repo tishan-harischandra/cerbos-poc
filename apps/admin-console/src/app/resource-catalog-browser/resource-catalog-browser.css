@@ -1,12 +1,25 @@
-.error {
-  color: #b00020;
+.domains {
+  margin-top: var(--gp-space-3);
+}
+
+.domain-group__body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--gp-space-2);
+  padding: var(--gp-space-3);
+}
+
+.action-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--gp-space-2);
+}
+
+.action-button {
+  justify-content: flex-start;
+  font-weight: 500;
 }
 
 .risk-badge {
-  margin-left: 0.5rem;
-  font-size: 0.75rem;
-  font-weight: bold;
-  padding: 0.1rem 0.4rem;
-  border-radius: 0.25rem;
-  background: #eee;
+  font-size: var(--gp-text-xs);
 }

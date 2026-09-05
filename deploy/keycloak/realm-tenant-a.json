@@ -132,32 +132,28 @@
       {
         "name": "admin",
         "description": "The tenant-wide marker (issue #78): a token carrying this realm role and no active organization is still usable, scoped to the whole tenant rather than refused as unscoped."
+      },
+      {
+        "name": "doctor",
+        "description": "Treating clinician"
+      },
+      {
+        "name": "auditor",
+        "description": "Read-only auditor"
+      },
+      {
+        "name": "clerk",
+        "description": "Records clerk"
+      },
+      {
+        "name": "administrator",
+        "description": "Authorization administrator"
+      },
+      {
+        "name": "sys:forged-evaluator",
+        "description": "A hostile fixture. The sys: prefix is the platform's, so a token carrying this role must be rejected outright (16.1). It exists to make that rejection provable end to end rather than only in a unit test."
       }
-    ],
-    "client": {
-      "patient-app": [
-        {
-          "name": "doctor",
-          "description": "Treating clinician"
-        },
-        {
-          "name": "auditor",
-          "description": "Read-only auditor"
-        },
-        {
-          "name": "clerk",
-          "description": "Records clerk"
-        },
-        {
-          "name": "administrator",
-          "description": "Authorization administrator"
-        },
-        {
-          "name": "sys:forged-evaluator",
-          "description": "A hostile fixture. The sys: prefix is the platform's, so a token carrying this role must be rejected outright (16.1). It exists to make that rejection provable end to end rather than only in a unit test."
-        }
-      ]
-    }
+    ]
   },
   "users": [
     {
@@ -169,7 +165,7 @@
       "lastName": "Doctor",
       "email": "dana.doctor@example.test",
       "credentials": [{ "type": "password", "value": "demo-password", "temporary": false }],
-      "clientRoles": { "patient-app": ["doctor"] }
+      "realmRoles": ["doctor"]
     },
     {
       "id": "user-doctor-multi",
@@ -180,7 +176,7 @@
       "lastName": "Doctor",
       "email": "morgan.doctor@example.test",
       "credentials": [{ "type": "password", "value": "demo-password", "temporary": false }],
-      "clientRoles": { "patient-app": ["doctor"] }
+      "realmRoles": ["doctor"]
     },
     {
       "id": "user-doctor-revoked",
@@ -191,7 +187,7 @@
       "lastName": "Doctor",
       "email": "ravi.doctor@example.test",
       "credentials": [{ "type": "password", "value": "demo-password", "temporary": false }],
-      "clientRoles": { "patient-app": ["doctor"] }
+      "realmRoles": ["doctor"]
     },
     {
       "id": "user-auditor",
@@ -202,7 +198,7 @@
       "lastName": "Auditor",
       "email": "alex.auditor@example.test",
       "credentials": [{ "type": "password", "value": "demo-password", "temporary": false }],
-      "clientRoles": { "patient-app": ["auditor"] }
+      "realmRoles": ["auditor"]
     },
     {
       "id": "user-clerk-granted",
@@ -213,7 +209,7 @@
       "lastName": "Clerk",
       "email": "chris.clerk@example.test",
       "credentials": [{ "type": "password", "value": "demo-password", "temporary": false }],
-      "clientRoles": { "patient-app": ["clerk"] }
+      "realmRoles": ["clerk"]
     },
     {
       "id": "user-unassigned",
@@ -223,8 +219,7 @@
       "firstName": "Uma",
       "lastName": "Unassigned",
       "email": "uma.unassigned@example.test",
-      "credentials": [{ "type": "password", "value": "demo-password", "temporary": false }],
-      "clientRoles": {}
+      "credentials": [{ "type": "password", "value": "demo-password", "temporary": false }]
     },
     {
       "id": "user-admin",
@@ -235,8 +230,7 @@
       "lastName": "Admin",
       "email": "ada.admin@example.test",
       "credentials": [{ "type": "password", "value": "demo-password", "temporary": false }],
-      "realmRoles": ["admin"],
-      "clientRoles": { "patient-app": ["administrator"] }
+      "realmRoles": ["admin", "administrator"]
     },
     {
       "id": "user-admin-clinician",
@@ -247,8 +241,7 @@
       "lastName": "AdminClinician",
       "email": "alex.adminclinician@example.test",
       "credentials": [{ "type": "password", "value": "demo-password", "temporary": false }],
-      "realmRoles": ["admin"],
-      "clientRoles": { "patient-app": ["administrator", "doctor"] }
+      "realmRoles": ["admin", "administrator", "doctor"]
     },
     {
       "id": "user-forger",
@@ -259,7 +252,7 @@
       "lastName": "Forger",
       "email": "mal.forger@example.test",
       "credentials": [{ "type": "password", "value": "demo-password", "temporary": false }],
-      "clientRoles": { "patient-app": ["sys:forged-evaluator"] }
+      "realmRoles": ["sys:forged-evaluator"]
     },
     {
       "username": "service-account-authorization-admin-service",

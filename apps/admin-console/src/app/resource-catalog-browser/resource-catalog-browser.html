@@ -1,60 +1,102 @@
-<h1>Resource catalog</h1>
-<p data-testid="catalog-revision">Root policy revision: {{ rootPolicyRevision() }}</p>
+<div class="page">
+  <header class="page-header">
+    <div class="page-header__text">
+      <h1>Resource catalog</h1>
+      <p class="page-subtitle">
+        Every resource kind and action the active policy release permits. Select an action
+        to see which capabilities depend on it.
+      </p>
+    </div>
+    <p class="chip" data-testid="catalog-revision">
+      Root policy revision <strong class="mono">{{ rootPolicyRevision() }}</strong>
+    </p>
+  </header>
 
-@if (loadError()) {
-  <p data-testid="load-error" class="error">{{ loadError() }}</p>
-}
+  @if (loadError()) {
+    <p data-testid="load-error" class="error" role="alert">{{ loadError() }}</p>
+  }
 
-<label>
-  Filter resources and actions
-  <input type="text" data-testid="filter-input" [(ngModel)]="filter" />
-</label>
+  <div class="card">
+    <label>
+      Filter resources and actions
+      <input
+        type="text"
+        placeholder="Resource or action name"
+        data-testid="filter-input"
+        [(ngModel)]="filter"
+      />
+    </label>
 
-@for (group of domains(); track group.domain) {
-  <details class="domain-group" [attr.data-testid]="'domain-' + group.domain" [open]="filter() !== ''">
-    <summary>{{ group.domain }}</summary>
-    @for (resource of group.resources; track resource.resourceKey) {
-      <fieldset [attr.data-testid]="'resource-' + resource.resourceKey">
-        <legend>{{ resource.displayName }}</legend>
-        @for (action of resource.actions; track action.key) {
-          <button
-            type="button"
-            [attr.data-testid]="'action-' + resource.resourceKey + '-' + action.key"
-            (click)="selectAction(resource.resourceKey, action.key)"
-          >
-            {{ action.displayName }}
-            <span [attr.data-testid]="'risk-' + resource.resourceKey + '-' + action.key" class="risk-badge">
-              {{ action.risk }}
-            </span>
-          </button>
-        }
-      </fieldset>
-    }
-  </details>
-}
-
-@if (selectedActionKey()) {
-  <section class="capability-impact" data-testid="capability-impact">
-    <h2>Capabilities depending on {{ selectedResourceKey() }}:{{ selectedActionKey() }}</h2>
-
-    @if (impactLoading()) {
-      <p data-testid="impact-loading">Loading...</p>
-    }
-    @if (impactError()) {
-      <p data-testid="impact-error" class="error">{{ impactError() }}</p>
-    }
-    @if (impactCapabilities(); as capabilities) {
-      @if (capabilities.length > 0) {
-        <ul data-testid="impact-list">
-          @for (capability of capabilities; track capability.key) {
-            <li>{{ capability.key }} ({{ capability.module }})</li>
-          }
-        </ul>
-      } @else {
-        <p data-testid="impact-empty">
-          No composite capability depends on this resource-action.
-        </p>
+    <div class="domains">
+      @for (group of domains(); track group.domain) {
+        <details
+          class="domain-group"
+          [attr.data-testid]="'domain-' + group.domain"
+          [open]="filter() !== ''"
+        >
+          <summary>{{ group.domain }}</summary>
+          <div class="domain-group__body">
+            @for (resource of group.resources; track resource.resourceKey) {
+              <fieldset [attr.data-testid]="'resource-' + resource.resourceKey">
+                <legend>{{ resource.displayName }}</legend>
+                <div class="action-row">
+                  @for (action of resource.actions; track action.key) {
+                    <button
+                      class="action-button"
+                      type="button"
+                      [attr.data-testid]="'action-' + resource.resourceKey + '-' + action.key"
+                      (click)="selectAction(resource.resourceKey, action.key)"
+                    >
+                      {{ action.displayName }}
+                      <span
+                        class="badge risk-badge"
+                        [class.badge-warning]="action.risk !== 'STANDARD'"
+                        [attr.data-testid]="'risk-' + resource.resourceKey + '-' + action.key"
+                      >
+                        {{ action.risk }}
+                      </span>
+                    </button>
+                  }
+                </div>
+              </fieldset>
+            }
+          </div>
+        </details>
       }
-    }
-  </section>
-}
+    </div>
+  </div>
+
+  @if (selectedActionKey()) {
+    <section class="card capability-impact" data-testid="capability-impact">
+      <div class="card__header">
+        <h2 class="card__title">
+          Capabilities depending on
+          <span class="mono">{{ selectedResourceKey() }}:{{ selectedActionKey() }}</span>
+        </h2>
+      </div>
+
+      @if (impactLoading()) {
+        <p class="hint" data-testid="impact-loading" role="status">Loading...</p>
+      }
+      @if (impactError()) {
+        <p data-testid="impact-error" class="error" role="alert">{{ impactError() }}</p>
+      }
+      @if (impactCapabilities(); as capabilities) {
+        @if (capabilities.length > 0) {
+          <ul class="list" data-testid="impact-list">
+            @for (capability of capabilities; track capability.key) {
+              <li class="row-item">
+                <span class="mono">{{ capability.key }}</span>
+                <span class="badge">{{ capability.module }}</span>
+              </li>
+            }
+          </ul>
+        } @else {
+          <p class="empty" data-testid="impact-empty">
+            No composite capability depends on this resource-action.
+          </p>
+        }
+      }
+    </section>
+  }
+</div>

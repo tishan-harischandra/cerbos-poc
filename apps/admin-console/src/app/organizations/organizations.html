@@ -1,73 +1,109 @@
-<h1>Organizations</h1>
-<p>
-  Read only: Keycloak stays the only place an organization or a membership is created or
-  changed.
-</p>
+<div class="page">
+  <header class="page-header">
+    <div class="page-header__text">
+      <h1>Hospitals</h1>
+      <p class="page-subtitle">
+        The hospitals in this tenant and who belongs to them. Read only: the identity
+        provider stays the only place a hospital or a membership is created or changed.
+      </p>
+    </div>
+    <p class="chip">Read only</p>
+  </header>
 
-@if (loadError()) {
-  <p data-testid="organizations-error" class="error">{{ loadError() }}</p>
-}
-
-<ul data-testid="organization-list">
-  @for (organization of organizations(); track organization.externalId) {
-    <li>
-      <button
-        type="button"
-        [attr.data-testid]="'organization-option-' + organization.alias"
-        (click)="selectOrganization(organization)"
-      >
-        {{ organization.name || organization.alias }}
-      </button>
-    </li>
+  @if (loadError()) {
+    <p data-testid="organizations-error" class="error" role="alert">{{ loadError() }}</p>
   }
-</ul>
 
-<div class="pagination">
-  <button type="button" data-testid="prev-page" [disabled]="offset() === 0" (click)="previousPage()">
-    Previous
-  </button>
-  <button type="button" data-testid="next-page" [disabled]="!hasMore()" (click)="nextPage()">
-    Next
-  </button>
-</div>
+  <div class="organizations-layout">
+    <section class="card organization-picker" aria-labelledby="hospital-list-title">
+      <div class="card__header">
+        <h2 class="card__title" id="hospital-list-title">All hospitals</h2>
+      </div>
 
-@if (selectedOrganization(); as organization) {
-  <section data-testid="organization-members">
-    <h2>{{ organization.name || organization.alias }} members</h2>
-
-    @if (membersError()) {
-      <p data-testid="members-error" class="error">{{ membersError() }}</p>
-    }
-
-    @if (members().length > 0) {
-      <ul data-testid="member-list">
-        @for (member of members(); track member.externalId) {
-          <li [attr.data-testid]="'member-' + member.externalId">
-            {{ member.displayName || member.username }}
+      <ul class="list" data-testid="organization-list">
+        @for (organization of organizations(); track organization.externalId) {
+          <li>
+            <button
+              class="option"
+              type="button"
+              [attr.data-testid]="'organization-option-' + organization.alias"
+              (click)="selectOrganization(organization)"
+            >
+              {{ organization.name || organization.alias }}
+            </button>
           </li>
         }
       </ul>
-    } @else {
-      <p data-testid="no-members">No members.</p>
-    }
 
-    <div class="pagination">
-      <button
-        type="button"
-        data-testid="members-prev-page"
-        [disabled]="membersOffset() === 0"
-        (click)="membersPreviousPage()"
-      >
-        Previous
-      </button>
-      <button
-        type="button"
-        data-testid="members-next-page"
-        [disabled]="!membersHasMore()"
-        (click)="membersNextPage()"
-      >
-        Next
-      </button>
-    </div>
-  </section>
-}
+      <div class="pagination">
+        <button
+          class="btn-sm"
+          type="button"
+          data-testid="prev-page"
+          [disabled]="offset() === 0"
+          (click)="previousPage()"
+        >
+          Previous
+        </button>
+        <button
+          class="btn-sm"
+          type="button"
+          data-testid="next-page"
+          [disabled]="!hasMore()"
+          (click)="nextPage()"
+        >
+          Next
+        </button>
+      </div>
+    </section>
+
+    @if (selectedOrganization(); as organization) {
+      <section class="card" data-testid="organization-members" aria-labelledby="members-title">
+        <div class="card__header">
+          <h2 class="card__title" id="members-title">
+            {{ organization.name || organization.alias }} members
+          </h2>
+        </div>
+
+        @if (membersError()) {
+          <p data-testid="members-error" class="error" role="alert">{{ membersError() }}</p>
+        }
+
+        @if (members().length > 0) {
+          <ul class="list" data-testid="member-list">
+            @for (member of members(); track member.externalId) {
+              <li class="row-item" [attr.data-testid]="'member-' + member.externalId">
+                {{ member.displayName || member.username }}
+              </li>
+            }
+          </ul>
+        } @else {
+          <p class="empty" data-testid="no-members">No members.</p>
+        }
+
+        <div class="pagination">
+          <button
+            class="btn-sm"
+            type="button"
+            data-testid="members-prev-page"
+            [disabled]="membersOffset() === 0"
+            (click)="membersPreviousPage()"
+          >
+            Previous
+          </button>
+          <button
+            class="btn-sm"
+            type="button"
+            data-testid="members-next-page"
+            [disabled]="!membersHasMore()"
+            (click)="membersNextPage()"
+          >
+            Next
+          </button>
+        </div>
+      </section>
+    } @else {
+      <p class="empty">Select a hospital to see its members.</p>
+    }
+  </div>
+</div>

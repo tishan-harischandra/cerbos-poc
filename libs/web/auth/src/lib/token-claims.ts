@@ -1,7 +1,8 @@
 /**
  * The subset of an access token's claims the console reads for display
  * purposes: the realm in `iss` as the tenant (ADR-010), the organization
- * claim as the active hospital (§75), and §7.3's client role claim.
+ * claim as the active hospital (§75), and §7.3's realm role claim (this
+ * installation's `IDP_ROLE_SOURCE=REALM`).
  * Nothing here is a security decision: the backend independently
  * verifies every claim on every request regardless of what the browser
  * decoded.
@@ -30,7 +31,15 @@ export interface TokenClaims {
   otherHospitals: string[];
 }
 
-/** Decodes a JWT's payload without verifying its signature. */
+/**
+ * Decodes a JWT's payload without verifying its signature.
+ *
+ * clientId is accepted for backwards compatibility with callers configured
+ * for a browser client (§7.1), but roles themselves come from the realm
+ * role claim (`realm_access.roles`), matching this installation's
+ * `IDP_ROLE_SOURCE=REALM` (§7.3): a role belongs to the tenant, never to
+ * one browser-facing client, so there is no per-client claim to read.
+ */
 export function decodeAccessToken(token: string, clientId: string): TokenClaims {
   const parts = token.split('.');
   if (parts.length !== 3) {
@@ -38,10 +47,7 @@ export function decodeAccessToken(token: string, clientId: string): TokenClaims 
   }
   const payload = JSON.parse(base64UrlDecode(parts[1])) as Record<string, unknown>;
 
-  const resourceAccess = (payload['resource_access'] ?? {}) as Record<
-    string,
-    { roles?: string[] }
-  >;
+  void clientId;
   const realmAccess = (payload['realm_access'] ?? {}) as { roles?: string[] };
   const hospitalId = activeHospitalOf(payload);
 
@@ -50,7 +56,7 @@ export function decodeAccessToken(token: string, clientId: string): TokenClaims 
     username: String(payload['preferred_username'] ?? ''),
     tenantId: tenantIdOf(payload),
     hospitalId,
-    roles: resourceAccess[clientId]?.roles ?? [],
+    roles: realmAccess.roles ?? [],
     expiresAt: Number(payload['exp'] ?? 0),
     isAdministrator: (realmAccess.roles ?? []).includes('admin'),
     otherHospitals: otherHospitalsOf(payload, hospitalId),

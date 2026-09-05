@@ -82,7 +82,7 @@ func RenderPrecedenceTest(m *Manifest, entry ResourceEntry) string {
 	b.WriteString("      tenantId: tenant-a\n")
 	b.WriteString("      hospitalId: hospital-1\n")
 	b.WriteString("      idpRoles:\n")
-	b.WriteString("        - \"kc:tenant-a:patient-app:doctor\"\n\n")
+	b.WriteString("        - \"kc:tenant-a:realm:doctor\"\n\n")
 
 	b.WriteString("  doctor_of_other_tenant:\n")
 	b.WriteString("    id: idp-user-999\n")
@@ -92,7 +92,7 @@ func RenderPrecedenceTest(m *Manifest, entry ResourceEntry) string {
 	b.WriteString("      tenantId: tenant-b\n")
 	b.WriteString("      hospitalId: hospital-1\n")
 	b.WriteString("      idpRoles:\n")
-	b.WriteString("        - \"kc:tenant-a:patient-app:doctor\"\n\n")
+	b.WriteString("        - \"kc:tenant-a:realm:doctor\"\n\n")
 
 	b.WriteString("  doctor_of_other_hospital:\n")
 	b.WriteString("    id: idp-user-888\n")
@@ -102,7 +102,7 @@ func RenderPrecedenceTest(m *Manifest, entry ResourceEntry) string {
 	b.WriteString("      tenantId: tenant-a\n")
 	b.WriteString("      hospitalId: hospital-2\n")
 	b.WriteString("      idpRoles:\n")
-	b.WriteString("        - \"kc:tenant-a:patient-app:doctor\"\n\n")
+	b.WriteString("        - \"kc:tenant-a:realm:doctor\"\n\n")
 
 	// issue #81: an administrator's tenant-wide session (issue #80) - no
 	// active hospital at all, never an empty string standing in for "every
@@ -115,7 +115,7 @@ func RenderPrecedenceTest(m *Manifest, entry ResourceEntry) string {
 	b.WriteString("      tenantId: tenant-a\n")
 	b.WriteString("      hospitalId: \"\"\n")
 	b.WriteString("      idpRoles:\n")
-	b.WriteString("        - \"kc:tenant-a:patient-app:administrator\"\n\n")
+	b.WriteString("        - \"kc:tenant-a:realm:administrator\"\n\n")
 
 	b.WriteString("resources:\n")
 
@@ -229,7 +229,7 @@ func RenderSchemaTest(m *Manifest, entry ResourceEntry) string {
 	b.WriteString("      tenantId: tenant-a\n")
 	b.WriteString("      hospitalId: hospital-1\n")
 	b.WriteString("      idpRoles:\n")
-	b.WriteString("        - \"kc:tenant-a:patient-app:doctor\"\n\n")
+	b.WriteString("        - \"kc:tenant-a:realm:doctor\"\n\n")
 
 	b.WriteString("  principal_without_tenant:\n")
 	b.WriteString("    id: idp-user-124\n")

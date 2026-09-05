@@ -35,7 +35,7 @@ func request(t *testing.T, body any) *http.Request {
 		PrincipalID: "user-admin",
 		TenantID:    "tenant-a",
 		HospitalID:  "hospital-1",
-		Roles:       []string{"kc:tenant-a:patient-app:administrator"},
+		Roles:       []string{"kc:tenant-a:realm:administrator"},
 	}))
 }
 

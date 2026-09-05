@@ -36,8 +36,8 @@ const (
 	// them. §7.5 is explicit that token-to-role normalisation must produce the
 	// same identifiers the matrix is keyed by, so a second spelling anywhere
 	// would silently resolve to no permissions at all.
-	DoctorRole  = "kc:tenant-a:patient-app:doctor"
-	AuditorRole = "kc:tenant-a:patient-app:auditor"
+	DoctorRole  = "kc:tenant-a:realm:doctor"
+	AuditorRole = "kc:tenant-a:realm:auditor"
 	// ResourceKey is the one resource the root policy tree covers so far.
 	ResourceKey = "patient_record"
 	// HospitalContextResourceKey is the synthetic tenant/hospital scoping

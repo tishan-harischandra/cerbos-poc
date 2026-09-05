@@ -1,129 +1,206 @@
-<section class="role-picker">
-  <h1>Role matrix</h1>
-  <p data-testid="tenant-scope">Tenant: {{ tenant() }}</p>
+<div class="page">
+  <header class="page-header">
+    <div class="page-header__text">
+      <h1>Role matrix</h1>
+      <p class="page-subtitle">
+        Choose a role, then grant it the resource-actions it needs. Changes apply to every
+        user who holds the role in this tenant.
+      </p>
+    </div>
+    <p class="chip" data-testid="tenant-scope">
+      Tenant <strong>{{ tenant() }}</strong>
+    </p>
+  </header>
 
-  <label>
-    Search roles
-    <input
-      type="text"
-      data-testid="role-search-input"
-      [(ngModel)]="roleQuery"
-      (ngModelChange)="searchRoles()"
-    />
-  </label>
-  @if (roleSearchError()) {
-    <p data-testid="role-search-error" class="error">{{ roleSearchError() }}</p>
+  @if (loadError()) {
+    <p data-testid="load-error" class="error" role="alert">{{ loadError() }}</p>
   }
 
-  <ul data-testid="role-search-results">
-    @for (role of roles(); track role.externalId) {
-      <li>
-        @if (canSelect(role)) {
-          <button type="button" data-testid="role-option" (click)="selectRole(role)">
-            {{ role.name }}
-            @if (role.name !== role.canonicalId) {
-              <span class="informational">(persists as {{ role.canonicalId }})</span>
-            }
-          </button>
-        } @else {
-          <span data-testid="role-unresolved" class="unresolved">
-            {{ role.name || role.externalId }} - unresolved canonical role, needs remediation
-          </span>
-        }
-      </li>
-    }
-  </ul>
-</section>
+  <div class="matrix-layout">
+    <section class="card role-picker" aria-labelledby="role-picker-title">
+      <div class="card__header">
+        <h2 class="card__title" id="role-picker-title">Roles</h2>
+      </div>
 
-@if (loadError()) {
-  <p data-testid="load-error" class="error">{{ loadError() }}</p>
-}
+      <label>
+        Search roles
+        <input
+          type="text"
+          placeholder="Role name"
+          data-testid="role-search-input"
+          [(ngModel)]="roleQuery"
+          (ngModelChange)="searchRoles()"
+        />
+      </label>
+      @if (roleSearchError()) {
+        <p data-testid="role-search-error" class="error" role="alert">{{ roleSearchError() }}</p>
+      }
 
-@if (selectedRole(); as role) {
-  <section class="matrix" data-testid="matrix">
-    <h2>{{ role.name }}</h2>
-    <p class="checkbox-note">
-      A cleared checkbox means no grant - it is never an explicit deny.
-    </p>
-
-    <label>
-      Filter resources and actions
-      <input
-        type="text"
-        data-testid="resource-filter-input"
-        [(ngModel)]="resourceFilter"
-      />
-    </label>
-
-    @if (staleRevision()) {
-      <p data-testid="stale-revision-error" class="error">
-        Someone else saved this role matrix since it was loaded.
-        <button type="button" data-testid="reload-button" (click)="reload()">Reload</button>
-      </p>
-    }
-    @if (saveError()) {
-      <p data-testid="save-error" class="error">{{ saveError() }}</p>
-    }
-
-    @for (group of domains(); track group.domain) {
-      <details class="domain-group" [attr.data-testid]="'domain-' + group.domain" [open]="resourceFilter() !== ''">
-        <summary>{{ group.domain }}</summary>
-        @for (resource of group.resources; track resource.resourceKey) {
-          <fieldset [attr.data-testid]="'resource-' + resource.resourceKey">
-            <legend>{{ resource.displayName }}</legend>
-            @for (action of resource.actions; track action.key) {
-              <label [attr.data-testid]="'action-' + resource.resourceKey + '-' + action.key">
-                <input
-                  type="checkbox"
-                  [checked]="isEnabled(resource.resourceKey, action.key)"
-                  (change)="toggle(resource.resourceKey, action.key)"
-                />
-                {{ action.displayName }}
-              </label>
-            }
-          </fieldset>
-        }
-      </details>
-    }
-
-    @if (impactPreview(); as preview) {
-      <section class="impact-preview" data-testid="impact-preview">
-        <h3>Impact preview</h3>
-        @for (row of preview; track row.resourceKey + ':' + row.actionKey) {
-          <div [attr.data-testid]="'impact-' + row.resourceKey + '-' + row.actionKey">
-            <strong>{{ row.resourceKey }}:{{ row.actionKey }}</strong>
-            @if (row.direction === 'enable') {
-              <span data-testid="impact-direction-enable">may become enabled:</span>
-            } @else {
-              <span data-testid="impact-direction-disable">may become disabled:</span>
-            }
-            @if (row.capabilities.length > 0) {
-              <ul>
-                @for (capability of row.capabilities; track capability.key) {
-                  <li>{{ capability.key }}</li>
+      <ul class="list role-list" data-testid="role-search-results">
+        @for (role of roles(); track role.externalId) {
+          <li>
+            @if (canSelect(role)) {
+              <button
+                class="option"
+                type="button"
+                data-testid="role-option"
+                (click)="selectRole(role)"
+              >
+                <span class="role-list__name">{{ role.name }}</span>
+                @if (role.name !== role.canonicalId) {
+                  <span class="informational">(persists as {{ role.canonicalId }})</span>
                 }
-              </ul>
+              </button>
             } @else {
-              <span data-testid="impact-none">no composite capability depends on this permission</span>
+              <span class="row-item unresolved" data-testid="role-unresolved">
+                <span class="badge badge-danger">Unresolved</span>
+                {{ role.name || role.externalId }} - unresolved canonical role, needs remediation
+              </span>
+            }
+          </li>
+        }
+      </ul>
+    </section>
+
+    @if (selectedRole(); as role) {
+      <section class="card matrix" data-testid="matrix" aria-labelledby="matrix-title">
+        <div class="card__header">
+          <div class="page-header__text">
+            <h2 class="card__title" id="matrix-title">{{ role.name }}</h2>
+            <p class="hint checkbox-note">
+              A cleared checkbox means no grant - it is never an explicit deny.
+            </p>
+          </div>
+        </div>
+
+        <div class="stack">
+          <label>
+            Filter resources and actions
+            <input
+              type="text"
+              placeholder="Resource or action name"
+              data-testid="resource-filter-input"
+              [(ngModel)]="resourceFilter"
+            />
+          </label>
+
+          @if (staleRevision()) {
+            <p data-testid="stale-revision-error" class="error" role="alert">
+              Someone else saved this role matrix since it was loaded.
+              <button class="btn-sm" type="button" data-testid="reload-button" (click)="reload()">
+                Reload
+              </button>
+            </p>
+          }
+          @if (saveError()) {
+            <p data-testid="save-error" class="error" role="alert">{{ saveError() }}</p>
+          }
+
+          <div class="domains">
+            @for (group of domains(); track group.domain) {
+              <details
+                class="domain-group"
+                [attr.data-testid]="'domain-' + group.domain"
+                [open]="resourceFilter() !== ''"
+              >
+                <summary>{{ group.domain }}</summary>
+                <div class="domain-group__body">
+                  @for (resource of group.resources; track resource.resourceKey) {
+                    <fieldset [attr.data-testid]="'resource-' + resource.resourceKey">
+                      <legend>{{ resource.displayName }}</legend>
+                      <div class="action-grid">
+                        @for (action of resource.actions; track action.key) {
+                          <label
+                            [attr.data-testid]="
+                              'action-' + resource.resourceKey + '-' + action.key
+                            "
+                          >
+                            <input
+                              type="checkbox"
+                              [checked]="isEnabled(resource.resourceKey, action.key)"
+                              (change)="toggle(resource.resourceKey, action.key)"
+                            />
+                            {{ action.displayName }}
+                          </label>
+                        }
+                      </div>
+                    </fieldset>
+                  }
+                </div>
+              </details>
             }
           </div>
-        }
-        <button type="button" data-testid="confirm-save-button" [disabled]="saving()" (click)="confirmSave()">
-          Confirm save
-        </button>
-        <button type="button" data-testid="cancel-preview-button" (click)="cancelPreview()">
-          Cancel
-        </button>
+
+          @if (impactPreview(); as preview) {
+            <section class="impact-preview" data-testid="impact-preview">
+              <h3>Impact preview</h3>
+              <p class="hint">
+                What these changes may switch on or off for the capabilities that depend on
+                them. Nothing is written until you confirm.
+              </p>
+              <div class="stack-sm">
+                @for (row of preview; track row.resourceKey + ':' + row.actionKey) {
+                  <div
+                    class="impact-row"
+                    [attr.data-testid]="'impact-' + row.resourceKey + '-' + row.actionKey"
+                  >
+                    <strong class="mono">{{ row.resourceKey }}:{{ row.actionKey }}</strong>
+                    @if (row.direction === 'enable') {
+                      <span class="badge badge-success" data-testid="impact-direction-enable">
+                        may become enabled:
+                      </span>
+                    } @else {
+                      <span class="badge badge-warning" data-testid="impact-direction-disable">
+                        may become disabled:
+                      </span>
+                    }
+                    @if (row.capabilities.length > 0) {
+                      <ul class="list-inline">
+                        @for (capability of row.capabilities; track capability.key) {
+                          <li class="chip">{{ capability.key }}</li>
+                        }
+                      </ul>
+                    } @else {
+                      <span class="hint" data-testid="impact-none">
+                        no composite capability depends on this permission
+                      </span>
+                    }
+                  </div>
+                }
+              </div>
+              <div class="toolbar">
+                <button
+                  class="btn-primary"
+                  type="button"
+                  data-testid="confirm-save-button"
+                  [disabled]="saving()"
+                  (click)="confirmSave()"
+                >
+                  Confirm save
+                </button>
+                <button type="button" data-testid="cancel-preview-button" (click)="cancelPreview()">
+                  Cancel
+                </button>
+              </div>
+            </section>
+          } @else {
+            <div class="toolbar">
+              <button
+                class="btn-primary"
+                type="button"
+                data-testid="save-button"
+                [disabled]="saving() || impactPreviewLoading()"
+                (click)="previewSave()"
+              >
+                Review and save
+              </button>
+              <span class="hint">You will see the impact before anything is written.</span>
+            </div>
+          }
+        </div>
       </section>
     } @else {
-      <button
-        type="button"
-        data-testid="save-button"
-        [disabled]="saving() || impactPreviewLoading()"
-        (click)="previewSave()"
-      >
-        Save
-      </button>
+      <p class="empty">Select a role to see and edit what it permits.</p>
     }
-  </section>
-}
+  </div>
+</div>

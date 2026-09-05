@@ -39,6 +39,6 @@
     <#elseif section = "info">
         <#-- issue #82: the two consoles share one SSO session, so this is
              a plain navigation, not a second login. -->
-        <a id="kc-back-to-admin-console" href="${properties.adminConsoleUrl!}">Back to the Admin Console</a>
+        <a id="kc-back-to-admin-console" href="${properties.adminConsoleUrl!}">Back to GrantPlane</a>
     </#if>
 </@layout.registrationLayout>

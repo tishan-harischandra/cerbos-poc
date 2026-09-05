@@ -1,26 +1,75 @@
-.error {
-  color: #b00020;
+/* User list on the left, the one user's override editor on the right, so the
+ * effect being written is always read next to the person it applies to.
+ */
+
+.override-layout {
+  display: grid;
+  gap: var(--gp-space-4);
+  grid-template-columns: minmax(15rem, 19rem) minmax(0, 1fr);
+  align-items: start;
 }
 
-.warning {
-  color: #8a6d00;
-  font-weight: bold;
+.user-picker {
+  position: sticky;
+  top: 4rem;
+  display: flex;
+  flex-direction: column;
+  gap: var(--gp-space-3);
+  max-height: calc(100vh - 6rem);
+  overflow-y: auto;
 }
 
 .expired {
-  opacity: 0.6;
-}
-
-.active-badge {
-  color: #0a6b0a;
-  font-weight: bold;
+  opacity: 0.65;
 }
 
 .expired-badge {
-  color: #888;
   font-style: italic;
 }
 
-.tri-state label {
-  display: block;
+.tri-state {
+  display: flex;
+  flex-direction: column;
+  gap: var(--gp-space-1);
+}
+
+.tri-state label > span {
+  display: flex;
+  flex-direction: column;
+}
+
+.tri-state .hint {
+  font-size: var(--gp-text-xs);
+}
+
+.preview-panel {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--gp-space-3);
+  align-items: center;
+  padding: var(--gp-space-3);
+  border: 1px solid var(--gp-border-strong);
+  border-radius: var(--gp-radius);
+  background: var(--gp-surface-sunken);
+}
+
+.preview-panel__row {
+  display: inline-flex;
+  gap: var(--gp-space-2);
+  align-items: center;
+}
+
+.preview-panel .warning {
+  flex-basis: 100%;
+}
+
+@media (max-width: 68rem) {
+  .override-layout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .user-picker {
+    position: static;
+    max-height: 22rem;
+  }
 }

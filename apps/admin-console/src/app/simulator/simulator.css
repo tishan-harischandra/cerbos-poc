@@ -1,15 +1,22 @@
-.error {
-  color: #b00020;
+.simulator-layout {
+  display: grid;
+  gap: var(--gp-space-4);
+  grid-template-columns: repeat(auto-fit, minmax(26rem, 1fr));
+  align-items: start;
 }
 
-.access-simulator label,
-.capability-simulator label {
-  display: block;
-  margin-top: 0.5rem;
+.result-panel {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--gp-space-3) var(--gp-space-4);
+  padding: var(--gp-space-3);
+  border: 1px solid var(--gp-border-strong);
+  border-radius: var(--gp-radius);
+  background: var(--gp-surface-sunken);
 }
 
-textarea {
-  width: 100%;
-  min-height: 4rem;
-  font-family: monospace;
+.result-panel__row {
+  display: flex;
+  flex-direction: column;
+  gap: var(--gp-space-1);
 }

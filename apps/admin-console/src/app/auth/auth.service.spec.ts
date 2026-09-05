@@ -88,7 +88,7 @@ describe('AuthService', () => {
       preferred_username: 'admin',
       iss: 'http://localhost:8081/realms/tenant-a',
       organization: ['hospital-1'],
-      resource_access: { 'patient-app': { roles: ['administrator'] } },
+      realm_access: { roles: ['administrator'] },
     });
 
     const promise = auth.handleCallback('auth-code-1', state);

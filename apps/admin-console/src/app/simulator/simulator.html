@@ -1,116 +1,195 @@
-<h1>Effective access simulator</h1>
+<div class="page">
+  <header class="page-header">
+    <div class="page-header__text">
+      <h1>Access simulator</h1>
+      <p class="page-subtitle">
+        Ask what the platform would decide, without changing anything. Nothing you run here
+        is written to the assignment data.
+      </p>
+    </div>
+    @if (hospital()) {
+      <p class="chip" data-testid="scope-note">
+        Tenant <strong>{{ tenant() }}</strong> / hospital <strong>{{ hospital() }}</strong> -
+        your own authority.
+      </p>
+    }
+  </header>
 
-@if (!hospital()) {
-  <p data-testid="no-hospital-scope" class="error">
-    This screen needs a hospital-scoped session: a tenant-wide login (no hospital chosen
-    at sign-in) has no hospital to simulate against (ADR-012, §9.4). Log out and sign back
-    in, choosing a hospital rather than the tenant-wide option, to use this screen.
-  </p>
-} @else {
-<p data-testid="scope-note">
-  Scope: tenant {{ tenant() }}, hospital {{ hospital() }} (your own authority).
-</p>
+  @if (!hospital()) {
+    <p data-testid="no-hospital-scope" class="error" role="alert">
+      This screen needs a hospital-scoped session: a tenant-wide login (no hospital chosen
+      at sign-in) has no hospital to simulate against (ADR-012, §9.4). Log out and sign back
+      in, choosing a hospital rather than the tenant-wide option, to use this screen.
+    </p>
+  } @else {
+    <div class="simulator-layout">
+      <section class="card access-simulator" data-testid="access-simulator" aria-labelledby="access-title">
+        <div class="card__header">
+          <h2 class="card__title" id="access-title">One resource-action</h2>
+        </div>
 
-<section class="access-simulator" data-testid="access-simulator">
-  <h2>Simulate one resource-action</h2>
+        <div class="stack">
+          <div class="field-grid">
+            <label>
+              Principal ID
+              <input type="text" data-testid="principal-id-input" [(ngModel)]="principalId" />
+            </label>
+            <label>
+              IdP roles (comma separated)
+              <input type="text" data-testid="idp-roles-input" [(ngModel)]="idpRoles" />
+            </label>
+            <label>
+              Resource kind
+              <input type="text" data-testid="resource-kind-input" [(ngModel)]="resourceKind" />
+            </label>
+            <label>
+              Resource ID
+              <input type="text" data-testid="resource-id-input" [(ngModel)]="resourceId" />
+            </label>
+            <label>
+              Action
+              <input type="text" data-testid="action-input" [(ngModel)]="action" />
+            </label>
+            <label class="field-wide">
+              Resource attributes (JSON)
+              <textarea data-testid="resource-attributes-input" [(ngModel)]="resourceAttributes"></textarea>
+            </label>
+          </div>
 
-  <label>
-    Principal ID
-    <input type="text" data-testid="principal-id-input" [(ngModel)]="principalId" />
-  </label>
-  <label>
-    IdP roles (comma separated)
-    <input type="text" data-testid="idp-roles-input" [(ngModel)]="idpRoles" />
-  </label>
-  <label>
-    Resource kind
-    <input type="text" data-testid="resource-kind-input" [(ngModel)]="resourceKind" />
-  </label>
-  <label>
-    Resource ID
-    <input type="text" data-testid="resource-id-input" [(ngModel)]="resourceId" />
-  </label>
-  <label>
-    Resource attributes (JSON)
-    <textarea data-testid="resource-attributes-input" [(ngModel)]="resourceAttributes"></textarea>
-  </label>
-  <label>
-    Action
-    <input type="text" data-testid="action-input" [(ngModel)]="action" />
-  </label>
+          <div class="toolbar">
+            <button
+              class="btn-primary"
+              type="button"
+              data-testid="run-access-simulation"
+              [disabled]="accessRunning()"
+              (click)="runAccessSimulation()"
+            >
+              Simulate
+            </button>
+          </div>
 
-  <button type="button" data-testid="run-access-simulation" [disabled]="accessRunning()" (click)="runAccessSimulation()">
-    Simulate
-  </button>
+          @if (accessError()) {
+            <p data-testid="access-error" class="error" role="alert">{{ accessError() }}</p>
+          }
+          @if (accessResult(); as result) {
+            <div class="result-panel" data-testid="access-result">
+              <p class="result-panel__row" data-testid="access-allowed">
+                <span class="eyebrow">Allowed</span>
+                <span
+                  class="badge"
+                  [class.badge-success]="result.allowed"
+                  [class.badge-danger]="!result.allowed"
+                  >{{ result.allowed }}</span
+                >
+              </p>
+              <p class="result-panel__row" data-testid="access-source">
+                <span class="eyebrow">Source</span>
+                <span class="mono">{{ result.source }}</span>
+              </p>
+              <p class="result-panel__row" data-testid="access-revision">
+                <span class="eyebrow">Permission revision</span>
+                <span class="mono">{{ result.permissionRevision }}</span>
+              </p>
+            </div>
+          }
+        </div>
+      </section>
 
-  @if (accessError()) {
-    <p data-testid="access-error" class="error">{{ accessError() }}</p>
-  }
-  @if (accessResult(); as result) {
-    <div data-testid="access-result">
-      <p data-testid="access-allowed">Allowed: {{ result.allowed }}</p>
-      <p data-testid="access-source">Source: {{ result.source }}</p>
-      <p data-testid="access-revision">Permission revision: {{ result.permissionRevision }}</p>
+      <section
+        class="card capability-simulator"
+        data-testid="capability-simulator"
+        aria-labelledby="capability-title"
+      >
+        <div class="card__header">
+          <h2 class="card__title" id="capability-title">Composite capabilities</h2>
+        </div>
+
+        <div class="stack">
+          <div class="field-grid">
+            <label>
+              Module
+              <input type="text" data-testid="capability-module-input" [(ngModel)]="capabilityModule" />
+            </label>
+            <label>
+              Capability keys (comma separated)
+              <input type="text" data-testid="capability-keys-input" [(ngModel)]="capabilityKeys" />
+            </label>
+            <label>
+              Principal ID
+              <input
+                type="text"
+                data-testid="capability-principal-id-input"
+                [(ngModel)]="capabilityPrincipalId"
+              />
+            </label>
+            <label>
+              IdP roles (comma separated)
+              <input
+                type="text"
+                data-testid="capability-idp-roles-input"
+                [(ngModel)]="capabilityIdpRoles"
+              />
+            </label>
+            <label class="field-wide">
+              Sample attributes per targetRef (JSON)
+              <textarea data-testid="sample-attributes-input" [(ngModel)]="sampleAttributesJSON"></textarea>
+            </label>
+          </div>
+
+          <div class="toolbar">
+            <button
+              class="btn-primary"
+              type="button"
+              data-testid="run-capability-simulation"
+              [disabled]="capabilityRunning()"
+              (click)="runCapabilitySimulation()"
+            >
+              Simulate
+            </button>
+          </div>
+
+          @if (capabilityError()) {
+            <p data-testid="capability-error" class="error" role="alert">{{ capabilityError() }}</p>
+          }
+          @if (capabilityResult(); as result) {
+            <div class="stack" data-testid="capability-result">
+              <ul class="list" data-testid="capability-outcomes">
+                @for (entry of capabilityEntries(result); track entry.key) {
+                  <li class="row-item">
+                    <span class="mono">{{ entry.key }}</span>
+                    <span
+                      class="badge"
+                      [class.badge-success]="entry.allowed"
+                      [class.badge-danger]="!entry.allowed"
+                      >{{ entry.allowed ? 'allowed' : 'denied' }}</span
+                    >
+                  </li>
+                }
+              </ul>
+
+              <h3 class="eyebrow">Full requirement tree</h3>
+              <ul class="list" data-testid="requirement-tree">
+                @for (
+                  leaf of result.requirementTree;
+                  track leaf.resource + ':' + leaf.action + ':' + leaf.target
+                ) {
+                  <li class="row-item" [attr.data-testid]="'leaf-' + leaf.resource + '-' + leaf.action">
+                    <span class="mono">{{ leaf.resource }}:{{ leaf.action }}</span>
+                    <span class="chip">{{ leaf.target }}</span>
+                    <span
+                      class="badge"
+                      [class.badge-success]="leaf.allowed"
+                      [class.badge-danger]="!leaf.allowed"
+                      >{{ leaf.allowed ? 'allowed' : 'denied' }}</span
+                    >
+                    <span class="hint mono">{{ leaf.reason }}</span>
+                  </li>
+                }
+              </ul>
+            </div>
+          }
+        </div>
+      </section>
     </div>
   }
-</section>
-
-<section class="capability-simulator" data-testid="capability-simulator">
-  <h2>Simulate composite capabilities</h2>
-
-  <label>
-    Module
-    <input type="text" data-testid="capability-module-input" [(ngModel)]="capabilityModule" />
-  </label>
-  <label>
-    Capability keys (comma separated)
-    <input type="text" data-testid="capability-keys-input" [(ngModel)]="capabilityKeys" />
-  </label>
-  <label>
-    Principal ID
-    <input type="text" data-testid="capability-principal-id-input" [(ngModel)]="capabilityPrincipalId" />
-  </label>
-  <label>
-    IdP roles (comma separated)
-    <input type="text" data-testid="capability-idp-roles-input" [(ngModel)]="capabilityIdpRoles" />
-  </label>
-  <label>
-    Sample attributes per targetRef (JSON)
-    <textarea data-testid="sample-attributes-input" [(ngModel)]="sampleAttributesJSON"></textarea>
-  </label>
-
-  <button
-    type="button"
-    data-testid="run-capability-simulation"
-    [disabled]="capabilityRunning()"
-    (click)="runCapabilitySimulation()"
-  >
-    Simulate
-  </button>
-
-  @if (capabilityError()) {
-    <p data-testid="capability-error" class="error">{{ capabilityError() }}</p>
-  }
-  @if (capabilityResult(); as result) {
-    <div data-testid="capability-result">
-      <ul data-testid="capability-outcomes">
-        @for (entry of capabilityEntries(result); track entry.key) {
-          <li>
-            {{ entry.key }}: {{ entry.allowed ? 'allowed' : 'denied' }}
-          </li>
-        }
-      </ul>
-
-      <h3>Full requirement tree</h3>
-      <ul data-testid="requirement-tree">
-        @for (leaf of result.requirementTree; track leaf.resource + ':' + leaf.action + ':' + leaf.target) {
-          <li [attr.data-testid]="'leaf-' + leaf.resource + '-' + leaf.action">
-            {{ leaf.resource }}:{{ leaf.action }} ({{ leaf.target }}) -
-            {{ leaf.allowed ? 'allowed' : 'denied' }} ({{ leaf.reason }})
-          </li>
-        }
-      </ul>
-    </div>
-  }
-</section>
-}
+</div>

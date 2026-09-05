@@ -1,84 +1,128 @@
-<h1>Audit</h1>
-<p data-testid="scope-note">
-  Scope: tenant {{ tenant() }} (your own authority - audit history outside this tenant cannot
-  be searched here).
-</p>
+<div class="page">
+  <header class="page-header">
+    <div class="page-header__text">
+      <h1>Audit log</h1>
+      <p class="page-subtitle">
+        Every assignment write, as it was recorded. History is read-only and cannot be
+        amended from here.
+      </p>
+    </div>
+    <p class="chip" data-testid="scope-note">
+      Tenant <strong>{{ tenant() }}</strong> - your own authority; audit history outside this
+      tenant cannot be searched here.
+    </p>
+  </header>
 
-<section class="filters">
-  <label>
-    Actor
-    <input type="text" data-testid="actor-input" [(ngModel)]="actor" />
-  </label>
-  <label>
-    Role
-    <input type="text" data-testid="role-input" [(ngModel)]="role" />
-  </label>
-  <label>
-    User
-    <input type="text" data-testid="user-input" [(ngModel)]="user" />
-  </label>
-  <label>
-    Resource
-    <input type="text" data-testid="resource-input" [(ngModel)]="resource" />
-  </label>
-  <label>
-    Action
-    <input type="text" data-testid="action-input" [(ngModel)]="action" />
-  </label>
-  <label>
-    Hospital
-    <input type="text" data-testid="hospital-input" [(ngModel)]="hospital" />
-  </label>
-  <label>
-    From
-    <input type="datetime-local" data-testid="from-input" [(ngModel)]="from" />
-  </label>
-  <label>
-    To
-    <input type="datetime-local" data-testid="to-input" [(ngModel)]="to" />
-  </label>
-  <button type="button" data-testid="search-button" [disabled]="searching()" (click)="search()">
-    Search
-  </button>
-</section>
+  <section class="card" aria-labelledby="filters-title">
+    <div class="card__header">
+      <h2 class="card__title" id="filters-title">Filters</h2>
+      <p class="hint">Leave a field blank to match everything.</p>
+    </div>
 
-@if (searchError()) {
-  <p data-testid="search-error" class="error">{{ searchError() }}</p>
-}
+    <div class="filters field-grid">
+      <label>
+        Actor
+        <input type="text" data-testid="actor-input" [(ngModel)]="actor" />
+      </label>
+      <label>
+        Role
+        <input type="text" data-testid="role-input" [(ngModel)]="role" />
+      </label>
+      <label>
+        User
+        <input type="text" data-testid="user-input" [(ngModel)]="user" />
+      </label>
+      <label>
+        Resource
+        <input type="text" data-testid="resource-input" [(ngModel)]="resource" />
+      </label>
+      <label>
+        Action
+        <input type="text" data-testid="action-input" [(ngModel)]="action" />
+      </label>
+      <label>
+        Hospital
+        <input type="text" data-testid="hospital-input" [(ngModel)]="hospital" />
+      </label>
+      <label>
+        From
+        <input type="datetime-local" data-testid="from-input" [(ngModel)]="from" />
+      </label>
+      <label>
+        To
+        <input type="datetime-local" data-testid="to-input" [(ngModel)]="to" />
+      </label>
+    </div>
 
-<table data-testid="audit-results">
-  <thead>
-    <tr>
-      <th>When</th>
-      <th>Actor</th>
-      <th>Operation</th>
-      <th>Role</th>
-      <th>User</th>
-      <th>Resource:action</th>
-      <th>Correlation ID</th>
-    </tr>
-  </thead>
-  <tbody>
-    @for (event of events(); track event.eventId) {
-      <tr data-testid="audit-row">
-        <td>{{ event.createdAt }}</td>
-        <td>{{ event.actorId }}</td>
-        <td>{{ event.operation }}</td>
-        <td>{{ event.roleExternalId }}</td>
-        <td>{{ event.targetUserId }}</td>
-        <td>{{ event.resourceActionKeys }}</td>
-        <td>{{ event.correlationId }}</td>
-      </tr>
-    }
-  </tbody>
-</table>
+    <div class="toolbar filters-actions">
+      <button
+        class="btn-primary"
+        type="button"
+        data-testid="search-button"
+        [disabled]="searching()"
+        (click)="search()"
+      >
+        Search
+      </button>
+    </div>
+  </section>
 
-<div class="pagination">
-  <span data-testid="total-count">{{ totalCount() }} total</span>
-  <button type="button" data-testid="prev-page" [disabled]="offset() === 0" (click)="previousPage()">
-    Previous
-  </button>
-  <button type="button" data-testid="next-page" [disabled]="!hasMore()" (click)="nextPage()">
-    Next
-  </button>
+  @if (searchError()) {
+    <p data-testid="search-error" class="error" role="alert">{{ searchError() }}</p>
+  }
+
+  <section>
+    <div class="table-wrap">
+      <table data-testid="audit-results">
+        <caption class="sr-only">Recorded assignment changes</caption>
+        <thead>
+          <tr>
+            <th scope="col">When</th>
+            <th scope="col">Actor</th>
+            <th scope="col">Operation</th>
+            <th scope="col">Role</th>
+            <th scope="col">User</th>
+            <th scope="col">Resource:action</th>
+            <th scope="col">Correlation ID</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (event of events(); track event.eventId) {
+            <tr data-testid="audit-row">
+              <td class="mono">{{ event.createdAt }}</td>
+              <td>{{ event.actorId }}</td>
+              <td><span class="badge">{{ event.operation }}</span></td>
+              <td>{{ event.roleExternalId }}</td>
+              <td>{{ event.targetUserId }}</td>
+              <td class="mono">{{ event.resourceActionKeys }}</td>
+              <td class="mono correlation">{{ event.correlationId }}</td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+
+    <div class="pagination">
+      <span class="muted" data-testid="total-count">{{ totalCount() }} total</span>
+      <span class="toolbar-end"></span>
+      <button
+        class="btn-sm"
+        type="button"
+        data-testid="prev-page"
+        [disabled]="offset() === 0"
+        (click)="previousPage()"
+      >
+        Previous
+      </button>
+      <button
+        class="btn-sm"
+        type="button"
+        data-testid="next-page"
+        [disabled]="!hasMore()"
+        (click)="nextPage()"
+      >
+        Next
+      </button>
+    </div>
+  </section>
 </div>

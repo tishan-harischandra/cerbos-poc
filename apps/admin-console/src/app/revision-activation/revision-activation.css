@@ -1,3 +1,8 @@
-.error {
-  color: #b00020;
+.release-history-title {
+  display: block;
+  margin-bottom: var(--gp-space-2);
+}
+
+tbody tr[data-outcome='failed'] td:first-child {
+  box-shadow: inset 2px 0 0 var(--gp-danger-fg);
 }

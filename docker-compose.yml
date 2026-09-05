@@ -251,7 +251,7 @@ services:
       IDP_TYPE: "${IDP_TYPE:-KEYCLOAK}"
       IDP_BASE_URL: "http://keycloak:8080"
       IDP_ADDR: "keycloak:8080"
-      IDP_ROLE_SOURCE: "${IDP_ROLE_SOURCE:-CLIENT}"
+      IDP_ROLE_SOURCE: "${IDP_ROLE_SOURCE:-REALM}"
       # The capability snapshot endpoint (§12.3, issue #11) reads the same
       # committed capability catalog Cerbos itself reads its policies from.
       CAPABILITY_CATALOG_DIR: "/capability-catalog"
@@ -300,7 +300,7 @@ services:
       IDP_TYPE: "${IDP_TYPE:-KEYCLOAK}"
       IDP_BASE_URL: "http://keycloak:8080"
       IDP_ADDR: "keycloak:8080"
-      IDP_ROLE_SOURCE: "${IDP_ROLE_SOURCE:-CLIENT}"
+      IDP_ROLE_SOURCE: "${IDP_ROLE_SOURCE:-REALM}"
       AUTHORIZATION_CATALOG_DIR: "/authorization-catalog"
       # The capability impact endpoint (§9.1, issue #18) reads the same
       # committed capability catalog Cerbos and the ADS's own capability
@@ -384,7 +384,7 @@ services:
       IDP_TYPE: "${IDP_TYPE:-KEYCLOAK}"
       IDP_BASE_URL: "http://keycloak:8080"
       IDP_ADDR: "keycloak:8080"
-      IDP_ROLE_SOURCE: "${IDP_ROLE_SOURCE:-CLIENT}"
+      IDP_ROLE_SOURCE: "${IDP_ROLE_SOURCE:-REALM}"
     volumes:
       - ./deploy/secrets/idp-admin-credentials:/run/secrets/idp-admin-credentials:ro
       - ./deploy/secrets/idp-admin-credentials-tenant-b:/run/secrets/idp-admin-credentials-tenant-b:ro
