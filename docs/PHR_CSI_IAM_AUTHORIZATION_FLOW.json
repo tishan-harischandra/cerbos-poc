@@ -1,0 +1,182 @@
+{
+  "schema_version": 1,
+  "diagram_type": "sequence",
+  "meta": {
+    "title": "PHR authentication and authorization flow",
+    "quality_profile": "showcase",
+    "animation": "none",
+    "column_fit": "spread",
+    "viewBox": [1500, 730]
+  },
+  "participants": [
+    {
+      "id": "browser",
+      "type": "frontend",
+      "label": "PHR browser"
+    },
+    {
+      "id": "keycloak",
+      "type": "security",
+      "label": "CSI-IAM / Keycloak 26.7"
+    },
+    {
+      "id": "orgs",
+      "type": "database",
+      "label": "Org groups & profile"
+    },
+    {
+      "id": "gateway",
+      "type": "security",
+      "label": "PHR gateway / BFF"
+    },
+    {
+      "id": "phr_api",
+      "type": "backend",
+      "label": "PHR API / PEP"
+    },
+    {
+      "id": "ads",
+      "type": "security",
+      "label": "Authorization service"
+    },
+    {
+      "id": "cerbos",
+      "type": "security",
+      "label": "Cerbos PDP"
+    }
+  ],
+  "messages": [
+    {
+      "id": "authorize",
+      "from": "browser",
+      "to": "keycloak",
+      "y": 160,
+      "label": "1. Start OIDC Authorization Code + PKCE",
+      "variant": "security"
+    },
+    {
+      "id": "load_org_context",
+      "from": "keycloak",
+      "to": "orgs",
+      "y": 200,
+      "label": "2. Read memberships, organization groups and locale",
+      "variant": "default"
+    },
+    {
+      "id": "eligible_orgs",
+      "from": "orgs",
+      "to": "keycloak",
+      "y": 240,
+      "label": "Allowed aliases + translated hospital labels",
+      "variant": "return"
+    },
+    {
+      "id": "select_org",
+      "from": "browser",
+      "to": "keycloak",
+      "y": 280,
+      "label": "3. Select hospital alias 120045",
+      "variant": "emphasis",
+      "note": "Keycloak revalidates membership; the label is display-only."
+    },
+    {
+      "id": "resolve_active_roles",
+      "from": "keycloak",
+      "to": "orgs",
+      "y": 320,
+      "label": "4. Resolve roles from 120045 organization groups",
+      "variant": "security"
+    },
+    {
+      "id": "active_roles",
+      "from": "orgs",
+      "to": "keycloak",
+      "y": 360,
+      "label": "Only 120045 role mappings",
+      "variant": "return"
+    },
+    {
+      "id": "token",
+      "from": "keycloak",
+      "to": "browser",
+      "y": 400,
+      "label": "5. Issue signed token: organization[120045], nested PHR roles, audit claims",
+      "variant": "security",
+      "note": "One organization only; reject organization:* and multiple organizations."
+    },
+    {
+      "id": "api_request",
+      "from": "browser",
+      "to": "gateway",
+      "y": 440,
+      "label": "6. Call PHR API with Bearer token",
+      "variant": "security"
+    },
+    {
+      "id": "forward_verified",
+      "from": "gateway",
+      "to": "phr_api",
+      "y": 480,
+      "label": "7. Verify token; strip browser x-*; inject trusted audit headers",
+      "variant": "security"
+    },
+    {
+      "id": "authorize_action",
+      "from": "phr_api",
+      "to": "ads",
+      "y": 520,
+      "label": "8. Request resource-action decision with verified active organization",
+      "variant": "security"
+    },
+    {
+      "id": "evaluate_policy",
+      "from": "ads",
+      "to": "cerbos",
+      "y": 560,
+      "label": "9. Evaluate policy using trusted context",
+      "variant": "security"
+    },
+    {
+      "id": "decision",
+      "from": "cerbos",
+      "to": "ads",
+      "y": 600,
+      "label": "Allow or deny",
+      "variant": "return"
+    },
+    {
+      "id": "outcome",
+      "from": "ads",
+      "to": "phr_api",
+      "y": 635,
+      "label": "10. Allow: execute and audit | Deny: return 403",
+      "variant": "emphasis"
+    }
+  ],
+  "activations": [
+    {
+      "participant": "keycloak",
+      "from": 160,
+      "to": 400,
+      "type": "security"
+    },
+    {
+      "participant": "gateway",
+      "from": 440,
+      "to": 480,
+      "type": "security"
+    },
+    {
+      "participant": "phr_api",
+      "from": 480,
+      "to": 635,
+      "type": "backend"
+    },
+    {
+      "participant": "ads",
+      "from": 520,
+      "to": 635,
+      "type": "security"
+    }
+  ]
+}
