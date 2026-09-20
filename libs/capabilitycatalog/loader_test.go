@@ -1,6 +1,7 @@
 package capabilitycatalog_test
 
 import (
+	"os"
 	"path/filepath"
 	"testing"
 
@@ -130,5 +131,59 @@ func TestLoadedDefinitionsValidateAgainstLoadedCatalog(t *testing.T) {
 	}
 	if errs := capabilitycatalog.Validate(defs, catalog); len(errs) != 0 {
 		t.Fatalf("expected the fixture definitions to validate cleanly, got %v", errs)
+	}
+}
+
+// The OOMKill ADR-013 measured comes from serving one module costing a parse
+// of every module. A module's definitions live in their own directory, so
+// loading one must not read - let alone parse - a sibling's files. Proven by
+// making the sibling unparseable: if the loader touches it, this test fails
+// with a YAML error rather than passing.
+func TestLoadDefinitionsForModuleDoesNotParseOtherModules(t *testing.T) {
+	dir := t.TempDir()
+
+	wanted := filepath.Join(dir, "clinical")
+	if err := os.MkdirAll(wanted, 0o755); err != nil {
+		t.Fatalf("creating the module directory: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(wanted, "generated.yaml"), []byte(
+		"catalogRevision: 3\ncapabilities:\n  - key: clinical.chart.view\n    module: clinical\n"),
+		0o644); err != nil {
+		t.Fatalf("writing the module fixture: %v", err)
+	}
+
+	poisoned := filepath.Join(dir, "financial")
+	if err := os.MkdirAll(poisoned, 0o755); err != nil {
+		t.Fatalf("creating the sibling module directory: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(poisoned, "generated.yaml"),
+		[]byte("capabilities: [this is not: valid yaml\n"), 0o644); err != nil {
+		t.Fatalf("writing the sibling fixture: %v", err)
+	}
+
+	defs, err := capabilitycatalog.LoadDefinitionsForModule(dir, "clinical")
+	if err != nil {
+		t.Fatalf("LoadDefinitionsForModule: %v", err)
+	}
+	if len(defs) != 1 {
+		t.Fatalf("definitions = %d, want 1; got %v", len(defs), defs)
+	}
+	if defs[0].Key != "clinical.chart.view" {
+		t.Errorf("key = %q, want clinical.chart.view", defs[0].Key)
+	}
+	if defs[0].CatalogRevision != 3 {
+		t.Errorf("catalogRevision = %d, want 3 stamped from the file", defs[0].CatalogRevision)
+	}
+}
+
+// A module an adopter has not authored is empty, not an error: the ADS asks
+// for whatever module the console requests.
+func TestLoadDefinitionsForModuleIsEmptyForAnUnknownModule(t *testing.T) {
+	defs, err := capabilitycatalog.LoadDefinitionsForModule(t.TempDir(), "absent")
+	if err != nil {
+		t.Fatalf("LoadDefinitionsForModule: %v", err)
+	}
+	if len(defs) != 0 {
+		t.Fatalf("definitions = %d, want 0", len(defs))
 	}
 }
