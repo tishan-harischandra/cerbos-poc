@@ -1,23 +1,24 @@
-// Package cataloggen turns the committed FHIR resource manifest
-// (manifest.yaml) into every downstream authorization artifact: the
-// resource-action catalog, one Cerbos resource policy per resource, the
-// principal and per-resource JSON schemas, the exhaustive Cerbos test suite
-// and the database catalog seed (issue #8, §6.1, §6.5, §8, §19.1, §21).
+// Package cataloggen turns a FHIR resource manifest into every downstream
+// authorization artifact: the resource-action catalog, one Cerbos resource
+// policy per resource, the principal and per-resource JSON schemas, the
+// exhaustive Cerbos test suite and the database catalog seed (issue #8,
+// §6.1, §6.5, §8, §19.1, §21).
 //
-// The manifest is the only hand-edited input. Everything this package emits
-// is generated, golden-file tested and reviewed as a diff when the manifest
-// or the generator changes.
+// The manifest is the only hand-edited input, and it is the adopter's to
+// author, not the platform's to contain: this package reads it from a path
+// its caller chooses (ADR-013). manifest.yaml alongside this file is the
+// example domain model this repository generates its committed catalog from
+// and the fixture its tests use - see DefaultManifestPath. Everything this
+// package emits is generated, golden-file tested and reviewed as a diff when
+// the manifest or the generator changes.
 package cataloggen
 
 import (
-	"embed"
 	"fmt"
+	"os"
 
 	"gopkg.in/yaml.v3"
 )
-
-//go:embed manifest.yaml
-var embeddedManifest embed.FS
 
 // Action is one of the six actions every resource exposes.
 type Action struct {
@@ -60,14 +61,27 @@ type Manifest struct {
 	Resources       []ResourceEntry `yaml:"resources"`
 }
 
-// LoadEmbeddedManifest parses the manifest.yaml committed alongside this
-// package: the manifest that generates the deployed catalog.
-func LoadEmbeddedManifest() (*Manifest, error) {
-	raw, err := embeddedManifest.ReadFile("manifest.yaml")
+// DefaultManifestPath is where this repository keeps the example domain model
+// the committed catalog is generated from, relative to the repository root.
+// It is the generators' default, not a fallback: an installation sourcing its
+// manifest from an adopter's repository (ADR-013) passes a path instead, and
+// nothing reads this one unless it was asked to.
+const DefaultManifestPath = "libs/cataloggen/manifest.yaml"
+
+// LoadManifestFile reads and parses the manifest at path. Errors name the
+// path, because the caller chose it and a manifest that is absent or malformed
+// is a configuration mistake to be corrected there; there is deliberately no
+// fallback to any other manifest.
+func LoadManifestFile(path string) (*Manifest, error) {
+	raw, err := os.ReadFile(path)
 	if err != nil {
-		return nil, fmt.Errorf("reading embedded manifest: %w", err)
+		return nil, fmt.Errorf("reading manifest %s: %w", path, err)
 	}
-	return ParseManifest(raw)
+	manifest, err := ParseManifest(raw)
+	if err != nil {
+		return nil, fmt.Errorf("manifest %s: %w", path, err)
+	}
+	return manifest, nil
 }
 
 // ParseManifest parses and validates manifest YAML from an arbitrary source,

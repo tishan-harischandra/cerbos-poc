@@ -4,7 +4,7 @@
 //
 // Usage:
 //
-//	go run ./libs/capabilitycatalog/cmd/capabilitycatalog-gen -root <repo-root> [-check]
+//	go run ./libs/capabilitycatalog/cmd/capabilitycatalog-gen -root <repo-root> [-manifest <path>] [-check]
 //
 // Without -check it writes the generated tree and validates the full
 // capability set. With -check it only reports whether the committed
@@ -35,10 +35,17 @@ const (
 
 func main() {
 	root := flag.String("root", ".", "repository root the output paths are relative to")
+	manifestPath := flag.String("manifest", "",
+		"path to the resource manifest (default <root>/"+cataloggen.DefaultManifestPath+")")
 	check := flag.Bool("check", false, "verify the committed tree matches the generator and validates, instead of writing")
 	flag.Parse()
 
-	manifest, err := cataloggen.LoadEmbeddedManifest()
+	manifestFile := *manifestPath
+	if manifestFile == "" {
+		manifestFile = filepath.Join(*root, cataloggen.DefaultManifestPath)
+	}
+
+	manifest, err := cataloggen.LoadManifestFile(manifestFile)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "capabilitycatalog-gen: loading manifest: %v\n", err)
 		os.Exit(1)

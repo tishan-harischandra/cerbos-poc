@@ -1,6 +1,9 @@
 package cataloggen_test
 
 import (
+	"os"
+	"path/filepath"
+	"reflect"
 	"strings"
 	"testing"
 
@@ -120,15 +123,70 @@ resources:
 	}
 }
 
-func TestLoadEmbeddedManifestIsValid(t *testing.T) {
-	m, err := cataloggen.LoadEmbeddedManifest()
+func TestLoadManifestFileOnTheCommittedManifestIsValid(t *testing.T) {
+	m, err := cataloggen.LoadManifestFile("manifest.yaml")
 	if err != nil {
-		t.Fatalf("LoadEmbeddedManifest: %v", err)
+		t.Fatalf("LoadManifestFile: %v", err)
 	}
 	if len(m.IncludedResources()) == 0 {
 		t.Fatalf("expected the real manifest to include at least one resource")
 	}
 	if len(m.Actions) != 6 {
 		t.Fatalf("expected 6 actions in the real manifest, got %d", len(m.Actions))
+	}
+}
+
+// Reading from a path must add no transformation of its own: the manifest a
+// caller gets from a file is the manifest ParseManifest derives from the very
+// same bytes, so moving the generators off the embedded copy cannot change
+// what they generate.
+func TestLoadManifestFileMatchesParseManifestOnTheSameBytes(t *testing.T) {
+	raw, err := os.ReadFile("manifest.yaml")
+	if err != nil {
+		t.Fatalf("reading the committed manifest: %v", err)
+	}
+	want, err := cataloggen.ParseManifest(raw)
+	if err != nil {
+		t.Fatalf("ParseManifest: %v", err)
+	}
+
+	got, err := cataloggen.LoadManifestFile("manifest.yaml")
+	if err != nil {
+		t.Fatalf("LoadManifestFile: %v", err)
+	}
+
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("LoadManifestFile applied a transformation ParseManifest does not")
+	}
+}
+
+// A manifest that is not where the caller said it is must fail naming that
+// path, and must not fall back to any other manifest: once the domain model is
+// adopter data (ADR-013) a silent fallback would generate the wrong catalog
+// rather than refusing to generate one.
+func TestLoadManifestFileOnAMissingPathNamesThePath(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "absent.yaml")
+
+	_, err := cataloggen.LoadManifestFile(path)
+	if err == nil {
+		t.Fatalf("expected an error for a missing manifest path")
+	}
+	if !strings.Contains(err.Error(), path) {
+		t.Errorf("error %q does not name the path %q", err, path)
+	}
+}
+
+func TestLoadManifestFileOnAMalformedManifestNamesThePath(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "malformed.yaml")
+	if err := os.WriteFile(path, []byte("actions: [unterminated\n"), 0o644); err != nil {
+		t.Fatalf("writing the fixture: %v", err)
+	}
+
+	_, err := cataloggen.LoadManifestFile(path)
+	if err == nil {
+		t.Fatalf("expected an error for a malformed manifest")
+	}
+	if !strings.Contains(err.Error(), path) {
+		t.Errorf("error %q does not name the path %q", err, path)
 	}
 }

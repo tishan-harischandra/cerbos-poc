@@ -51,7 +51,7 @@ the others get their own specs when reached.
 
 1. **`cataloggen` reads its manifest from a path** - removes the `embed`, the
    single change that stops the platform binary from containing a domain
-   model. Specified below.
+   model. Specified below. **Delivered.**
 2. **Capability catalog authored per module, with a pre-decoded artifact** -
    splits `generated.yaml` into one file per module and teaches `FSCatalog` to
    prefer a pre-decoded artifact, removing the measured OOMKill at ~60,000
@@ -67,6 +67,12 @@ the others get their own specs when reached.
    a privileged runtime operation.
 
 ## Slice 1: `cataloggen` reads its manifest from a path
+
+Delivered. `LoadManifestFile` and `DefaultManifestPath` replace
+`LoadEmbeddedManifest`, both generators take `-manifest`, and
+`tests/architecture/manifestembed.go` is the invariant that stops the
+directive coming back. The manifest stays committed here as the example
+domain model, as this slice intended; moving it out is slice 3's job.
 
 ### Why this is small
 

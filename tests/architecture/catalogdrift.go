@@ -3,9 +3,9 @@
 // The generated Cerbos policies, JSON schemas, Cerbos test suite and
 // database catalog seed under deploy/ are committed output of
 // libs/cataloggen plus libs/cataloggen/manifest.yaml. This file's test
-// regenerates that tree in memory from the very same manifest the package
-// embeds and diffs it against what is on disk, so a manifest change with no
-// matching regeneration - or a hand-edit of a generated file - fails CI
+// regenerates that tree in memory from the very same manifest the generators
+// default to and diffs it against what is on disk, so a manifest change with
+// no matching regeneration - or a hand-edit of a generated file - fails CI
 // instead of silently drifting from the catalog it claims to implement.
 package architecture
 

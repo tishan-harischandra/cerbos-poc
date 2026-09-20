@@ -25,12 +25,12 @@ const (
 // TestGeneratedCapabilityCatalogMatchesTheManifest is the drift half of the
 // gate: run `make capability-gen` at the repo root if this fails.
 func TestGeneratedCapabilityCatalogMatchesTheManifest(t *testing.T) {
-	manifest, err := cataloggen.LoadEmbeddedManifest()
+	root := repoRoot(t)
+
+	manifest, err := cataloggen.LoadManifestFile(filepath.Join(root, cataloggen.DefaultManifestPath))
 	if err != nil {
 		t.Fatalf("loading the committed manifest: %v", err)
 	}
-
-	root := repoRoot(t)
 
 	resources := capabilitycatalog.SelectArchetypeResources(manifest, capabilitycatalog.ArchetypeResourceCount)
 	generated := capabilitycatalog.GenerateArchetypeCapabilities(resources, manifest.CatalogRevision)

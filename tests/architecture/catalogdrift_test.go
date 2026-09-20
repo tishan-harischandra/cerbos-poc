@@ -19,7 +19,9 @@ import (
 // deploy/liquibase/changelog by hand, or changed the manifest without
 // running the generator.
 func TestGeneratedCatalogTreeMatchesTheManifest(t *testing.T) {
-	manifest, err := cataloggen.LoadEmbeddedManifest()
+	root := repoRoot(t)
+
+	manifest, err := cataloggen.LoadManifestFile(filepath.Join(root, cataloggen.DefaultManifestPath))
 	if err != nil {
 		t.Fatalf("loading the committed manifest: %v", err)
 	}
@@ -29,7 +31,6 @@ func TestGeneratedCatalogTreeMatchesTheManifest(t *testing.T) {
 		t.Fatalf("generating from the committed manifest: %v", err)
 	}
 
-	root := repoRoot(t)
 	mismatched, err := cataloggen.Diff(root, files)
 	if err != nil {
 		t.Fatalf("diffing the generated tree against disk: %v", err)
