@@ -1,0 +1,82 @@
+# GENERATED FILE - DO NOT EDIT BY HAND.
+#
+# Produced by libs/capabilitycatalog's archetype generator (catalog
+# revision 1, issue #10, PRD "UI capability catalog"). Edit
+# libs/cataloggen/manifest.yaml or the archetype definitions in
+# libs/capabilitycatalog/generator.go and re-run `make capability-gen`,
+# or regenerate directly with
+# `go run ./libs/capabilitycatalog/cmd/capabilitycatalog-gen -root .`.
+#
+# Hand-authored capabilities for this module live beside this file in the
+# same module directory and are never touched by the generator.
+catalogRevision: 1
+capabilities:
+  - key: linkage.action.delete
+    module: events
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: linkage
+            action: read
+            targetRef: linkage
+        - permission:
+            resource: linkage
+            action: delete
+            targetRef: linkage
+  - key: linkage.button.assign
+    module: events
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: linkage
+            action: read
+            targetRef: linkage
+        - permission:
+            resource: linkage
+            action: assign
+            targetRef: linkage
+  - key: linkage.route.details
+    module: events
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: linkage
+            action: read
+            targetRef: linkage
+        - permission:
+            resource: account
+            action: read
+            targetRef: account
+  - key: linkage.route.edit
+    module: events
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: linkage
+            action: read
+            targetRef: linkage
+        - permission:
+            resource: linkage
+            action: update
+            targetRef: linkage
+        - permission:
+            resource: account
+            action: list
+            targetRef: accountCollection
+  - key: linkage.route.list
+    module: events
+    context: COLLECTION
+    expression:
+      allOf:
+        - permission:
+            resource: linkage
+            action: list
+            targetRef: linkageCollection
+        - permission:
+            resource: hospital_context
+            action: read
+            targetRef: hospitalContext

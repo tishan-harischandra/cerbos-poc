@@ -1,0 +1,496 @@
+# GENERATED FILE - DO NOT EDIT BY HAND.
+#
+# Produced by libs/capabilitycatalog's archetype generator (catalog
+# revision 1, issue #10, PRD "UI capability catalog"). Edit
+# libs/cataloggen/manifest.yaml or the archetype definitions in
+# libs/capabilitycatalog/generator.go and re-run `make capability-gen`,
+# or regenerate directly with
+# `go run ./libs/capabilitycatalog/cmd/capabilitycatalog-gen -root .`.
+#
+# Hand-authored capabilities for this module live beside this file in the
+# same module directory and are never touched by the generator.
+catalogRevision: 1
+capabilities:
+  - key: device.action.delete
+    module: devices
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: device
+            action: read
+            targetRef: device
+        - permission:
+            resource: device
+            action: delete
+            targetRef: device
+  - key: device.button.assign
+    module: devices
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: device
+            action: read
+            targetRef: device
+        - permission:
+            resource: device
+            action: assign
+            targetRef: device
+  - key: device.route.details
+    module: devices
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: device
+            action: read
+            targetRef: device
+        - permission:
+            resource: device_association
+            action: read
+            targetRef: device_association
+  - key: device.route.edit
+    module: devices
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: device
+            action: read
+            targetRef: device
+        - permission:
+            resource: device
+            action: update
+            targetRef: device
+        - permission:
+            resource: device_association
+            action: list
+            targetRef: device_associationCollection
+  - key: device.route.list
+    module: devices
+    context: COLLECTION
+    expression:
+      allOf:
+        - permission:
+            resource: device
+            action: list
+            targetRef: deviceCollection
+        - permission:
+            resource: hospital_context
+            action: read
+            targetRef: hospitalContext
+  - key: device_association.action.delete
+    module: devices
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: device_association
+            action: read
+            targetRef: device_association
+        - permission:
+            resource: device_association
+            action: delete
+            targetRef: device_association
+  - key: device_association.button.assign
+    module: devices
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: device_association
+            action: read
+            targetRef: device_association
+        - permission:
+            resource: device_association
+            action: assign
+            targetRef: device_association
+  - key: device_association.route.details
+    module: devices
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: device_association
+            action: read
+            targetRef: device_association
+        - permission:
+            resource: device_definition
+            action: read
+            targetRef: device_definition
+  - key: device_association.route.edit
+    module: devices
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: device_association
+            action: read
+            targetRef: device_association
+        - permission:
+            resource: device_association
+            action: update
+            targetRef: device_association
+        - permission:
+            resource: device_definition
+            action: list
+            targetRef: device_definitionCollection
+  - key: device_association.route.list
+    module: devices
+    context: COLLECTION
+    expression:
+      allOf:
+        - permission:
+            resource: device_association
+            action: list
+            targetRef: device_associationCollection
+        - permission:
+            resource: hospital_context
+            action: read
+            targetRef: hospitalContext
+  - key: device_definition.action.delete
+    module: devices
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: device_definition
+            action: read
+            targetRef: device_definition
+        - permission:
+            resource: device_definition
+            action: delete
+            targetRef: device_definition
+  - key: device_definition.button.assign
+    module: devices
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: device_definition
+            action: read
+            targetRef: device_definition
+        - permission:
+            resource: device_definition
+            action: assign
+            targetRef: device_definition
+  - key: device_definition.route.details
+    module: devices
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: device_definition
+            action: read
+            targetRef: device_definition
+        - permission:
+            resource: device_dispense
+            action: read
+            targetRef: device_dispense
+  - key: device_definition.route.edit
+    module: devices
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: device_definition
+            action: read
+            targetRef: device_definition
+        - permission:
+            resource: device_definition
+            action: update
+            targetRef: device_definition
+        - permission:
+            resource: device_dispense
+            action: list
+            targetRef: device_dispenseCollection
+  - key: device_definition.route.list
+    module: devices
+    context: COLLECTION
+    expression:
+      allOf:
+        - permission:
+            resource: device_definition
+            action: list
+            targetRef: device_definitionCollection
+        - permission:
+            resource: hospital_context
+            action: read
+            targetRef: hospitalContext
+  - key: device_dispense.action.delete
+    module: devices
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: device_dispense
+            action: read
+            targetRef: device_dispense
+        - permission:
+            resource: device_dispense
+            action: delete
+            targetRef: device_dispense
+  - key: device_dispense.button.assign
+    module: devices
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: device_dispense
+            action: read
+            targetRef: device_dispense
+        - permission:
+            resource: device_dispense
+            action: assign
+            targetRef: device_dispense
+  - key: device_dispense.route.details
+    module: devices
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: device_dispense
+            action: read
+            targetRef: device_dispense
+        - permission:
+            resource: device_metric
+            action: read
+            targetRef: device_metric
+  - key: device_dispense.route.edit
+    module: devices
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: device_dispense
+            action: read
+            targetRef: device_dispense
+        - permission:
+            resource: device_dispense
+            action: update
+            targetRef: device_dispense
+        - permission:
+            resource: device_metric
+            action: list
+            targetRef: device_metricCollection
+  - key: device_dispense.route.list
+    module: devices
+    context: COLLECTION
+    expression:
+      allOf:
+        - permission:
+            resource: device_dispense
+            action: list
+            targetRef: device_dispenseCollection
+        - permission:
+            resource: hospital_context
+            action: read
+            targetRef: hospitalContext
+  - key: device_metric.action.delete
+    module: devices
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: device_metric
+            action: read
+            targetRef: device_metric
+        - permission:
+            resource: device_metric
+            action: delete
+            targetRef: device_metric
+  - key: device_metric.button.assign
+    module: devices
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: device_metric
+            action: read
+            targetRef: device_metric
+        - permission:
+            resource: device_metric
+            action: assign
+            targetRef: device_metric
+  - key: device_metric.route.details
+    module: devices
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: device_metric
+            action: read
+            targetRef: device_metric
+        - permission:
+            resource: device_request
+            action: read
+            targetRef: device_request
+  - key: device_metric.route.edit
+    module: devices
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: device_metric
+            action: read
+            targetRef: device_metric
+        - permission:
+            resource: device_metric
+            action: update
+            targetRef: device_metric
+        - permission:
+            resource: device_request
+            action: list
+            targetRef: device_requestCollection
+  - key: device_metric.route.list
+    module: devices
+    context: COLLECTION
+    expression:
+      allOf:
+        - permission:
+            resource: device_metric
+            action: list
+            targetRef: device_metricCollection
+        - permission:
+            resource: hospital_context
+            action: read
+            targetRef: hospitalContext
+  - key: device_request.action.delete
+    module: devices
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: device_request
+            action: read
+            targetRef: device_request
+        - permission:
+            resource: device_request
+            action: delete
+            targetRef: device_request
+  - key: device_request.button.assign
+    module: devices
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: device_request
+            action: read
+            targetRef: device_request
+        - permission:
+            resource: device_request
+            action: assign
+            targetRef: device_request
+  - key: device_request.route.details
+    module: devices
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: device_request
+            action: read
+            targetRef: device_request
+        - permission:
+            resource: device_usage
+            action: read
+            targetRef: device_usage
+  - key: device_request.route.edit
+    module: devices
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: device_request
+            action: read
+            targetRef: device_request
+        - permission:
+            resource: device_request
+            action: update
+            targetRef: device_request
+        - permission:
+            resource: device_usage
+            action: list
+            targetRef: device_usageCollection
+  - key: device_request.route.list
+    module: devices
+    context: COLLECTION
+    expression:
+      allOf:
+        - permission:
+            resource: device_request
+            action: list
+            targetRef: device_requestCollection
+        - permission:
+            resource: hospital_context
+            action: read
+            targetRef: hospitalContext
+  - key: device_usage.action.delete
+    module: devices
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: device_usage
+            action: read
+            targetRef: device_usage
+        - permission:
+            resource: device_usage
+            action: delete
+            targetRef: device_usage
+  - key: device_usage.button.assign
+    module: devices
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: device_usage
+            action: read
+            targetRef: device_usage
+        - permission:
+            resource: device_usage
+            action: assign
+            targetRef: device_usage
+  - key: device_usage.route.details
+    module: devices
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: device_usage
+            action: read
+            targetRef: device_usage
+        - permission:
+            resource: diagnostic_report
+            action: read
+            targetRef: diagnostic_report
+  - key: device_usage.route.edit
+    module: devices
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: device_usage
+            action: read
+            targetRef: device_usage
+        - permission:
+            resource: device_usage
+            action: update
+            targetRef: device_usage
+        - permission:
+            resource: diagnostic_report
+            action: list
+            targetRef: diagnostic_reportCollection
+  - key: device_usage.route.list
+    module: devices
+    context: COLLECTION
+    expression:
+      allOf:
+        - permission:
+            resource: device_usage
+            action: list
+            targetRef: device_usageCollection
+        - permission:
+            resource: hospital_context
+            action: read
+            targetRef: hospitalContext

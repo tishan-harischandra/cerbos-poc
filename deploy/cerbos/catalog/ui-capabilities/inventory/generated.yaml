@@ -1,0 +1,151 @@
+# GENERATED FILE - DO NOT EDIT BY HAND.
+#
+# Produced by libs/capabilitycatalog's archetype generator (catalog
+# revision 1, issue #10, PRD "UI capability catalog"). Edit
+# libs/cataloggen/manifest.yaml or the archetype definitions in
+# libs/capabilitycatalog/generator.go and re-run `make capability-gen`,
+# or regenerate directly with
+# `go run ./libs/capabilitycatalog/cmd/capabilitycatalog-gen -root .`.
+#
+# Hand-authored capabilities for this module live beside this file in the
+# same module directory and are never touched by the generator.
+catalogRevision: 1
+capabilities:
+  - key: inventory_item.action.delete
+    module: inventory
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: inventory_item
+            action: read
+            targetRef: inventory_item
+        - permission:
+            resource: inventory_item
+            action: delete
+            targetRef: inventory_item
+  - key: inventory_item.button.assign
+    module: inventory
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: inventory_item
+            action: read
+            targetRef: inventory_item
+        - permission:
+            resource: inventory_item
+            action: assign
+            targetRef: inventory_item
+  - key: inventory_item.route.details
+    module: inventory
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: inventory_item
+            action: read
+            targetRef: inventory_item
+        - permission:
+            resource: inventory_report
+            action: read
+            targetRef: inventory_report
+  - key: inventory_item.route.edit
+    module: inventory
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: inventory_item
+            action: read
+            targetRef: inventory_item
+        - permission:
+            resource: inventory_item
+            action: update
+            targetRef: inventory_item
+        - permission:
+            resource: inventory_report
+            action: list
+            targetRef: inventory_reportCollection
+  - key: inventory_item.route.list
+    module: inventory
+    context: COLLECTION
+    expression:
+      allOf:
+        - permission:
+            resource: inventory_item
+            action: list
+            targetRef: inventory_itemCollection
+        - permission:
+            resource: hospital_context
+            action: read
+            targetRef: hospitalContext
+  - key: inventory_report.action.delete
+    module: inventory
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: inventory_report
+            action: read
+            targetRef: inventory_report
+        - permission:
+            resource: inventory_report
+            action: delete
+            targetRef: inventory_report
+  - key: inventory_report.button.assign
+    module: inventory
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: inventory_report
+            action: read
+            targetRef: inventory_report
+        - permission:
+            resource: inventory_report
+            action: assign
+            targetRef: inventory_report
+  - key: inventory_report.route.details
+    module: inventory
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: inventory_report
+            action: read
+            targetRef: inventory_report
+        - permission:
+            resource: invoice
+            action: read
+            targetRef: invoice
+  - key: inventory_report.route.edit
+    module: inventory
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: inventory_report
+            action: read
+            targetRef: inventory_report
+        - permission:
+            resource: inventory_report
+            action: update
+            targetRef: inventory_report
+        - permission:
+            resource: invoice
+            action: list
+            targetRef: invoiceCollection
+  - key: inventory_report.route.list
+    module: inventory
+    context: COLLECTION
+    expression:
+      allOf:
+        - permission:
+            resource: inventory_report
+            action: list
+            targetRef: inventory_reportCollection
+        - permission:
+            resource: hospital_context
+            action: read
+            targetRef: hospitalContext

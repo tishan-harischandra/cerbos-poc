@@ -1,0 +1,427 @@
+# GENERATED FILE - DO NOT EDIT BY HAND.
+#
+# Produced by libs/capabilitycatalog's archetype generator (catalog
+# revision 1, issue #10, PRD "UI capability catalog"). Edit
+# libs/cataloggen/manifest.yaml or the archetype definitions in
+# libs/capabilitycatalog/generator.go and re-run `make capability-gen`,
+# or regenerate directly with
+# `go run ./libs/capabilitycatalog/cmd/capabilitycatalog-gen -root .`.
+#
+# Hand-authored capabilities for this module live beside this file in the
+# same module directory and are never touched by the generator.
+catalogRevision: 1
+capabilities:
+  - key: adverse_event.action.delete
+    module: clinical
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: adverse_event
+            action: read
+            targetRef: adverse_event
+        - permission:
+            resource: adverse_event
+            action: delete
+            targetRef: adverse_event
+  - key: adverse_event.button.assign
+    module: clinical
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: adverse_event
+            action: read
+            targetRef: adverse_event
+        - permission:
+            resource: adverse_event
+            action: assign
+            targetRef: adverse_event
+  - key: adverse_event.route.details
+    module: clinical
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: adverse_event
+            action: read
+            targetRef: adverse_event
+        - permission:
+            resource: allergy_intolerance
+            action: read
+            targetRef: allergy_intolerance
+  - key: adverse_event.route.edit
+    module: clinical
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: adverse_event
+            action: read
+            targetRef: adverse_event
+        - permission:
+            resource: adverse_event
+            action: update
+            targetRef: adverse_event
+        - permission:
+            resource: allergy_intolerance
+            action: list
+            targetRef: allergy_intoleranceCollection
+  - key: adverse_event.route.list
+    module: clinical
+    context: COLLECTION
+    expression:
+      allOf:
+        - permission:
+            resource: adverse_event
+            action: list
+            targetRef: adverse_eventCollection
+        - permission:
+            resource: hospital_context
+            action: read
+            targetRef: hospitalContext
+  - key: allergy_intolerance.action.delete
+    module: clinical
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: allergy_intolerance
+            action: read
+            targetRef: allergy_intolerance
+        - permission:
+            resource: allergy_intolerance
+            action: delete
+            targetRef: allergy_intolerance
+  - key: allergy_intolerance.button.assign
+    module: clinical
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: allergy_intolerance
+            action: read
+            targetRef: allergy_intolerance
+        - permission:
+            resource: allergy_intolerance
+            action: assign
+            targetRef: allergy_intolerance
+  - key: allergy_intolerance.route.details
+    module: clinical
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: allergy_intolerance
+            action: read
+            targetRef: allergy_intolerance
+        - permission:
+            resource: appointment
+            action: read
+            targetRef: appointment
+  - key: allergy_intolerance.route.edit
+    module: clinical
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: allergy_intolerance
+            action: read
+            targetRef: allergy_intolerance
+        - permission:
+            resource: allergy_intolerance
+            action: update
+            targetRef: allergy_intolerance
+        - permission:
+            resource: appointment
+            action: list
+            targetRef: appointmentCollection
+  - key: allergy_intolerance.route.list
+    module: clinical
+    context: COLLECTION
+    expression:
+      allOf:
+        - permission:
+            resource: allergy_intolerance
+            action: list
+            targetRef: allergy_intoleranceCollection
+        - permission:
+            resource: hospital_context
+            action: read
+            targetRef: hospitalContext
+  - key: clinical_impression.action.delete
+    module: clinical
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: clinical_impression
+            action: read
+            targetRef: clinical_impression
+        - permission:
+            resource: clinical_impression
+            action: delete
+            targetRef: clinical_impression
+  - key: clinical_impression.button.assign
+    module: clinical
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: clinical_impression
+            action: read
+            targetRef: clinical_impression
+        - permission:
+            resource: clinical_impression
+            action: assign
+            targetRef: clinical_impression
+  - key: clinical_impression.route.details
+    module: clinical
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: clinical_impression
+            action: read
+            targetRef: clinical_impression
+        - permission:
+            resource: clinical_use_definition
+            action: read
+            targetRef: clinical_use_definition
+  - key: clinical_impression.route.edit
+    module: clinical
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: clinical_impression
+            action: read
+            targetRef: clinical_impression
+        - permission:
+            resource: clinical_impression
+            action: update
+            targetRef: clinical_impression
+        - permission:
+            resource: clinical_use_definition
+            action: list
+            targetRef: clinical_use_definitionCollection
+  - key: clinical_impression.route.list
+    module: clinical
+    context: COLLECTION
+    expression:
+      allOf:
+        - permission:
+            resource: clinical_impression
+            action: list
+            targetRef: clinical_impressionCollection
+        - permission:
+            resource: hospital_context
+            action: read
+            targetRef: hospitalContext
+  - key: condition.action.delete
+    module: clinical
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: condition
+            action: read
+            targetRef: condition
+        - permission:
+            resource: condition
+            action: delete
+            targetRef: condition
+  - key: condition.button.assign
+    module: clinical
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: condition
+            action: read
+            targetRef: condition
+        - permission:
+            resource: condition
+            action: assign
+            targetRef: condition
+  - key: condition.route.details
+    module: clinical
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: condition
+            action: read
+            targetRef: condition
+        - permission:
+            resource: consent
+            action: read
+            targetRef: consent
+  - key: condition.route.edit
+    module: clinical
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: condition
+            action: read
+            targetRef: condition
+        - permission:
+            resource: condition
+            action: update
+            targetRef: condition
+        - permission:
+            resource: consent
+            action: list
+            targetRef: consentCollection
+  - key: condition.route.list
+    module: clinical
+    context: COLLECTION
+    expression:
+      allOf:
+        - permission:
+            resource: condition
+            action: list
+            targetRef: conditionCollection
+        - permission:
+            resource: hospital_context
+            action: read
+            targetRef: hospitalContext
+  - key: detected_issue.action.delete
+    module: clinical
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: detected_issue
+            action: read
+            targetRef: detected_issue
+        - permission:
+            resource: detected_issue
+            action: delete
+            targetRef: detected_issue
+  - key: detected_issue.button.assign
+    module: clinical
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: detected_issue
+            action: read
+            targetRef: detected_issue
+        - permission:
+            resource: detected_issue
+            action: assign
+            targetRef: detected_issue
+  - key: detected_issue.route.details
+    module: clinical
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: detected_issue
+            action: read
+            targetRef: detected_issue
+        - permission:
+            resource: device
+            action: read
+            targetRef: device
+  - key: detected_issue.route.edit
+    module: clinical
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: detected_issue
+            action: read
+            targetRef: detected_issue
+        - permission:
+            resource: detected_issue
+            action: update
+            targetRef: detected_issue
+        - permission:
+            resource: device
+            action: list
+            targetRef: deviceCollection
+  - key: detected_issue.route.list
+    module: clinical
+    context: COLLECTION
+    expression:
+      allOf:
+        - permission:
+            resource: detected_issue
+            action: list
+            targetRef: detected_issueCollection
+        - permission:
+            resource: hospital_context
+            action: read
+            targetRef: hospitalContext
+  - key: family_member_history.action.delete
+    module: clinical
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: family_member_history
+            action: read
+            targetRef: family_member_history
+        - permission:
+            resource: family_member_history
+            action: delete
+            targetRef: family_member_history
+  - key: family_member_history.button.assign
+    module: clinical
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: family_member_history
+            action: read
+            targetRef: family_member_history
+        - permission:
+            resource: family_member_history
+            action: assign
+            targetRef: family_member_history
+  - key: family_member_history.route.details
+    module: clinical
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: family_member_history
+            action: read
+            targetRef: family_member_history
+        - permission:
+            resource: flag
+            action: read
+            targetRef: flag
+  - key: family_member_history.route.edit
+    module: clinical
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: family_member_history
+            action: read
+            targetRef: family_member_history
+        - permission:
+            resource: family_member_history
+            action: update
+            targetRef: family_member_history
+        - permission:
+            resource: flag
+            action: list
+            targetRef: flagCollection
+  - key: family_member_history.route.list
+    module: clinical
+    context: COLLECTION
+    expression:
+      allOf:
+        - permission:
+            resource: family_member_history
+            action: list
+            targetRef: family_member_historyCollection
+        - permission:
+            resource: hospital_context
+            action: read
+            targetRef: hospitalContext

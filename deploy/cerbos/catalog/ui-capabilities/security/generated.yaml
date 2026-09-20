@@ -1,0 +1,151 @@
+# GENERATED FILE - DO NOT EDIT BY HAND.
+#
+# Produced by libs/capabilitycatalog's archetype generator (catalog
+# revision 1, issue #10, PRD "UI capability catalog"). Edit
+# libs/cataloggen/manifest.yaml or the archetype definitions in
+# libs/capabilitycatalog/generator.go and re-run `make capability-gen`,
+# or regenerate directly with
+# `go run ./libs/capabilitycatalog/cmd/capabilitycatalog-gen -root .`.
+#
+# Hand-authored capabilities for this module live beside this file in the
+# same module directory and are never touched by the generator.
+catalogRevision: 1
+capabilities:
+  - key: audit_event.action.delete
+    module: security
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: audit_event
+            action: read
+            targetRef: audit_event
+        - permission:
+            resource: audit_event
+            action: delete
+            targetRef: audit_event
+  - key: audit_event.button.assign
+    module: security
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: audit_event
+            action: read
+            targetRef: audit_event
+        - permission:
+            resource: audit_event
+            action: assign
+            targetRef: audit_event
+  - key: audit_event.route.details
+    module: security
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: audit_event
+            action: read
+            targetRef: audit_event
+        - permission:
+            resource: basic
+            action: read
+            targetRef: basic
+  - key: audit_event.route.edit
+    module: security
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: audit_event
+            action: read
+            targetRef: audit_event
+        - permission:
+            resource: audit_event
+            action: update
+            targetRef: audit_event
+        - permission:
+            resource: basic
+            action: list
+            targetRef: basicCollection
+  - key: audit_event.route.list
+    module: security
+    context: COLLECTION
+    expression:
+      allOf:
+        - permission:
+            resource: audit_event
+            action: list
+            targetRef: audit_eventCollection
+        - permission:
+            resource: hospital_context
+            action: read
+            targetRef: hospitalContext
+  - key: consent.action.delete
+    module: security
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: consent
+            action: read
+            targetRef: consent
+        - permission:
+            resource: consent
+            action: delete
+            targetRef: consent
+  - key: consent.button.assign
+    module: security
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: consent
+            action: read
+            targetRef: consent
+        - permission:
+            resource: consent
+            action: assign
+            targetRef: consent
+  - key: consent.route.details
+    module: security
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: consent
+            action: read
+            targetRef: consent
+        - permission:
+            resource: contract
+            action: read
+            targetRef: contract
+  - key: consent.route.edit
+    module: security
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: consent
+            action: read
+            targetRef: consent
+        - permission:
+            resource: consent
+            action: update
+            targetRef: consent
+        - permission:
+            resource: contract
+            action: list
+            targetRef: contractCollection
+  - key: consent.route.list
+    module: security
+    context: COLLECTION
+    expression:
+      allOf:
+        - permission:
+            resource: consent
+            action: list
+            targetRef: consentCollection
+        - permission:
+            resource: hospital_context
+            action: read
+            targetRef: hospitalContext

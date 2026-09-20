@@ -20,6 +20,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"sort"
 
 	"github.com/tishan-harischandra/cerbos-poc/libs/capabilitycatalog"
 	"github.com/tishan-harischandra/cerbos-poc/libs/cataloggen"
@@ -32,6 +33,84 @@ const (
 	seedDataFile        = "deploy/liquibase/changelog/data/ui_capability_definition.csv"
 	seedChangeFile      = "deploy/liquibase/changelog/tables/008-ui-capability-seed.yaml"
 )
+
+// modulePath is where a module's generated document lives: one directory
+// per module, so the ADS can read a module without reading its siblings.
+func modulePath(dir, module string) string {
+	return filepath.Join(dir, module, generatedFileName)
+}
+
+// writeModules writes each module's generated document, and removes a
+// generated document for a module that no longer generates - otherwise a
+// resource leaving the manifest would leave its capabilities serving
+// forever.
+func writeModules(dir string, byModule map[string]string) error {
+	for module, doc := range byModule {
+		path := modulePath(dir, module)
+		if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+			return err
+		}
+		if err := os.WriteFile(path, []byte(doc), 0o644); err != nil {
+			return fmt.Errorf("writing %s: %w", path, err)
+		}
+	}
+
+	stale, err := staleModules(dir, byModule)
+	if err != nil {
+		return err
+	}
+	for _, path := range stale {
+		if err := os.Remove(path); err != nil {
+			return fmt.Errorf("removing stale %s: %w", path, err)
+		}
+	}
+	return nil
+}
+
+// checkModules returns every generated document that differs from what the
+// generator produces, is missing, or is left over from a module that no
+// longer generates.
+func checkModules(dir string, byModule map[string]string) []string {
+	var mismatched []string
+	for module, doc := range byModule {
+		path := modulePath(dir, module)
+		existing, err := os.ReadFile(path)
+		if err != nil || string(existing) != doc {
+			mismatched = append(mismatched, path)
+		}
+	}
+	stale, err := staleModules(dir, byModule)
+	if err != nil {
+		return append(mismatched, err.Error())
+	}
+	mismatched = append(mismatched, stale...)
+	sort.Strings(mismatched)
+	return mismatched
+}
+
+// staleModules finds generated documents under dir whose module is absent
+// from byModule.
+func staleModules(dir string, byModule map[string]string) ([]string, error) {
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		return nil, fmt.Errorf("reading %s: %w", dir, err)
+	}
+
+	var stale []string
+	for _, entry := range entries {
+		if !entry.IsDir() {
+			continue
+		}
+		if _, generated := byModule[entry.Name()]; generated {
+			continue
+		}
+		path := modulePath(dir, entry.Name())
+		if _, err := os.Stat(path); err == nil {
+			stale = append(stale, path)
+		}
+	}
+	return stale, nil
+}
 
 func main() {
 	root := flag.String("root", ".", "repository root the output paths are relative to")
@@ -53,7 +132,7 @@ func main() {
 
 	resources := capabilitycatalog.SelectArchetypeResources(manifest, capabilitycatalog.ArchetypeResourceCount)
 	generated := capabilitycatalog.GenerateArchetypeCapabilities(resources, manifest.CatalogRevision)
-	generatedYAML := capabilitycatalog.RenderDefinitionsYAML(manifest.CatalogRevision, generated)
+	byModule := capabilitycatalog.RenderDefinitionsByModule(manifest.CatalogRevision, generated)
 
 	handAuthoredDir := filepath.Join(*root, capabilitiesDir)
 	handAuthored, err := capabilitycatalog.LoadDefinitionsDir(handAuthoredDir)
@@ -63,30 +142,19 @@ func main() {
 	}
 
 	if *check {
-		generatedPath := filepath.Join(*root, capabilitiesDir, generatedFileName)
-		existing, readErr := os.ReadFile(generatedPath)
-		if readErr != nil {
-			fmt.Fprintf(os.Stderr, "capabilitycatalog-gen: reading %s: %v\n", generatedPath, readErr)
-			os.Exit(1)
-		}
-		if string(existing) != generatedYAML {
+		if mismatched := checkModules(handAuthoredDir, byModule); len(mismatched) > 0 {
 			fmt.Fprintf(os.Stderr,
-				"capabilitycatalog-gen: %s does not match the generator output; run "+
-					"`go run ./libs/capabilitycatalog/cmd/capabilitycatalog-gen -root .`\n", generatedPath)
+				"capabilitycatalog-gen: %v does not match the generator output; run "+
+					"`go run ./libs/capabilitycatalog/cmd/capabilitycatalog-gen -root .`\n", mismatched)
 			os.Exit(1)
 		}
 	} else {
-		generatedPath := filepath.Join(*root, capabilitiesDir, generatedFileName)
-		if err := os.MkdirAll(filepath.Dir(generatedPath), 0o755); err != nil {
+		if err := writeModules(handAuthoredDir, byModule); err != nil {
 			fmt.Fprintf(os.Stderr, "capabilitycatalog-gen: %v\n", err)
 			os.Exit(1)
 		}
-		if err := os.WriteFile(generatedPath, []byte(generatedYAML), 0o644); err != nil {
-			fmt.Fprintf(os.Stderr, "capabilitycatalog-gen: writing %s: %v\n", generatedPath, err)
-			os.Exit(1)
-		}
-		// generated.yaml is itself hand-authored input to LoadDefinitionsDir on
-		// the next pass, so re-read the full set from disk after writing it,
+		// The generated files are themselves input to LoadDefinitionsDir on
+		// the next pass, so re-read the full set from disk after writing,
 		// rather than trusting the in-memory slice, to catch a rendering bug
 		// that a round trip through disk would expose.
 		handAuthored, err = capabilitycatalog.LoadDefinitionsDir(handAuthoredDir)

@@ -1,0 +1,220 @@
+# GENERATED FILE - DO NOT EDIT BY HAND.
+#
+# Produced by libs/capabilitycatalog's archetype generator (catalog
+# revision 1, issue #10, PRD "UI capability catalog"). Edit
+# libs/cataloggen/manifest.yaml or the archetype definitions in
+# libs/capabilitycatalog/generator.go and re-run `make capability-gen`,
+# or regenerate directly with
+# `go run ./libs/capabilitycatalog/cmd/capabilitycatalog-gen -root .`.
+#
+# Hand-authored capabilities for this module live beside this file in the
+# same module directory and are never touched by the generator.
+catalogRevision: 1
+capabilities:
+  - key: immunization.action.delete
+    module: medications
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: immunization
+            action: read
+            targetRef: immunization
+        - permission:
+            resource: immunization
+            action: delete
+            targetRef: immunization
+  - key: immunization.button.assign
+    module: medications
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: immunization
+            action: read
+            targetRef: immunization
+        - permission:
+            resource: immunization
+            action: assign
+            targetRef: immunization
+  - key: immunization.route.details
+    module: medications
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: immunization
+            action: read
+            targetRef: immunization
+        - permission:
+            resource: immunization_evaluation
+            action: read
+            targetRef: immunization_evaluation
+  - key: immunization.route.edit
+    module: medications
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: immunization
+            action: read
+            targetRef: immunization
+        - permission:
+            resource: immunization
+            action: update
+            targetRef: immunization
+        - permission:
+            resource: immunization_evaluation
+            action: list
+            targetRef: immunization_evaluationCollection
+  - key: immunization.route.list
+    module: medications
+    context: COLLECTION
+    expression:
+      allOf:
+        - permission:
+            resource: immunization
+            action: list
+            targetRef: immunizationCollection
+        - permission:
+            resource: hospital_context
+            action: read
+            targetRef: hospitalContext
+  - key: immunization_evaluation.action.delete
+    module: medications
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: immunization_evaluation
+            action: read
+            targetRef: immunization_evaluation
+        - permission:
+            resource: immunization_evaluation
+            action: delete
+            targetRef: immunization_evaluation
+  - key: immunization_evaluation.button.assign
+    module: medications
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: immunization_evaluation
+            action: read
+            targetRef: immunization_evaluation
+        - permission:
+            resource: immunization_evaluation
+            action: assign
+            targetRef: immunization_evaluation
+  - key: immunization_evaluation.route.details
+    module: medications
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: immunization_evaluation
+            action: read
+            targetRef: immunization_evaluation
+        - permission:
+            resource: immunization_recommendation
+            action: read
+            targetRef: immunization_recommendation
+  - key: immunization_evaluation.route.edit
+    module: medications
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: immunization_evaluation
+            action: read
+            targetRef: immunization_evaluation
+        - permission:
+            resource: immunization_evaluation
+            action: update
+            targetRef: immunization_evaluation
+        - permission:
+            resource: immunization_recommendation
+            action: list
+            targetRef: immunization_recommendationCollection
+  - key: immunization_evaluation.route.list
+    module: medications
+    context: COLLECTION
+    expression:
+      allOf:
+        - permission:
+            resource: immunization_evaluation
+            action: list
+            targetRef: immunization_evaluationCollection
+        - permission:
+            resource: hospital_context
+            action: read
+            targetRef: hospitalContext
+  - key: immunization_recommendation.action.delete
+    module: medications
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: immunization_recommendation
+            action: read
+            targetRef: immunization_recommendation
+        - permission:
+            resource: immunization_recommendation
+            action: delete
+            targetRef: immunization_recommendation
+  - key: immunization_recommendation.button.assign
+    module: medications
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: immunization_recommendation
+            action: read
+            targetRef: immunization_recommendation
+        - permission:
+            resource: immunization_recommendation
+            action: assign
+            targetRef: immunization_recommendation
+  - key: immunization_recommendation.route.details
+    module: medications
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: immunization_recommendation
+            action: read
+            targetRef: immunization_recommendation
+        - permission:
+            resource: implementation_guide
+            action: read
+            targetRef: implementation_guide
+  - key: immunization_recommendation.route.edit
+    module: medications
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: immunization_recommendation
+            action: read
+            targetRef: immunization_recommendation
+        - permission:
+            resource: immunization_recommendation
+            action: update
+            targetRef: immunization_recommendation
+        - permission:
+            resource: implementation_guide
+            action: list
+            targetRef: implementation_guideCollection
+  - key: immunization_recommendation.route.list
+    module: medications
+    context: COLLECTION
+    expression:
+      allOf:
+        - permission:
+            resource: immunization_recommendation
+            action: list
+            targetRef: immunization_recommendationCollection
+        - permission:
+            resource: hospital_context
+            action: read
+            targetRef: hospitalContext

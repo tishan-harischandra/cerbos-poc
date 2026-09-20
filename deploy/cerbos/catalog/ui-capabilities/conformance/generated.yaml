@@ -1,0 +1,220 @@
+# GENERATED FILE - DO NOT EDIT BY HAND.
+#
+# Produced by libs/capabilitycatalog's archetype generator (catalog
+# revision 1, issue #10, PRD "UI capability catalog"). Edit
+# libs/cataloggen/manifest.yaml or the archetype definitions in
+# libs/capabilitycatalog/generator.go and re-run `make capability-gen`,
+# or regenerate directly with
+# `go run ./libs/capabilitycatalog/cmd/capabilitycatalog-gen -root .`.
+#
+# Hand-authored capabilities for this module live beside this file in the
+# same module directory and are never touched by the generator.
+catalogRevision: 1
+capabilities:
+  - key: capability_statement.action.delete
+    module: conformance
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: capability_statement
+            action: read
+            targetRef: capability_statement
+        - permission:
+            resource: capability_statement
+            action: delete
+            targetRef: capability_statement
+  - key: capability_statement.button.assign
+    module: conformance
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: capability_statement
+            action: read
+            targetRef: capability_statement
+        - permission:
+            resource: capability_statement
+            action: assign
+            targetRef: capability_statement
+  - key: capability_statement.route.details
+    module: conformance
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: capability_statement
+            action: read
+            targetRef: capability_statement
+        - permission:
+            resource: care_plan
+            action: read
+            targetRef: care_plan
+  - key: capability_statement.route.edit
+    module: conformance
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: capability_statement
+            action: read
+            targetRef: capability_statement
+        - permission:
+            resource: capability_statement
+            action: update
+            targetRef: capability_statement
+        - permission:
+            resource: care_plan
+            action: list
+            targetRef: care_planCollection
+  - key: capability_statement.route.list
+    module: conformance
+    context: COLLECTION
+    expression:
+      allOf:
+        - permission:
+            resource: capability_statement
+            action: list
+            targetRef: capability_statementCollection
+        - permission:
+            resource: hospital_context
+            action: read
+            targetRef: hospitalContext
+  - key: compartment_definition.action.delete
+    module: conformance
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: compartment_definition
+            action: read
+            targetRef: compartment_definition
+        - permission:
+            resource: compartment_definition
+            action: delete
+            targetRef: compartment_definition
+  - key: compartment_definition.button.assign
+    module: conformance
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: compartment_definition
+            action: read
+            targetRef: compartment_definition
+        - permission:
+            resource: compartment_definition
+            action: assign
+            targetRef: compartment_definition
+  - key: compartment_definition.route.details
+    module: conformance
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: compartment_definition
+            action: read
+            targetRef: compartment_definition
+        - permission:
+            resource: composition
+            action: read
+            targetRef: composition
+  - key: compartment_definition.route.edit
+    module: conformance
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: compartment_definition
+            action: read
+            targetRef: compartment_definition
+        - permission:
+            resource: compartment_definition
+            action: update
+            targetRef: compartment_definition
+        - permission:
+            resource: composition
+            action: list
+            targetRef: compositionCollection
+  - key: compartment_definition.route.list
+    module: conformance
+    context: COLLECTION
+    expression:
+      allOf:
+        - permission:
+            resource: compartment_definition
+            action: list
+            targetRef: compartment_definitionCollection
+        - permission:
+            resource: hospital_context
+            action: read
+            targetRef: hospitalContext
+  - key: implementation_guide.action.delete
+    module: conformance
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: implementation_guide
+            action: read
+            targetRef: implementation_guide
+        - permission:
+            resource: implementation_guide
+            action: delete
+            targetRef: implementation_guide
+  - key: implementation_guide.button.assign
+    module: conformance
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: implementation_guide
+            action: read
+            targetRef: implementation_guide
+        - permission:
+            resource: implementation_guide
+            action: assign
+            targetRef: implementation_guide
+  - key: implementation_guide.route.details
+    module: conformance
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: implementation_guide
+            action: read
+            targetRef: implementation_guide
+        - permission:
+            resource: ingredient
+            action: read
+            targetRef: ingredient
+  - key: implementation_guide.route.edit
+    module: conformance
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: implementation_guide
+            action: read
+            targetRef: implementation_guide
+        - permission:
+            resource: implementation_guide
+            action: update
+            targetRef: implementation_guide
+        - permission:
+            resource: ingredient
+            action: list
+            targetRef: ingredientCollection
+  - key: implementation_guide.route.list
+    module: conformance
+    context: COLLECTION
+    expression:
+      allOf:
+        - permission:
+            resource: implementation_guide
+            action: list
+            targetRef: implementation_guideCollection
+        - permission:
+            resource: hospital_context
+            action: read
+            targetRef: hospitalContext

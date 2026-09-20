@@ -1,0 +1,151 @@
+# GENERATED FILE - DO NOT EDIT BY HAND.
+#
+# Produced by libs/capabilitycatalog's archetype generator (catalog
+# revision 1, issue #10, PRD "UI capability catalog"). Edit
+# libs/cataloggen/manifest.yaml or the archetype definitions in
+# libs/capabilitycatalog/generator.go and re-run `make capability-gen`,
+# or regenerate directly with
+# `go run ./libs/capabilitycatalog/cmd/capabilitycatalog-gen -root .`.
+#
+# Hand-authored capabilities for this module live beside this file in the
+# same module directory and are never touched by the generator.
+catalogRevision: 1
+capabilities:
+  - key: composition.action.delete
+    module: documents
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: composition
+            action: read
+            targetRef: composition
+        - permission:
+            resource: composition
+            action: delete
+            targetRef: composition
+  - key: composition.button.assign
+    module: documents
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: composition
+            action: read
+            targetRef: composition
+        - permission:
+            resource: composition
+            action: assign
+            targetRef: composition
+  - key: composition.route.details
+    module: documents
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: composition
+            action: read
+            targetRef: composition
+        - permission:
+            resource: concept_map
+            action: read
+            targetRef: concept_map
+  - key: composition.route.edit
+    module: documents
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: composition
+            action: read
+            targetRef: composition
+        - permission:
+            resource: composition
+            action: update
+            targetRef: composition
+        - permission:
+            resource: concept_map
+            action: list
+            targetRef: concept_mapCollection
+  - key: composition.route.list
+    module: documents
+    context: COLLECTION
+    expression:
+      allOf:
+        - permission:
+            resource: composition
+            action: list
+            targetRef: compositionCollection
+        - permission:
+            resource: hospital_context
+            action: read
+            targetRef: hospitalContext
+  - key: document_reference.action.delete
+    module: documents
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: document_reference
+            action: read
+            targetRef: document_reference
+        - permission:
+            resource: document_reference
+            action: delete
+            targetRef: document_reference
+  - key: document_reference.button.assign
+    module: documents
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: document_reference
+            action: read
+            targetRef: document_reference
+        - permission:
+            resource: document_reference
+            action: assign
+            targetRef: document_reference
+  - key: document_reference.route.details
+    module: documents
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: document_reference
+            action: read
+            targetRef: document_reference
+        - permission:
+            resource: encounter
+            action: read
+            targetRef: encounter
+  - key: document_reference.route.edit
+    module: documents
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: document_reference
+            action: read
+            targetRef: document_reference
+        - permission:
+            resource: document_reference
+            action: update
+            targetRef: document_reference
+        - permission:
+            resource: encounter
+            action: list
+            targetRef: encounterCollection
+  - key: document_reference.route.list
+    module: documents
+    context: COLLECTION
+    expression:
+      allOf:
+        - permission:
+            resource: document_reference
+            action: list
+            targetRef: document_referenceCollection
+        - permission:
+            resource: hospital_context
+            action: read
+            targetRef: hospitalContext

@@ -1,0 +1,151 @@
+# GENERATED FILE - DO NOT EDIT BY HAND.
+#
+# Produced by libs/capabilitycatalog's archetype generator (catalog
+# revision 1, issue #10, PRD "UI capability catalog"). Edit
+# libs/cataloggen/manifest.yaml or the archetype definitions in
+# libs/capabilitycatalog/generator.go and re-run `make capability-gen`,
+# or regenerate directly with
+# `go run ./libs/capabilitycatalog/cmd/capabilitycatalog-gen -root .`.
+#
+# Hand-authored capabilities for this module live beside this file in the
+# same module directory and are never touched by the generator.
+catalogRevision: 1
+capabilities:
+  - key: administrable_product_definition.action.delete
+    module: medicinal_products
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: administrable_product_definition
+            action: read
+            targetRef: administrable_product_definition
+        - permission:
+            resource: administrable_product_definition
+            action: delete
+            targetRef: administrable_product_definition
+  - key: administrable_product_definition.button.assign
+    module: medicinal_products
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: administrable_product_definition
+            action: read
+            targetRef: administrable_product_definition
+        - permission:
+            resource: administrable_product_definition
+            action: assign
+            targetRef: administrable_product_definition
+  - key: administrable_product_definition.route.details
+    module: medicinal_products
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: administrable_product_definition
+            action: read
+            targetRef: administrable_product_definition
+        - permission:
+            resource: adverse_event
+            action: read
+            targetRef: adverse_event
+  - key: administrable_product_definition.route.edit
+    module: medicinal_products
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: administrable_product_definition
+            action: read
+            targetRef: administrable_product_definition
+        - permission:
+            resource: administrable_product_definition
+            action: update
+            targetRef: administrable_product_definition
+        - permission:
+            resource: adverse_event
+            action: list
+            targetRef: adverse_eventCollection
+  - key: administrable_product_definition.route.list
+    module: medicinal_products
+    context: COLLECTION
+    expression:
+      allOf:
+        - permission:
+            resource: administrable_product_definition
+            action: list
+            targetRef: administrable_product_definitionCollection
+        - permission:
+            resource: hospital_context
+            action: read
+            targetRef: hospitalContext
+  - key: clinical_use_definition.action.delete
+    module: medicinal_products
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: clinical_use_definition
+            action: read
+            targetRef: clinical_use_definition
+        - permission:
+            resource: clinical_use_definition
+            action: delete
+            targetRef: clinical_use_definition
+  - key: clinical_use_definition.button.assign
+    module: medicinal_products
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: clinical_use_definition
+            action: read
+            targetRef: clinical_use_definition
+        - permission:
+            resource: clinical_use_definition
+            action: assign
+            targetRef: clinical_use_definition
+  - key: clinical_use_definition.route.details
+    module: medicinal_products
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: clinical_use_definition
+            action: read
+            targetRef: clinical_use_definition
+        - permission:
+            resource: code_system
+            action: read
+            targetRef: code_system
+  - key: clinical_use_definition.route.edit
+    module: medicinal_products
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: clinical_use_definition
+            action: read
+            targetRef: clinical_use_definition
+        - permission:
+            resource: clinical_use_definition
+            action: update
+            targetRef: clinical_use_definition
+        - permission:
+            resource: code_system
+            action: list
+            targetRef: code_systemCollection
+  - key: clinical_use_definition.route.list
+    module: medicinal_products
+    context: COLLECTION
+    expression:
+      allOf:
+        - permission:
+            resource: clinical_use_definition
+            action: list
+            targetRef: clinical_use_definitionCollection
+        - permission:
+            resource: hospital_context
+            action: read
+            targetRef: hospitalContext

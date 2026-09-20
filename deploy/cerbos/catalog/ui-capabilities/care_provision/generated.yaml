@@ -1,0 +1,289 @@
+# GENERATED FILE - DO NOT EDIT BY HAND.
+#
+# Produced by libs/capabilitycatalog's archetype generator (catalog
+# revision 1, issue #10, PRD "UI capability catalog"). Edit
+# libs/cataloggen/manifest.yaml or the archetype definitions in
+# libs/capabilitycatalog/generator.go and re-run `make capability-gen`,
+# or regenerate directly with
+# `go run ./libs/capabilitycatalog/cmd/capabilitycatalog-gen -root .`.
+#
+# Hand-authored capabilities for this module live beside this file in the
+# same module directory and are never touched by the generator.
+catalogRevision: 1
+capabilities:
+  - key: care_plan.action.delete
+    module: care_provision
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: care_plan
+            action: read
+            targetRef: care_plan
+        - permission:
+            resource: care_plan
+            action: delete
+            targetRef: care_plan
+  - key: care_plan.button.assign
+    module: care_provision
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: care_plan
+            action: read
+            targetRef: care_plan
+        - permission:
+            resource: care_plan
+            action: assign
+            targetRef: care_plan
+  - key: care_plan.route.details
+    module: care_provision
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: care_plan
+            action: read
+            targetRef: care_plan
+        - permission:
+            resource: care_team
+            action: read
+            targetRef: care_team
+  - key: care_plan.route.edit
+    module: care_provision
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: care_plan
+            action: read
+            targetRef: care_plan
+        - permission:
+            resource: care_plan
+            action: update
+            targetRef: care_plan
+        - permission:
+            resource: care_team
+            action: list
+            targetRef: care_teamCollection
+  - key: care_plan.route.list
+    module: care_provision
+    context: COLLECTION
+    expression:
+      allOf:
+        - permission:
+            resource: care_plan
+            action: list
+            targetRef: care_planCollection
+        - permission:
+            resource: hospital_context
+            action: read
+            targetRef: hospitalContext
+  - key: communication.action.delete
+    module: care_provision
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: communication
+            action: read
+            targetRef: communication
+        - permission:
+            resource: communication
+            action: delete
+            targetRef: communication
+  - key: communication.button.assign
+    module: care_provision
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: communication
+            action: read
+            targetRef: communication
+        - permission:
+            resource: communication
+            action: assign
+            targetRef: communication
+  - key: communication.route.details
+    module: care_provision
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: communication
+            action: read
+            targetRef: communication
+        - permission:
+            resource: communication_request
+            action: read
+            targetRef: communication_request
+  - key: communication.route.edit
+    module: care_provision
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: communication
+            action: read
+            targetRef: communication
+        - permission:
+            resource: communication
+            action: update
+            targetRef: communication
+        - permission:
+            resource: communication_request
+            action: list
+            targetRef: communication_requestCollection
+  - key: communication.route.list
+    module: care_provision
+    context: COLLECTION
+    expression:
+      allOf:
+        - permission:
+            resource: communication
+            action: list
+            targetRef: communicationCollection
+        - permission:
+            resource: hospital_context
+            action: read
+            targetRef: hospitalContext
+  - key: communication_request.action.delete
+    module: care_provision
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: communication_request
+            action: read
+            targetRef: communication_request
+        - permission:
+            resource: communication_request
+            action: delete
+            targetRef: communication_request
+  - key: communication_request.button.assign
+    module: care_provision
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: communication_request
+            action: read
+            targetRef: communication_request
+        - permission:
+            resource: communication_request
+            action: assign
+            targetRef: communication_request
+  - key: communication_request.route.details
+    module: care_provision
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: communication_request
+            action: read
+            targetRef: communication_request
+        - permission:
+            resource: compartment_definition
+            action: read
+            targetRef: compartment_definition
+  - key: communication_request.route.edit
+    module: care_provision
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: communication_request
+            action: read
+            targetRef: communication_request
+        - permission:
+            resource: communication_request
+            action: update
+            targetRef: communication_request
+        - permission:
+            resource: compartment_definition
+            action: list
+            targetRef: compartment_definitionCollection
+  - key: communication_request.route.list
+    module: care_provision
+    context: COLLECTION
+    expression:
+      allOf:
+        - permission:
+            resource: communication_request
+            action: list
+            targetRef: communication_requestCollection
+        - permission:
+            resource: hospital_context
+            action: read
+            targetRef: hospitalContext
+  - key: guidance_response.action.delete
+    module: care_provision
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: guidance_response
+            action: read
+            targetRef: guidance_response
+        - permission:
+            resource: guidance_response
+            action: delete
+            targetRef: guidance_response
+  - key: guidance_response.button.assign
+    module: care_provision
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: guidance_response
+            action: read
+            targetRef: guidance_response
+        - permission:
+            resource: guidance_response
+            action: assign
+            targetRef: guidance_response
+  - key: guidance_response.route.details
+    module: care_provision
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: guidance_response
+            action: read
+            targetRef: guidance_response
+        - permission:
+            resource: healthcare_service
+            action: read
+            targetRef: healthcare_service
+  - key: guidance_response.route.edit
+    module: care_provision
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: guidance_response
+            action: read
+            targetRef: guidance_response
+        - permission:
+            resource: guidance_response
+            action: update
+            targetRef: guidance_response
+        - permission:
+            resource: healthcare_service
+            action: list
+            targetRef: healthcare_serviceCollection
+  - key: guidance_response.route.list
+    module: care_provision
+    context: COLLECTION
+    expression:
+      allOf:
+        - permission:
+            resource: guidance_response
+            action: list
+            targetRef: guidance_responseCollection
+        - permission:
+            resource: hospital_context
+            action: read
+            targetRef: hospitalContext

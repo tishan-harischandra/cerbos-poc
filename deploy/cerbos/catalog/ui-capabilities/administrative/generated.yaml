@@ -1,0 +1,220 @@
+# GENERATED FILE - DO NOT EDIT BY HAND.
+#
+# Produced by libs/capabilitycatalog's archetype generator (catalog
+# revision 1, issue #10, PRD "UI capability catalog"). Edit
+# libs/cataloggen/manifest.yaml or the archetype definitions in
+# libs/capabilitycatalog/generator.go and re-run `make capability-gen`,
+# or regenerate directly with
+# `go run ./libs/capabilitycatalog/cmd/capabilitycatalog-gen -root .`.
+#
+# Hand-authored capabilities for this module live beside this file in the
+# same module directory and are never touched by the generator.
+catalogRevision: 1
+capabilities:
+  - key: endpoint.action.delete
+    module: administrative
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: endpoint
+            action: read
+            targetRef: endpoint
+        - permission:
+            resource: endpoint
+            action: delete
+            targetRef: endpoint
+  - key: endpoint.button.assign
+    module: administrative
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: endpoint
+            action: read
+            targetRef: endpoint
+        - permission:
+            resource: endpoint
+            action: assign
+            targetRef: endpoint
+  - key: endpoint.route.details
+    module: administrative
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: endpoint
+            action: read
+            targetRef: endpoint
+        - permission:
+            resource: enrollment_request
+            action: read
+            targetRef: enrollment_request
+  - key: endpoint.route.edit
+    module: administrative
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: endpoint
+            action: read
+            targetRef: endpoint
+        - permission:
+            resource: endpoint
+            action: update
+            targetRef: endpoint
+        - permission:
+            resource: enrollment_request
+            action: list
+            targetRef: enrollment_requestCollection
+  - key: endpoint.route.list
+    module: administrative
+    context: COLLECTION
+    expression:
+      allOf:
+        - permission:
+            resource: endpoint
+            action: list
+            targetRef: endpointCollection
+        - permission:
+            resource: hospital_context
+            action: read
+            targetRef: hospitalContext
+  - key: group.action.delete
+    module: administrative
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: group
+            action: read
+            targetRef: group
+        - permission:
+            resource: group
+            action: delete
+            targetRef: group
+  - key: group.button.assign
+    module: administrative
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: group
+            action: read
+            targetRef: group
+        - permission:
+            resource: group
+            action: assign
+            targetRef: group
+  - key: group.route.details
+    module: administrative
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: group
+            action: read
+            targetRef: group
+        - permission:
+            resource: guidance_response
+            action: read
+            targetRef: guidance_response
+  - key: group.route.edit
+    module: administrative
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: group
+            action: read
+            targetRef: group
+        - permission:
+            resource: group
+            action: update
+            targetRef: group
+        - permission:
+            resource: guidance_response
+            action: list
+            targetRef: guidance_responseCollection
+  - key: group.route.list
+    module: administrative
+    context: COLLECTION
+    expression:
+      allOf:
+        - permission:
+            resource: group
+            action: list
+            targetRef: groupCollection
+        - permission:
+            resource: hospital_context
+            action: read
+            targetRef: hospitalContext
+  - key: healthcare_service.action.delete
+    module: administrative
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: healthcare_service
+            action: read
+            targetRef: healthcare_service
+        - permission:
+            resource: healthcare_service
+            action: delete
+            targetRef: healthcare_service
+  - key: healthcare_service.button.assign
+    module: administrative
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: healthcare_service
+            action: read
+            targetRef: healthcare_service
+        - permission:
+            resource: healthcare_service
+            action: assign
+            targetRef: healthcare_service
+  - key: healthcare_service.route.details
+    module: administrative
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: healthcare_service
+            action: read
+            targetRef: healthcare_service
+        - permission:
+            resource: imaging_selection
+            action: read
+            targetRef: imaging_selection
+  - key: healthcare_service.route.edit
+    module: administrative
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: healthcare_service
+            action: read
+            targetRef: healthcare_service
+        - permission:
+            resource: healthcare_service
+            action: update
+            targetRef: healthcare_service
+        - permission:
+            resource: imaging_selection
+            action: list
+            targetRef: imaging_selectionCollection
+  - key: healthcare_service.route.list
+    module: administrative
+    context: COLLECTION
+    expression:
+      allOf:
+        - permission:
+            resource: healthcare_service
+            action: list
+            targetRef: healthcare_serviceCollection
+        - permission:
+            resource: hospital_context
+            action: read
+            targetRef: hospitalContext

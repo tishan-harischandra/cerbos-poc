@@ -34,17 +34,58 @@ func TestGeneratedCapabilityCatalogMatchesTheManifest(t *testing.T) {
 
 	resources := capabilitycatalog.SelectArchetypeResources(manifest, capabilitycatalog.ArchetypeResourceCount)
 	generated := capabilitycatalog.GenerateArchetypeCapabilities(resources, manifest.CatalogRevision)
-	want := capabilitycatalog.RenderDefinitionsYAML(manifest.CatalogRevision, generated)
+	want := capabilitycatalog.RenderDefinitionsByModule(manifest.CatalogRevision, generated)
 
-	generatedPath := filepath.Join(root, capabilitiesDir, "generated.yaml")
-	got, err := os.ReadFile(generatedPath)
-	if err != nil {
-		t.Fatalf("reading %s: %v", generatedPath, err)
+	if len(want) == 0 {
+		t.Fatal("the generator produced no modules; the comparison below would pass vacuously")
 	}
 
-	if string(got) != want {
-		t.Fatalf("%s does not match libs/capabilitycatalog's archetype generator; "+
-			"run `make capability-gen` at the repo root", generatedPath)
+	for module, doc := range want {
+		generatedPath := filepath.Join(root, capabilitiesDir, module, "generated.yaml")
+		got, err := os.ReadFile(generatedPath)
+		if err != nil {
+			t.Errorf("reading %s: %v", generatedPath, err)
+			continue
+		}
+		if string(got) != doc {
+			t.Errorf("%s does not match libs/capabilitycatalog's archetype generator; "+
+				"run `make capability-gen` at the repo root", generatedPath)
+		}
+	}
+}
+
+// A module whose resources all left the manifest must not keep serving its
+// generated capabilities: the generator removes the file, and this is the
+// gate that notices if it stops.
+func TestNoGeneratedCapabilityFileSurvivesItsModule(t *testing.T) {
+	root := repoRoot(t)
+
+	manifest, err := cataloggen.LoadManifestFile(filepath.Join(root, cataloggen.DefaultManifestPath))
+	if err != nil {
+		t.Fatalf("loading the committed manifest: %v", err)
+	}
+	resources := capabilitycatalog.SelectArchetypeResources(manifest, capabilitycatalog.ArchetypeResourceCount)
+	generated := capabilitycatalog.GenerateArchetypeCapabilities(resources, manifest.CatalogRevision)
+	want := capabilitycatalog.RenderDefinitionsByModule(manifest.CatalogRevision, generated)
+
+	entries, err := os.ReadDir(filepath.Join(root, capabilitiesDir))
+	if err != nil {
+		t.Fatalf("reading %s: %v", capabilitiesDir, err)
+	}
+	for _, entry := range entries {
+		if !entry.IsDir() {
+			t.Errorf("%s/%s is not a module directory; the catalog is authored one "+
+				"directory per module (ADR-013)", capabilitiesDir, entry.Name())
+			continue
+		}
+		if _, generates := want[entry.Name()]; generates {
+			continue
+		}
+		orphan := filepath.Join(root, capabilitiesDir, entry.Name(), "generated.yaml")
+		if _, err := os.Stat(orphan); err == nil {
+			t.Errorf("%s is generated output for a module the manifest no longer produces; "+
+				"run `make capability-gen`", orphan)
+		}
 	}
 }
 

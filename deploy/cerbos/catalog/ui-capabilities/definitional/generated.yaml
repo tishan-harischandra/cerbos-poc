@@ -1,0 +1,289 @@
+# GENERATED FILE - DO NOT EDIT BY HAND.
+#
+# Produced by libs/capabilitycatalog's archetype generator (catalog
+# revision 1, issue #10, PRD "UI capability catalog"). Edit
+# libs/cataloggen/manifest.yaml or the archetype definitions in
+# libs/capabilitycatalog/generator.go and re-run `make capability-gen`,
+# or regenerate directly with
+# `go run ./libs/capabilitycatalog/cmd/capabilitycatalog-gen -root .`.
+#
+# Hand-authored capabilities for this module live beside this file in the
+# same module directory and are never touched by the generator.
+catalogRevision: 1
+capabilities:
+  - key: activity_definition.action.delete
+    module: definitional
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: activity_definition
+            action: read
+            targetRef: activity_definition
+        - permission:
+            resource: activity_definition
+            action: delete
+            targetRef: activity_definition
+  - key: activity_definition.button.assign
+    module: definitional
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: activity_definition
+            action: read
+            targetRef: activity_definition
+        - permission:
+            resource: activity_definition
+            action: assign
+            targetRef: activity_definition
+  - key: activity_definition.route.details
+    module: definitional
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: activity_definition
+            action: read
+            targetRef: activity_definition
+        - permission:
+            resource: actor_definition
+            action: read
+            targetRef: actor_definition
+  - key: activity_definition.route.edit
+    module: definitional
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: activity_definition
+            action: read
+            targetRef: activity_definition
+        - permission:
+            resource: activity_definition
+            action: update
+            targetRef: activity_definition
+        - permission:
+            resource: actor_definition
+            action: list
+            targetRef: actor_definitionCollection
+  - key: activity_definition.route.list
+    module: definitional
+    context: COLLECTION
+    expression:
+      allOf:
+        - permission:
+            resource: activity_definition
+            action: list
+            targetRef: activity_definitionCollection
+        - permission:
+            resource: hospital_context
+            action: read
+            targetRef: hospitalContext
+  - key: actor_definition.action.delete
+    module: definitional
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: actor_definition
+            action: read
+            targetRef: actor_definition
+        - permission:
+            resource: actor_definition
+            action: delete
+            targetRef: actor_definition
+  - key: actor_definition.button.assign
+    module: definitional
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: actor_definition
+            action: read
+            targetRef: actor_definition
+        - permission:
+            resource: actor_definition
+            action: assign
+            targetRef: actor_definition
+  - key: actor_definition.route.details
+    module: definitional
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: actor_definition
+            action: read
+            targetRef: actor_definition
+        - permission:
+            resource: administrable_product_definition
+            action: read
+            targetRef: administrable_product_definition
+  - key: actor_definition.route.edit
+    module: definitional
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: actor_definition
+            action: read
+            targetRef: actor_definition
+        - permission:
+            resource: actor_definition
+            action: update
+            targetRef: actor_definition
+        - permission:
+            resource: administrable_product_definition
+            action: list
+            targetRef: administrable_product_definitionCollection
+  - key: actor_definition.route.list
+    module: definitional
+    context: COLLECTION
+    expression:
+      allOf:
+        - permission:
+            resource: actor_definition
+            action: list
+            targetRef: actor_definitionCollection
+        - permission:
+            resource: hospital_context
+            action: read
+            targetRef: hospitalContext
+  - key: example_scenario.action.delete
+    module: definitional
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: example_scenario
+            action: read
+            targetRef: example_scenario
+        - permission:
+            resource: example_scenario
+            action: delete
+            targetRef: example_scenario
+  - key: example_scenario.button.assign
+    module: definitional
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: example_scenario
+            action: read
+            targetRef: example_scenario
+        - permission:
+            resource: example_scenario
+            action: assign
+            targetRef: example_scenario
+  - key: example_scenario.route.details
+    module: definitional
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: example_scenario
+            action: read
+            targetRef: example_scenario
+        - permission:
+            resource: explanation_of_benefit
+            action: read
+            targetRef: explanation_of_benefit
+  - key: example_scenario.route.edit
+    module: definitional
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: example_scenario
+            action: read
+            targetRef: example_scenario
+        - permission:
+            resource: example_scenario
+            action: update
+            targetRef: example_scenario
+        - permission:
+            resource: explanation_of_benefit
+            action: list
+            targetRef: explanation_of_benefitCollection
+  - key: example_scenario.route.list
+    module: definitional
+    context: COLLECTION
+    expression:
+      allOf:
+        - permission:
+            resource: example_scenario
+            action: list
+            targetRef: example_scenarioCollection
+        - permission:
+            resource: hospital_context
+            action: read
+            targetRef: hospitalContext
+  - key: graph_definition.action.delete
+    module: definitional
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: graph_definition
+            action: read
+            targetRef: graph_definition
+        - permission:
+            resource: graph_definition
+            action: delete
+            targetRef: graph_definition
+  - key: graph_definition.button.assign
+    module: definitional
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: graph_definition
+            action: read
+            targetRef: graph_definition
+        - permission:
+            resource: graph_definition
+            action: assign
+            targetRef: graph_definition
+  - key: graph_definition.route.details
+    module: definitional
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: graph_definition
+            action: read
+            targetRef: graph_definition
+        - permission:
+            resource: group
+            action: read
+            targetRef: group
+  - key: graph_definition.route.edit
+    module: definitional
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: graph_definition
+            action: read
+            targetRef: graph_definition
+        - permission:
+            resource: graph_definition
+            action: update
+            targetRef: graph_definition
+        - permission:
+            resource: group
+            action: list
+            targetRef: groupCollection
+  - key: graph_definition.route.list
+    module: definitional
+    context: COLLECTION
+    expression:
+      allOf:
+        - permission:
+            resource: graph_definition
+            action: list
+            targetRef: graph_definitionCollection
+        - permission:
+            resource: hospital_context
+            action: read
+            targetRef: hospitalContext
