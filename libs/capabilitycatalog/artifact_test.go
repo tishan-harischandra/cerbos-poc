@@ -155,3 +155,34 @@ func TestTheArtifactRoundTripsAnExpressionTree(t *testing.T) {
 		t.Errorf("the capabilityRef did not survive: %+v", defs[0].Expression.AllOf[1])
 	}
 }
+
+// A module whose YAML has all been removed must serve nothing, not whatever
+// its leftover artifact still holds. Both the empty directory and a stale
+// artifact fingerprint to the same empty string, so a naive comparison
+// treats the artifact as current and keeps serving capabilities the adopter
+// deleted.
+func TestAnArtifactWithNoYAMLBesideItIsNotServed(t *testing.T) {
+	dir := t.TempDir()
+	moduleDir := writeModule(t, dir, "clinical", artifactModuleYAML)
+
+	if err := capabilitycatalog.WriteModuleArtifact(dir, "clinical",
+		[]capabilitycatalog.UiCapabilityDefinition{
+			{Key: "clinical.deleted", Module: "clinical", Context: "INSTANCE"},
+		}); err != nil {
+		t.Fatalf("WriteModuleArtifact: %v", err)
+	}
+
+	// The adopter removes the module's authored content entirely.
+	if err := os.Remove(filepath.Join(moduleDir, "generated.yaml")); err != nil {
+		t.Fatalf("removing the module's YAML: %v", err)
+	}
+
+	defs, err := capabilitycatalog.LoadDefinitionsForModule(dir, "clinical")
+	if err != nil {
+		t.Fatalf("LoadDefinitionsForModule: %v", err)
+	}
+	if len(defs) != 0 {
+		t.Fatalf("a module with no authored YAML served %d definitions from a "+
+			"leftover artifact: %+v", len(defs), defs)
+	}
+}

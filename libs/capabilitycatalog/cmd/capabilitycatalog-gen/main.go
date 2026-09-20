@@ -153,17 +153,15 @@ func main() {
 			fmt.Fprintf(os.Stderr, "capabilitycatalog-gen: %v\n", err)
 			os.Exit(1)
 		}
-		// Emitted after the YAML, so every artifact's fingerprint matches
-		// the files it was derived from. This is the sync output ADR-013
-		// describes; it is git-ignored and never committed.
-		if err := capabilitycatalog.BuildModuleArtifacts(handAuthoredDir); err != nil {
-			fmt.Fprintf(os.Stderr, "capabilitycatalog-gen: building artifacts: %v\n", err)
-			os.Exit(1)
-		}
 		// The generated files are themselves input to LoadDefinitionsDir on
 		// the next pass, so re-read the full set from disk after writing,
 		// rather than trusting the in-memory slice, to catch a rendering bug
 		// that a round trip through disk would expose.
+		//
+		// This must happen before any artifact exists. The loader prefers an
+		// artifact when one is present, so building artifacts first would
+		// make this read the gob and stop checking the YAML rendering that
+		// is the whole point of re-reading.
 		handAuthored, err = capabilitycatalog.LoadDefinitionsDir(handAuthoredDir)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "capabilitycatalog-gen: reloading definitions after write: %v\n", err)
@@ -185,6 +183,17 @@ func main() {
 			fmt.Fprintf(os.Stderr, "  %v\n", e)
 		}
 		os.Exit(1)
+	}
+
+	// Artifacts are emitted last, and only in write mode: after the YAML
+	// they fingerprint, and after validation, so a catalog that does not
+	// validate never gets a pre-decoded form for a service to load. This is
+	// the sync output ADR-013 describes; it is git-ignored, never committed.
+	if !*check {
+		if err := capabilitycatalog.BuildModuleArtifacts(handAuthoredDir); err != nil {
+			fmt.Fprintf(os.Stderr, "capabilitycatalog-gen: building artifacts: %v\n", err)
+			os.Exit(1)
+		}
 	}
 
 	seedCSV, err := capabilitycatalog.RenderSeedCSV(all)
