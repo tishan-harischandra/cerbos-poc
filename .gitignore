@@ -30,3 +30,7 @@ vitest.config.*.timestamp*.k8s-walkthrough-kubeconfig
 # credential to commit.
 /deploy/tls/dev-cert.pem
 /deploy/tls/dev-key.pem
+
+# Pre-decoded UI capability artifacts: a build/sync output derived from the
+# authored YAML beside them, never committed (ADR-013).
+deploy/cerbos/catalog/ui-capabilities/**/module.gob

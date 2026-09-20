@@ -74,6 +74,21 @@ func LoadDefinitionsDir(dir string) ([]UiCapabilityDefinition, error) {
 // this installation's adopter never authored.
 func LoadDefinitionsForModule(dir, module string) ([]UiCapabilityDefinition, error) {
 	moduleDir := filepath.Join(dir, module)
+
+	// The pre-decoded artifact is preferred when it is present and still
+	// matches the YAML beside it; see artifact.go for why every doubt
+	// degrades to the parse below rather than to an error.
+	if defs, ok := loadModuleArtifact(moduleDir); ok {
+		return defs, nil
+	}
+
+	return loadModuleYAML(moduleDir)
+}
+
+// loadModuleYAML parses every *.yaml in one module directory, ignoring any
+// artifact. The artifact writer uses this so it can never derive an
+// artifact from an earlier artifact.
+func loadModuleYAML(moduleDir string) ([]UiCapabilityDefinition, error) {
 	entries, err := os.ReadDir(moduleDir)
 	if os.IsNotExist(err) {
 		return nil, nil

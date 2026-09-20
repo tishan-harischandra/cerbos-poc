@@ -153,6 +153,13 @@ func main() {
 			fmt.Fprintf(os.Stderr, "capabilitycatalog-gen: %v\n", err)
 			os.Exit(1)
 		}
+		// Emitted after the YAML, so every artifact's fingerprint matches
+		// the files it was derived from. This is the sync output ADR-013
+		// describes; it is git-ignored and never committed.
+		if err := capabilitycatalog.BuildModuleArtifacts(handAuthoredDir); err != nil {
+			fmt.Fprintf(os.Stderr, "capabilitycatalog-gen: building artifacts: %v\n", err)
+			os.Exit(1)
+		}
 		// The generated files are themselves input to LoadDefinitionsDir on
 		// the next pass, so re-read the full set from disk after writing,
 		// rather than trusting the in-memory slice, to catch a rendering bug
