@@ -13,11 +13,12 @@ const (
 	repoCapabilitiesDir     = "../../deploy/cerbos/catalog/ui-capabilities"
 )
 
-// loadFullCapabilitySet loads the full committed capability set: the
+// loadFullCapabilitySet loads the full committed capability set. The
+// catalog is authored one directory per module (ADR-013), and the
 // generated archetype definitions and the five hand-authored §12.1 worked
-// examples both live as files directly under
-// deploy/cerbos/catalog/ui-capabilities, so LoadDefinitionsDir alone
-// already returns the merged, 400-capability set.
+// examples share the clinical module, so LoadDefinitionsDir - which
+// descends into every module directory - returns the merged,
+// 400-capability set.
 func loadFullCapabilitySet(t *testing.T) []capabilitycatalog.UiCapabilityDefinition {
 	t.Helper()
 
