@@ -1,0 +1,182 @@
+databaseChangeLog:
+  - changeSet:
+      id: 013-domain-model-approval
+      author: cerbos-poc
+      comment: >-
+        The maker-checker boundary for domain-model activation (ADR-013 slice 5,
+        issue #107). Changing the resource model used to be a reviewed commit to
+        the platform repository; once it is adopter data a syncer activates, it
+        is a privileged runtime operation that DEVIATIONS N3 records as having
+        no approval step. A row here is one proposed activation and the second
+        person who decided it. State leaves PENDING once and never returns, so a
+        refusal cannot be overturned without a new request.
+      changes:
+        - createTable:
+            tableName: domain_model_approval
+            columns:
+              - column:
+                  name: request_id
+                  type: VARCHAR(64)
+                  constraints:
+                    primaryKey: true
+                    primaryKeyName: pk_domain_model_approval
+                    nullable: false
+              # RESOURCE_MODEL or CAPABILITY_CATALOG. The two are governed
+              # differently: the resource model generates the Cerbos policies,
+              # while a capability catalog is a rendering hint the PEP enforces
+              # regardless (§12.5, DEVIATIONS S5).
+              - column:
+                  name: scope
+                  type: VARCHAR(32)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: repository
+                  type: VARCHAR(512)
+                  constraints:
+                    nullable: false
+              # The resolved commit SHA, which is the content's identity under
+              # ADR-014 - not a tag, which can be repointed.
+              - column:
+                  name: commit_sha
+                  type: VARCHAR(64)
+                  constraints:
+                    nullable: false
+              # Null on the first activation, which replaces nothing.
+              - column:
+                  name: previous_sha
+                  type: VARCHAR(64)
+              - column:
+                  name: requested_by
+                  type: VARCHAR(128)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: requested_at
+                  type: TIMESTAMP WITH TIME ZONE
+                  constraints:
+                    nullable: false
+              - column:
+                  name: state
+                  type: VARCHAR(16)
+                  constraints:
+                    nullable: false
+              # Null while PENDING. The application refuses a decider equal to
+              # requested_by; the column cannot express that itself, because a
+              # CHECK comparing two columns is portable but a normalised,
+              # case-insensitive comparison is not - and a rule enforced in two
+              # places that disagree is worse than one.
+              - column:
+                  name: decided_by
+                  type: VARCHAR(128)
+              - column:
+                  name: decided_at
+                  type: TIMESTAMP WITH TIME ZONE
+              - column:
+                  name: decision_reason
+                  type: VARCHAR(64)
+
+  - changeSet:
+      id: 013-domain-model-approval-idx
+      author: cerbos-poc
+      comment: >-
+        Pending requests are what an approver lists, and the only query this
+        table serves that is not by primary key.
+      changes:
+        - createIndex:
+            tableName: domain_model_approval
+            indexName: idx_dm_approval_state
+            columns:
+              - column:
+                  name: state
+              - column:
+                  name: requested_at
+
+  - changeSet:
+      id: 013-domain-model-activation
+      author: cerbos-poc
+      comment: >-
+        Append-only record of every domain-model activation attempt, following
+        permission_audit_event's shape (§8.2). Nothing updates or deletes here.
+        A refused activation is recorded too: an activation that failed and left
+        no trace is the case this table exists to prevent, and it is the half a
+        commit SHA cannot supply - the SHA proves what activated, never who was
+        entitled to activate it (ADR-014).
+      changes:
+        - createTable:
+            tableName: domain_model_activation
+            columns:
+              - column:
+                  name: activation_id
+                  type: VARCHAR(64)
+                  constraints:
+                    primaryKey: true
+                    primaryKeyName: pk_domain_model_activation
+                    nullable: false
+              - column:
+                  name: scope
+                  type: VARCHAR(32)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: repository
+                  type: VARCHAR(512)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: commit_sha
+                  type: VARCHAR(64)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: previous_sha
+                  type: VARCHAR(64)
+              # ACTIVATED, or a refusal. Paired with reason, which carries the
+              # domainmodelgovernance constant so an audit row and an API
+              # response say the same thing.
+              - column:
+                  name: outcome
+                  type: VARCHAR(32)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: reason
+                  type: VARCHAR(64)
+              # The gate's own verdict (ADR-015): whether the manifest
+              # validated, compiled, and passed the sampled precedence matrix.
+              - column:
+                  name: gate_outcome
+                  type: VARCHAR(32)
+              - column:
+                  name: requested_by
+                  type: VARCHAR(128)
+                  constraints:
+                    nullable: false
+              # Null when the scope was configured to bypass approval.
+              - column:
+                  name: approved_by
+                  type: VARCHAR(128)
+              - column:
+                  name: request_id
+                  type: VARCHAR(64)
+              - column:
+                  name: occurred_at
+                  type: TIMESTAMP WITH TIME ZONE
+                  constraints:
+                    nullable: false
+
+  - changeSet:
+      id: 013-domain-model-activation-idx
+      author: cerbos-poc
+      comment: >-
+        An operator reconstructing a change reads this newest-first, and asks
+        what activated for one repository.
+      changes:
+        - createIndex:
+            tableName: domain_model_activation
+            indexName: idx_dm_activation_time
+            columns:
+              - column:
+                  name: occurred_at
+              - column:
+                  name: repository
