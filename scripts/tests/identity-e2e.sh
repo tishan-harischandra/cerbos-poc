@@ -52,7 +52,12 @@ echo "--- a real OIDC login ---"
 doctor_token="$(token_for user-doctor)" || exit 1
 pass "a user can log in against Keycloak and receive a token"
 
-roles="$(claim_of "${doctor_token}" '.resource_access["patient-app"].roles | join(",")')"
+# The seeded realms declare these as realm roles, and the stack runs with
+# IDP_ROLE_SOURCE=REALM, so libs/tokenverifier reads realm_access.roles
+# (§7.3). `// []` keeps a missing claim reporting as an empty role list -
+# the assertion below - rather than as a jq null-iteration error that says
+# nothing about the cause (issue #110).
+roles="$(claim_of "${doctor_token}" '(.realm_access.roles // []) | join(",")')"
 if [[ "${roles}" == *"doctor"* ]]; then
   pass "the token carries the user's roles"
 else
@@ -222,7 +227,7 @@ if [[ "${status}" == "200" ]]; then
   # §7.5: the identifier the directory reports has to be the one a token
   # normalises to, or the console would write matrix rows nothing matches.
   canonical="$(jq -r '.items[] | select(.name == "doctor") | .canonicalId' /tmp/identity-body)"
-  if [[ "${canonical}" == "kc:tenant-a:patient-app:doctor" ]]; then
+  if [[ "${canonical}" == "kc:tenant-a:realm:doctor" ]]; then
     pass "the directory's canonical identifier matches token normalisation byte for byte"
   else
     fail "the directory's canonical identifier matches token normalisation (was '${canonical}')"
