@@ -1,0 +1,220 @@
+# GENERATED FILE - DO NOT EDIT BY HAND.
+#
+# Produced by libs/capabilitycatalog's archetype generator (catalog
+# revision 1, issue #10, PRD "UI capability catalog"). Edit
+# libs/cataloggen/manifest.yaml or the archetype definitions in
+# libs/capabilitycatalog/generator.go and re-run `make capability-gen`,
+# or regenerate directly with
+# `go run ./libs/capabilitycatalog/cmd/capabilitycatalog-gen -root .`.
+#
+# Hand-authored capabilities for this module live beside this file in the
+# same module directory and are never touched by the generator.
+catalogRevision: 1
+capabilities:
+  - key: biologically_derived_product.action.delete
+    module: substances
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: biologically_derived_product
+            action: read
+            targetRef: biologically_derived_product
+        - permission:
+            resource: biologically_derived_product
+            action: delete
+            targetRef: biologically_derived_product
+  - key: biologically_derived_product.button.assign
+    module: substances
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: biologically_derived_product
+            action: read
+            targetRef: biologically_derived_product
+        - permission:
+            resource: biologically_derived_product
+            action: assign
+            targetRef: biologically_derived_product
+  - key: biologically_derived_product.route.details
+    module: substances
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: biologically_derived_product
+            action: read
+            targetRef: biologically_derived_product
+        - permission:
+            resource: biologically_derived_product_dispense
+            action: read
+            targetRef: biologically_derived_product_dispense
+  - key: biologically_derived_product.route.edit
+    module: substances
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: biologically_derived_product
+            action: read
+            targetRef: biologically_derived_product
+        - permission:
+            resource: biologically_derived_product
+            action: update
+            targetRef: biologically_derived_product
+        - permission:
+            resource: biologically_derived_product_dispense
+            action: list
+            targetRef: biologically_derived_product_dispenseCollection
+  - key: biologically_derived_product.route.list
+    module: substances
+    context: COLLECTION
+    expression:
+      allOf:
+        - permission:
+            resource: biologically_derived_product
+            action: list
+            targetRef: biologically_derived_productCollection
+        - permission:
+            resource: hospital_context
+            action: read
+            targetRef: hospitalContext
+  - key: biologically_derived_product_dispense.action.delete
+    module: substances
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: biologically_derived_product_dispense
+            action: read
+            targetRef: biologically_derived_product_dispense
+        - permission:
+            resource: biologically_derived_product_dispense
+            action: delete
+            targetRef: biologically_derived_product_dispense
+  - key: biologically_derived_product_dispense.button.assign
+    module: substances
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: biologically_derived_product_dispense
+            action: read
+            targetRef: biologically_derived_product_dispense
+        - permission:
+            resource: biologically_derived_product_dispense
+            action: assign
+            targetRef: biologically_derived_product_dispense
+  - key: biologically_derived_product_dispense.route.details
+    module: substances
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: biologically_derived_product_dispense
+            action: read
+            targetRef: biologically_derived_product_dispense
+        - permission:
+            resource: body_structure
+            action: read
+            targetRef: body_structure
+  - key: biologically_derived_product_dispense.route.edit
+    module: substances
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: biologically_derived_product_dispense
+            action: read
+            targetRef: biologically_derived_product_dispense
+        - permission:
+            resource: biologically_derived_product_dispense
+            action: update
+            targetRef: biologically_derived_product_dispense
+        - permission:
+            resource: body_structure
+            action: list
+            targetRef: body_structureCollection
+  - key: biologically_derived_product_dispense.route.list
+    module: substances
+    context: COLLECTION
+    expression:
+      allOf:
+        - permission:
+            resource: biologically_derived_product_dispense
+            action: list
+            targetRef: biologically_derived_product_dispenseCollection
+        - permission:
+            resource: hospital_context
+            action: read
+            targetRef: hospitalContext
+  - key: ingredient.action.delete
+    module: substances
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: ingredient
+            action: read
+            targetRef: ingredient
+        - permission:
+            resource: ingredient
+            action: delete
+            targetRef: ingredient
+  - key: ingredient.button.assign
+    module: substances
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: ingredient
+            action: read
+            targetRef: ingredient
+        - permission:
+            resource: ingredient
+            action: assign
+            targetRef: ingredient
+  - key: ingredient.route.details
+    module: substances
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: ingredient
+            action: read
+            targetRef: ingredient
+        - permission:
+            resource: insurance_plan
+            action: read
+            targetRef: insurance_plan
+  - key: ingredient.route.edit
+    module: substances
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: ingredient
+            action: read
+            targetRef: ingredient
+        - permission:
+            resource: ingredient
+            action: update
+            targetRef: ingredient
+        - permission:
+            resource: insurance_plan
+            action: list
+            targetRef: insurance_planCollection
+  - key: ingredient.route.list
+    module: substances
+    context: COLLECTION
+    expression:
+      allOf:
+        - permission:
+            resource: ingredient
+            action: list
+            targetRef: ingredientCollection
+        - permission:
+            resource: hospital_context
+            action: read
+            targetRef: hospitalContext

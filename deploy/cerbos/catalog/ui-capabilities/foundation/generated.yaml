@@ -1,0 +1,220 @@
+# GENERATED FILE - DO NOT EDIT BY HAND.
+#
+# Produced by libs/capabilitycatalog's archetype generator (catalog
+# revision 1, issue #10, PRD "UI capability catalog"). Edit
+# libs/cataloggen/manifest.yaml or the archetype definitions in
+# libs/capabilitycatalog/generator.go and re-run `make capability-gen`,
+# or regenerate directly with
+# `go run ./libs/capabilitycatalog/cmd/capabilitycatalog-gen -root .`.
+#
+# Hand-authored capabilities for this module live beside this file in the
+# same module directory and are never touched by the generator.
+catalogRevision: 1
+capabilities:
+  - key: basic.action.delete
+    module: foundation
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: basic
+            action: read
+            targetRef: basic
+        - permission:
+            resource: basic
+            action: delete
+            targetRef: basic
+  - key: basic.button.assign
+    module: foundation
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: basic
+            action: read
+            targetRef: basic
+        - permission:
+            resource: basic
+            action: assign
+            targetRef: basic
+  - key: basic.route.details
+    module: foundation
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: basic
+            action: read
+            targetRef: basic
+        - permission:
+            resource: binary
+            action: read
+            targetRef: binary
+  - key: basic.route.edit
+    module: foundation
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: basic
+            action: read
+            targetRef: basic
+        - permission:
+            resource: basic
+            action: update
+            targetRef: basic
+        - permission:
+            resource: binary
+            action: list
+            targetRef: binaryCollection
+  - key: basic.route.list
+    module: foundation
+    context: COLLECTION
+    expression:
+      allOf:
+        - permission:
+            resource: basic
+            action: list
+            targetRef: basicCollection
+        - permission:
+            resource: hospital_context
+            action: read
+            targetRef: hospitalContext
+  - key: binary.action.delete
+    module: foundation
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: binary
+            action: read
+            targetRef: binary
+        - permission:
+            resource: binary
+            action: delete
+            targetRef: binary
+  - key: binary.button.assign
+    module: foundation
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: binary
+            action: read
+            targetRef: binary
+        - permission:
+            resource: binary
+            action: assign
+            targetRef: binary
+  - key: binary.route.details
+    module: foundation
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: binary
+            action: read
+            targetRef: binary
+        - permission:
+            resource: biologically_derived_product
+            action: read
+            targetRef: biologically_derived_product
+  - key: binary.route.edit
+    module: foundation
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: binary
+            action: read
+            targetRef: binary
+        - permission:
+            resource: binary
+            action: update
+            targetRef: binary
+        - permission:
+            resource: biologically_derived_product
+            action: list
+            targetRef: biologically_derived_productCollection
+  - key: binary.route.list
+    module: foundation
+    context: COLLECTION
+    expression:
+      allOf:
+        - permission:
+            resource: binary
+            action: list
+            targetRef: binaryCollection
+        - permission:
+            resource: hospital_context
+            action: read
+            targetRef: hospitalContext
+  - key: bundle.action.delete
+    module: foundation
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: bundle
+            action: read
+            targetRef: bundle
+        - permission:
+            resource: bundle
+            action: delete
+            targetRef: bundle
+  - key: bundle.button.assign
+    module: foundation
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: bundle
+            action: read
+            targetRef: bundle
+        - permission:
+            resource: bundle
+            action: assign
+            targetRef: bundle
+  - key: bundle.route.details
+    module: foundation
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: bundle
+            action: read
+            targetRef: bundle
+        - permission:
+            resource: capability_statement
+            action: read
+            targetRef: capability_statement
+  - key: bundle.route.edit
+    module: foundation
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: bundle
+            action: read
+            targetRef: bundle
+        - permission:
+            resource: bundle
+            action: update
+            targetRef: bundle
+        - permission:
+            resource: capability_statement
+            action: list
+            targetRef: capability_statementCollection
+  - key: bundle.route.list
+    module: foundation
+    context: COLLECTION
+    expression:
+      allOf:
+        - permission:
+            resource: bundle
+            action: list
+            targetRef: bundleCollection
+        - permission:
+            resource: hospital_context
+            action: read
+            targetRef: hospitalContext

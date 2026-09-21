@@ -37,6 +37,12 @@ func NewFSCatalog(dir string, catalogRevision int64, cache *authzcache.Cache[str
 }
 
 // Definitions returns every UiCapabilityDefinition belonging to module.
+//
+// It reads that module's directory and nothing else. Loading the whole
+// catalog to answer for one module is what ADR-013 measured at 528.6 MiB
+// peak for 60,000 capabilities against the 512Mi limit this deployment
+// sets, and because the load is lazy the cost lands on the first capability
+// request after a pod start rather than at boot.
 func (c *FSCatalog) Definitions(_ context.Context, module string) ([]capabilitycatalog.UiCapabilityDefinition, string, error) {
 	revision := formatCatalogRevision(c.catalogRevision)
 
@@ -44,18 +50,11 @@ func (c *FSCatalog) Definitions(_ context.Context, module string) ([]capabilityc
 		return cached, revision, nil
 	}
 
-	all, err := capabilitycatalog.LoadDefinitionsDir(c.dir)
+	defs, err := capabilitycatalog.LoadDefinitionsForModule(c.dir, module)
 	if err != nil {
-		return nil, "", fmt.Errorf("loading the capability catalog from %s: %w", c.dir, err)
+		return nil, "", fmt.Errorf("loading capability module %s from %s: %w", module, c.dir, err)
 	}
 
-	byModule := make(map[string][]capabilitycatalog.UiCapabilityDefinition)
-	for _, def := range all {
-		byModule[def.Module] = append(byModule[def.Module], def)
-	}
-	for m, defs := range byModule {
-		c.cache.Set(m, defs)
-	}
-
-	return byModule[module], revision, nil
+	c.cache.Set(module, defs)
+	return defs, revision, nil
 }

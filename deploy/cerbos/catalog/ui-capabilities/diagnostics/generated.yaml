@@ -1,0 +1,358 @@
+# GENERATED FILE - DO NOT EDIT BY HAND.
+#
+# Produced by libs/capabilitycatalog's archetype generator (catalog
+# revision 1, issue #10, PRD "UI capability catalog"). Edit
+# libs/cataloggen/manifest.yaml or the archetype definitions in
+# libs/capabilitycatalog/generator.go and re-run `make capability-gen`,
+# or regenerate directly with
+# `go run ./libs/capabilitycatalog/cmd/capabilitycatalog-gen -root .`.
+#
+# Hand-authored capabilities for this module live beside this file in the
+# same module directory and are never touched by the generator.
+catalogRevision: 1
+capabilities:
+  - key: body_structure.action.delete
+    module: diagnostics
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: body_structure
+            action: read
+            targetRef: body_structure
+        - permission:
+            resource: body_structure
+            action: delete
+            targetRef: body_structure
+  - key: body_structure.button.assign
+    module: diagnostics
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: body_structure
+            action: read
+            targetRef: body_structure
+        - permission:
+            resource: body_structure
+            action: assign
+            targetRef: body_structure
+  - key: body_structure.route.details
+    module: diagnostics
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: body_structure
+            action: read
+            targetRef: body_structure
+        - permission:
+            resource: bundle
+            action: read
+            targetRef: bundle
+  - key: body_structure.route.edit
+    module: diagnostics
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: body_structure
+            action: read
+            targetRef: body_structure
+        - permission:
+            resource: body_structure
+            action: update
+            targetRef: body_structure
+        - permission:
+            resource: bundle
+            action: list
+            targetRef: bundleCollection
+  - key: body_structure.route.list
+    module: diagnostics
+    context: COLLECTION
+    expression:
+      allOf:
+        - permission:
+            resource: body_structure
+            action: list
+            targetRef: body_structureCollection
+        - permission:
+            resource: hospital_context
+            action: read
+            targetRef: hospitalContext
+  - key: diagnostic_report.action.delete
+    module: diagnostics
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: diagnostic_report
+            action: read
+            targetRef: diagnostic_report
+        - permission:
+            resource: diagnostic_report
+            action: delete
+            targetRef: diagnostic_report
+  - key: diagnostic_report.button.assign
+    module: diagnostics
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: diagnostic_report
+            action: read
+            targetRef: diagnostic_report
+        - permission:
+            resource: diagnostic_report
+            action: assign
+            targetRef: diagnostic_report
+  - key: diagnostic_report.route.details
+    module: diagnostics
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: diagnostic_report
+            action: read
+            targetRef: diagnostic_report
+        - permission:
+            resource: document_reference
+            action: read
+            targetRef: document_reference
+  - key: diagnostic_report.route.edit
+    module: diagnostics
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: diagnostic_report
+            action: read
+            targetRef: diagnostic_report
+        - permission:
+            resource: diagnostic_report
+            action: update
+            targetRef: diagnostic_report
+        - permission:
+            resource: document_reference
+            action: list
+            targetRef: document_referenceCollection
+  - key: diagnostic_report.route.list
+    module: diagnostics
+    context: COLLECTION
+    expression:
+      allOf:
+        - permission:
+            resource: diagnostic_report
+            action: list
+            targetRef: diagnostic_reportCollection
+        - permission:
+            resource: hospital_context
+            action: read
+            targetRef: hospitalContext
+  - key: genomic_study.action.delete
+    module: diagnostics
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: genomic_study
+            action: read
+            targetRef: genomic_study
+        - permission:
+            resource: genomic_study
+            action: delete
+            targetRef: genomic_study
+  - key: genomic_study.button.assign
+    module: diagnostics
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: genomic_study
+            action: read
+            targetRef: genomic_study
+        - permission:
+            resource: genomic_study
+            action: assign
+            targetRef: genomic_study
+  - key: genomic_study.route.details
+    module: diagnostics
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: genomic_study
+            action: read
+            targetRef: genomic_study
+        - permission:
+            resource: goal
+            action: read
+            targetRef: goal
+  - key: genomic_study.route.edit
+    module: diagnostics
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: genomic_study
+            action: read
+            targetRef: genomic_study
+        - permission:
+            resource: genomic_study
+            action: update
+            targetRef: genomic_study
+        - permission:
+            resource: goal
+            action: list
+            targetRef: goalCollection
+  - key: genomic_study.route.list
+    module: diagnostics
+    context: COLLECTION
+    expression:
+      allOf:
+        - permission:
+            resource: genomic_study
+            action: list
+            targetRef: genomic_studyCollection
+        - permission:
+            resource: hospital_context
+            action: read
+            targetRef: hospitalContext
+  - key: imaging_selection.action.delete
+    module: diagnostics
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: imaging_selection
+            action: read
+            targetRef: imaging_selection
+        - permission:
+            resource: imaging_selection
+            action: delete
+            targetRef: imaging_selection
+  - key: imaging_selection.button.assign
+    module: diagnostics
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: imaging_selection
+            action: read
+            targetRef: imaging_selection
+        - permission:
+            resource: imaging_selection
+            action: assign
+            targetRef: imaging_selection
+  - key: imaging_selection.route.details
+    module: diagnostics
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: imaging_selection
+            action: read
+            targetRef: imaging_selection
+        - permission:
+            resource: imaging_study
+            action: read
+            targetRef: imaging_study
+  - key: imaging_selection.route.edit
+    module: diagnostics
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: imaging_selection
+            action: read
+            targetRef: imaging_selection
+        - permission:
+            resource: imaging_selection
+            action: update
+            targetRef: imaging_selection
+        - permission:
+            resource: imaging_study
+            action: list
+            targetRef: imaging_studyCollection
+  - key: imaging_selection.route.list
+    module: diagnostics
+    context: COLLECTION
+    expression:
+      allOf:
+        - permission:
+            resource: imaging_selection
+            action: list
+            targetRef: imaging_selectionCollection
+        - permission:
+            resource: hospital_context
+            action: read
+            targetRef: hospitalContext
+  - key: imaging_study.action.delete
+    module: diagnostics
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: imaging_study
+            action: read
+            targetRef: imaging_study
+        - permission:
+            resource: imaging_study
+            action: delete
+            targetRef: imaging_study
+  - key: imaging_study.button.assign
+    module: diagnostics
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: imaging_study
+            action: read
+            targetRef: imaging_study
+        - permission:
+            resource: imaging_study
+            action: assign
+            targetRef: imaging_study
+  - key: imaging_study.route.details
+    module: diagnostics
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: imaging_study
+            action: read
+            targetRef: imaging_study
+        - permission:
+            resource: immunization
+            action: read
+            targetRef: immunization
+  - key: imaging_study.route.edit
+    module: diagnostics
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: imaging_study
+            action: read
+            targetRef: imaging_study
+        - permission:
+            resource: imaging_study
+            action: update
+            targetRef: imaging_study
+        - permission:
+            resource: immunization
+            action: list
+            targetRef: immunizationCollection
+  - key: imaging_study.route.list
+    module: diagnostics
+    context: COLLECTION
+    expression:
+      allOf:
+        - permission:
+            resource: imaging_study
+            action: list
+            targetRef: imaging_studyCollection
+        - permission:
+            resource: hospital_context
+            action: read
+            targetRef: hospitalContext

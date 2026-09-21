@@ -1,0 +1,151 @@
+# GENERATED FILE - DO NOT EDIT BY HAND.
+#
+# Produced by libs/capabilitycatalog's archetype generator (catalog
+# revision 1, issue #10, PRD "UI capability catalog"). Edit
+# libs/cataloggen/manifest.yaml or the archetype definitions in
+# libs/capabilitycatalog/generator.go and re-run `make capability-gen`,
+# or regenerate directly with
+# `go run ./libs/capabilitycatalog/cmd/capabilitycatalog-gen -root .`.
+#
+# Hand-authored capabilities for this module live beside this file in the
+# same module directory and are never touched by the generator.
+catalogRevision: 1
+capabilities:
+  - key: code_system.action.delete
+    module: terminology
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: code_system
+            action: read
+            targetRef: code_system
+        - permission:
+            resource: code_system
+            action: delete
+            targetRef: code_system
+  - key: code_system.button.assign
+    module: terminology
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: code_system
+            action: read
+            targetRef: code_system
+        - permission:
+            resource: code_system
+            action: assign
+            targetRef: code_system
+  - key: code_system.route.details
+    module: terminology
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: code_system
+            action: read
+            targetRef: code_system
+        - permission:
+            resource: communication
+            action: read
+            targetRef: communication
+  - key: code_system.route.edit
+    module: terminology
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: code_system
+            action: read
+            targetRef: code_system
+        - permission:
+            resource: code_system
+            action: update
+            targetRef: code_system
+        - permission:
+            resource: communication
+            action: list
+            targetRef: communicationCollection
+  - key: code_system.route.list
+    module: terminology
+    context: COLLECTION
+    expression:
+      allOf:
+        - permission:
+            resource: code_system
+            action: list
+            targetRef: code_systemCollection
+        - permission:
+            resource: hospital_context
+            action: read
+            targetRef: hospitalContext
+  - key: concept_map.action.delete
+    module: terminology
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: concept_map
+            action: read
+            targetRef: concept_map
+        - permission:
+            resource: concept_map
+            action: delete
+            targetRef: concept_map
+  - key: concept_map.button.assign
+    module: terminology
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: concept_map
+            action: read
+            targetRef: concept_map
+        - permission:
+            resource: concept_map
+            action: assign
+            targetRef: concept_map
+  - key: concept_map.route.details
+    module: terminology
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: concept_map
+            action: read
+            targetRef: concept_map
+        - permission:
+            resource: condition
+            action: read
+            targetRef: condition
+  - key: concept_map.route.edit
+    module: terminology
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: concept_map
+            action: read
+            targetRef: concept_map
+        - permission:
+            resource: concept_map
+            action: update
+            targetRef: concept_map
+        - permission:
+            resource: condition
+            action: list
+            targetRef: conditionCollection
+  - key: concept_map.route.list
+    module: terminology
+    context: COLLECTION
+    expression:
+      allOf:
+        - permission:
+            resource: concept_map
+            action: list
+            targetRef: concept_mapCollection
+        - permission:
+            resource: hospital_context
+            action: read
+            targetRef: hospitalContext

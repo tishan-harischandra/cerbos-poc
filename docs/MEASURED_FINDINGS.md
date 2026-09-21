@@ -423,3 +423,62 @@ Stated plainly, so nobody mistakes an absence for a pass:
 | Throughput (requests per second) | The k6 suite; sequential curl cannot produce one |
 | Oracle-side latency | `make db-test-dual` proves portability, not performance |
 | Behaviour above one replica per service | The k8s overlays scale, but no multi-replica measurement was taken |
+
+## UI capability catalog load cost (ADR-013, issue #103)
+
+Measured by `libs/capabilitycatalog/cmd/capabilitycatalog-bench`, one process
+per row because peak RSS is a property of a process. `peak RSS` is `VmHWM`
+from `/proc/self/status` - the figure a container memory limit is enforced
+against. Catalogs are synthesised at the committed catalog's shape (2.2
+permission leaves per capability); as a control, 400 synthesised capabilities
+peak at 8.3 MiB against the 7.8 MiB ADR-013 measured on the real 400, so the
+synthesis is representative.
+
+`catalog` scope is a whole-catalog load - what the Administration Service's
+impact index does at startup, and what `FSCatalog` used to do on every cache
+miss. `module` scope is one module, which is what the ADS does now.
+
+| Capabilities | Scope | Format | Wall clock | Peak RSS |
+|---|---|---|---|---|
+| 400 | catalog | YAML | 64 ms | 8.3 MiB |
+| 400 | catalog | artifact | 19 ms | 8.2 MiB |
+| 400 | module | YAML | 1 ms | 5.0 MiB |
+| 60,000 | catalog | YAML | 1.625 s | 101.4 MiB |
+| 60,000 | catalog | artifact | 92 ms | 72.1 MiB |
+| 60,000 | module | YAML | 79 ms | 74.7 MiB |
+| 60,000 | module | artifact | 3 ms | 72.1 MiB |
+| 100,000 | catalog | YAML | 2.916 s | 155.0 MiB |
+| 100,000 | catalog | artifact | 166 ms | 114.6 MiB |
+| 100,000 | module | YAML | 117 ms | 111.1 MiB |
+| 100,000 | module | artifact | 8 ms | 110.5 MiB |
+
+**Finding: the pre-decoded artifact is worth having, and the split is worth
+more.** Decoding beats parsing by 18x at 100,000 capabilities on a
+whole-catalog load (2.916 s to 166 ms). Loading one module instead of the
+whole catalog is the larger win for the decision path: the ADS's read drops
+from 2.916 s to 117 ms on YAML alone, and to 8 ms with the artifact - a 360x
+improvement over what it used to do, and it no longer scales with how large
+the rest of the adopter's catalog is.
+
+**Finding: the OOMKill ADR-013 predicted does not reproduce, and the ADR's
+memory figures are too high.** ADR-013 records 60,000 capabilities peaking at
+528.6 MiB against a 512Mi limit, and 100,000 at 838 MiB. Measured here the
+same shapes peak at 101.4 MiB and 155.0 MiB - roughly five times lower, and
+comfortably inside the 512Mi limit `deploy/k8s/base/ads` and
+`deploy/k8s/base/admin-service` set. The wall-clock figures are in the right
+region (ADR-013's 4.0 s against 2.916 s at 100,000; its 203 ms artifact
+against 166 ms), so the discrepancy is specific to memory.
+
+The work in issue #103 is still justified by the numbers above - an 18x
+decode win and a 360x win on the ADS's own read path - but it is **not**
+justified by an imminent OOMKill, and the ADR should not be read as saying a
+512Mi pod dies at 60,000 capabilities. On this measurement it does not. What
+remains true is the shape of the risk: a whole-catalog parse is O(the whole
+adopter's catalog) on a path that should be O(one module), and memory grows
+with content the request did not ask for.
+
+The difference is unexplained rather than explained away. Candidates are a
+different synthesised expression shape, a different Go version or `GOGC`, or
+a measurement that captured the whole ADS process rather than the load. The
+control row above rules out the synthesis being unrepresentative at 400, but
+not at 60,000.

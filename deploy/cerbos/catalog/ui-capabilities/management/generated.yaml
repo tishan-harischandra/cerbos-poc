@@ -1,0 +1,427 @@
+# GENERATED FILE - DO NOT EDIT BY HAND.
+#
+# Produced by libs/capabilitycatalog's archetype generator (catalog
+# revision 1, issue #10, PRD "UI capability catalog"). Edit
+# libs/cataloggen/manifest.yaml or the archetype definitions in
+# libs/capabilitycatalog/generator.go and re-run `make capability-gen`,
+# or regenerate directly with
+# `go run ./libs/capabilitycatalog/cmd/capabilitycatalog-gen -root .`.
+#
+# Hand-authored capabilities for this module live beside this file in the
+# same module directory and are never touched by the generator.
+catalogRevision: 1
+capabilities:
+  - key: care_team.action.delete
+    module: management
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: care_team
+            action: read
+            targetRef: care_team
+        - permission:
+            resource: care_team
+            action: delete
+            targetRef: care_team
+  - key: care_team.button.assign
+    module: management
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: care_team
+            action: read
+            targetRef: care_team
+        - permission:
+            resource: care_team
+            action: assign
+            targetRef: care_team
+  - key: care_team.route.details
+    module: management
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: care_team
+            action: read
+            targetRef: care_team
+        - permission:
+            resource: charge_item
+            action: read
+            targetRef: charge_item
+  - key: care_team.route.edit
+    module: management
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: care_team
+            action: read
+            targetRef: care_team
+        - permission:
+            resource: care_team
+            action: update
+            targetRef: care_team
+        - permission:
+            resource: charge_item
+            action: list
+            targetRef: charge_itemCollection
+  - key: care_team.route.list
+    module: management
+    context: COLLECTION
+    expression:
+      allOf:
+        - permission:
+            resource: care_team
+            action: list
+            targetRef: care_teamCollection
+        - permission:
+            resource: hospital_context
+            action: read
+            targetRef: hospitalContext
+  - key: encounter.action.delete
+    module: management
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: encounter
+            action: read
+            targetRef: encounter
+        - permission:
+            resource: encounter
+            action: delete
+            targetRef: encounter
+  - key: encounter.button.assign
+    module: management
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: encounter
+            action: read
+            targetRef: encounter
+        - permission:
+            resource: encounter
+            action: assign
+            targetRef: encounter
+  - key: encounter.route.details
+    module: management
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: encounter
+            action: read
+            targetRef: encounter
+        - permission:
+            resource: encounter_history
+            action: read
+            targetRef: encounter_history
+  - key: encounter.route.edit
+    module: management
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: encounter
+            action: read
+            targetRef: encounter
+        - permission:
+            resource: encounter
+            action: update
+            targetRef: encounter
+        - permission:
+            resource: encounter_history
+            action: list
+            targetRef: encounter_historyCollection
+  - key: encounter.route.list
+    module: management
+    context: COLLECTION
+    expression:
+      allOf:
+        - permission:
+            resource: encounter
+            action: list
+            targetRef: encounterCollection
+        - permission:
+            resource: hospital_context
+            action: read
+            targetRef: hospitalContext
+  - key: encounter_history.action.delete
+    module: management
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: encounter_history
+            action: read
+            targetRef: encounter_history
+        - permission:
+            resource: encounter_history
+            action: delete
+            targetRef: encounter_history
+  - key: encounter_history.button.assign
+    module: management
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: encounter_history
+            action: read
+            targetRef: encounter_history
+        - permission:
+            resource: encounter_history
+            action: assign
+            targetRef: encounter_history
+  - key: encounter_history.route.details
+    module: management
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: encounter_history
+            action: read
+            targetRef: encounter_history
+        - permission:
+            resource: endpoint
+            action: read
+            targetRef: endpoint
+  - key: encounter_history.route.edit
+    module: management
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: encounter_history
+            action: read
+            targetRef: encounter_history
+        - permission:
+            resource: encounter_history
+            action: update
+            targetRef: encounter_history
+        - permission:
+            resource: endpoint
+            action: list
+            targetRef: endpointCollection
+  - key: encounter_history.route.list
+    module: management
+    context: COLLECTION
+    expression:
+      allOf:
+        - permission:
+            resource: encounter_history
+            action: list
+            targetRef: encounter_historyCollection
+        - permission:
+            resource: hospital_context
+            action: read
+            targetRef: hospitalContext
+  - key: episode_of_care.action.delete
+    module: management
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: episode_of_care
+            action: read
+            targetRef: episode_of_care
+        - permission:
+            resource: episode_of_care
+            action: delete
+            targetRef: episode_of_care
+  - key: episode_of_care.button.assign
+    module: management
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: episode_of_care
+            action: read
+            targetRef: episode_of_care
+        - permission:
+            resource: episode_of_care
+            action: assign
+            targetRef: episode_of_care
+  - key: episode_of_care.route.details
+    module: management
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: episode_of_care
+            action: read
+            targetRef: episode_of_care
+        - permission:
+            resource: evidence
+            action: read
+            targetRef: evidence
+  - key: episode_of_care.route.edit
+    module: management
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: episode_of_care
+            action: read
+            targetRef: episode_of_care
+        - permission:
+            resource: episode_of_care
+            action: update
+            targetRef: episode_of_care
+        - permission:
+            resource: evidence
+            action: list
+            targetRef: evidenceCollection
+  - key: episode_of_care.route.list
+    module: management
+    context: COLLECTION
+    expression:
+      allOf:
+        - permission:
+            resource: episode_of_care
+            action: list
+            targetRef: episode_of_careCollection
+        - permission:
+            resource: hospital_context
+            action: read
+            targetRef: hospitalContext
+  - key: flag.action.delete
+    module: management
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: flag
+            action: read
+            targetRef: flag
+        - permission:
+            resource: flag
+            action: delete
+            targetRef: flag
+  - key: flag.button.assign
+    module: management
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: flag
+            action: read
+            targetRef: flag
+        - permission:
+            resource: flag
+            action: assign
+            targetRef: flag
+  - key: flag.route.details
+    module: management
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: flag
+            action: read
+            targetRef: flag
+        - permission:
+            resource: genomic_study
+            action: read
+            targetRef: genomic_study
+  - key: flag.route.edit
+    module: management
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: flag
+            action: read
+            targetRef: flag
+        - permission:
+            resource: flag
+            action: update
+            targetRef: flag
+        - permission:
+            resource: genomic_study
+            action: list
+            targetRef: genomic_studyCollection
+  - key: flag.route.list
+    module: management
+    context: COLLECTION
+    expression:
+      allOf:
+        - permission:
+            resource: flag
+            action: list
+            targetRef: flagCollection
+        - permission:
+            resource: hospital_context
+            action: read
+            targetRef: hospitalContext
+  - key: goal.action.delete
+    module: management
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: goal
+            action: read
+            targetRef: goal
+        - permission:
+            resource: goal
+            action: delete
+            targetRef: goal
+  - key: goal.button.assign
+    module: management
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: goal
+            action: read
+            targetRef: goal
+        - permission:
+            resource: goal
+            action: assign
+            targetRef: goal
+  - key: goal.route.details
+    module: management
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: goal
+            action: read
+            targetRef: goal
+        - permission:
+            resource: graph_definition
+            action: read
+            targetRef: graph_definition
+  - key: goal.route.edit
+    module: management
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: goal
+            action: read
+            targetRef: goal
+        - permission:
+            resource: goal
+            action: update
+            targetRef: goal
+        - permission:
+            resource: graph_definition
+            action: list
+            targetRef: graph_definitionCollection
+  - key: goal.route.list
+    module: management
+    context: COLLECTION
+    expression:
+      allOf:
+        - permission:
+            resource: goal
+            action: list
+            targetRef: goalCollection
+        - permission:
+            resource: hospital_context
+            action: read
+            targetRef: hospitalContext

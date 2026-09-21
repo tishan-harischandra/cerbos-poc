@@ -17,11 +17,16 @@ type definitionFile struct {
 	Capabilities    []UiCapabilityDefinition `yaml:"capabilities"`
 }
 
-// LoadDefinitionsDir parses every *.yaml file directly under dir into a
-// single, key-sorted slice of definitions, stamping each with its file's
+// LoadDefinitionsDir parses the whole catalog under dir into a single,
+// key-sorted slice of definitions, stamping each with its file's
 // catalogRevision. Sorting keeps loading (and therefore downstream
 // generation and seeding) deterministic regardless of directory iteration
 // order.
+//
+// Both layouts are read: *.yaml directly under dir, and *.yaml one level
+// down in a per-module directory. Whole-catalog callers are the generator,
+// the seed and the validation gate, which genuinely need everything; a
+// service serving one module wants LoadDefinitionsForModule instead.
 func LoadDefinitionsDir(dir string) ([]UiCapabilityDefinition, error) {
 	entries, err := os.ReadDir(dir)
 	if err != nil {
@@ -30,26 +35,100 @@ func LoadDefinitionsDir(dir string) ([]UiCapabilityDefinition, error) {
 
 	var all []UiCapabilityDefinition
 	for _, entry := range entries {
-		if entry.IsDir() || filepath.Ext(entry.Name()) != ".yaml" {
+		if entry.IsDir() {
+			defs, err := LoadDefinitionsForModule(dir, entry.Name())
+			if err != nil {
+				return nil, err
+			}
+			all = append(all, defs...)
 			continue
 		}
-		path := filepath.Join(dir, entry.Name())
-		raw, err := os.ReadFile(path)
+		if filepath.Ext(entry.Name()) != ".yaml" {
+			continue
+		}
+		defs, err := loadDefinitionFile(filepath.Join(dir, entry.Name()))
 		if err != nil {
-			return nil, fmt.Errorf("reading %s: %w", path, err)
+			return nil, err
 		}
-		var df definitionFile
-		if err := yaml.Unmarshal(raw, &df); err != nil {
-			return nil, fmt.Errorf("parsing %s: %w", path, err)
-		}
-		for i := range df.Capabilities {
-			df.Capabilities[i].CatalogRevision = df.CatalogRevision
-		}
-		all = append(all, df.Capabilities...)
+		all = append(all, defs...)
 	}
 
 	sort.Slice(all, func(i, j int) bool { return all[i].Key < all[j].Key })
 	return all, nil
+}
+
+// LoadDefinitionsForModule parses only the *.yaml files under dir/module
+// into a key-sorted slice, stamping each with its file's catalogRevision.
+//
+// A module owns a directory rather than a single file because generated and
+// hand-authored capabilities can belong to the same module - the committed
+// catalog's `clinical` holds both - and because an adopter authoring a large
+// module will want to split it.
+//
+// This exists so serving one module costs one module. LoadDefinitionsDir
+// parses the whole tree, which is what ADR-013 measured at 528.6 MiB peak
+// for 60,000 capabilities against a 512Mi limit: an OOMKill on the first
+// capability request after a pod start, because the load is lazy.
+//
+// An unknown module is empty, not an error: the console may ask for a module
+// this installation's adopter never authored.
+func LoadDefinitionsForModule(dir, module string) ([]UiCapabilityDefinition, error) {
+	moduleDir := filepath.Join(dir, module)
+
+	// The pre-decoded artifact is preferred when it is present and still
+	// matches the YAML beside it; see artifact.go for why every doubt
+	// degrades to the parse below rather than to an error.
+	if defs, ok := loadModuleArtifact(moduleDir); ok {
+		return defs, nil
+	}
+
+	return loadModuleYAML(moduleDir)
+}
+
+// loadModuleYAML parses every *.yaml in one module directory, ignoring any
+// artifact. The artifact writer uses this so it can never derive an
+// artifact from an earlier artifact.
+func loadModuleYAML(moduleDir string) ([]UiCapabilityDefinition, error) {
+	entries, err := os.ReadDir(moduleDir)
+	if os.IsNotExist(err) {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, fmt.Errorf("reading %s: %w", moduleDir, err)
+	}
+
+	var all []UiCapabilityDefinition
+	for _, entry := range entries {
+		if entry.IsDir() || filepath.Ext(entry.Name()) != ".yaml" {
+			continue
+		}
+		path := filepath.Join(moduleDir, entry.Name())
+		defs, err := loadDefinitionFile(path)
+		if err != nil {
+			return nil, err
+		}
+		all = append(all, defs...)
+	}
+
+	sort.Slice(all, func(i, j int) bool { return all[i].Key < all[j].Key })
+	return all, nil
+}
+
+// loadDefinitionFile parses one definition file and stamps its capabilities
+// with the file's catalogRevision.
+func loadDefinitionFile(path string) ([]UiCapabilityDefinition, error) {
+	raw, err := os.ReadFile(path)
+	if err != nil {
+		return nil, fmt.Errorf("reading %s: %w", path, err)
+	}
+	var df definitionFile
+	if err := yaml.Unmarshal(raw, &df); err != nil {
+		return nil, fmt.Errorf("parsing %s: %w", path, err)
+	}
+	for i := range df.Capabilities {
+		df.Capabilities[i].CatalogRevision = df.CatalogRevision
+	}
+	return df.Capabilities, nil
 }
 
 // catalogResourceEntry is the shape of one file under

@@ -7,8 +7,8 @@
 # or regenerate directly with
 # `go run ./libs/capabilitycatalog/cmd/capabilitycatalog-gen -root .`.
 #
-# The five hand-authored §12.1 worked examples live alongside this file
-# in clinical-worked-examples.yaml and are never touched by the generator.
+# Hand-authored capabilities for this module live beside this file in the
+# same module directory and are never touched by the generator.
 databaseChangeLog:
   - changeSet:
       id: 008-ui-capability-definition-seed

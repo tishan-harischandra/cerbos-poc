@@ -20,11 +20,31 @@ const generatedHeader = "" +
 	"# or regenerate directly with\n" +
 	"# `go run ./libs/capabilitycatalog/cmd/capabilitycatalog-gen -root .`.\n" +
 	"#\n" +
-	"# The five hand-authored §12.1 worked examples live alongside this file\n" +
-	"# in clinical-worked-examples.yaml and are never touched by the generator.\n"
+	"# Hand-authored capabilities for this module live beside this file in the\n" +
+	"# same module directory and are never touched by the generator.\n"
+
+// RenderDefinitionsByModule renders the generated capabilities as one
+// document per module, keyed by module name, each in the same shape
+// LoadDefinitionsForModule reads.
+//
+// The split is what lets the ADS serve one module without parsing the rest
+// (ADR-013): a whole-catalog document forces a whole-catalog parse no matter
+// how little of it the caller wants.
+func RenderDefinitionsByModule(catalogRevision int64, defs []UiCapabilityDefinition) map[string]string {
+	byModule := make(map[string][]UiCapabilityDefinition)
+	for _, d := range defs {
+		byModule[d.Module] = append(byModule[d.Module], d)
+	}
+
+	out := make(map[string]string, len(byModule))
+	for module, moduleDefs := range byModule {
+		out[module] = RenderDefinitionsYAML(catalogRevision, moduleDefs)
+	}
+	return out
+}
 
 // RenderDefinitionsYAML renders the mechanically generated capabilities as a
-// definitionFile document (the same shape LoadDefinitionsDir reads).
+// definitionFile document (the same shape the loaders read).
 func RenderDefinitionsYAML(catalogRevision int64, defs []UiCapabilityDefinition) string {
 	var b strings.Builder
 	fmt.Fprintf(&b, generatedHeader, catalogRevision)

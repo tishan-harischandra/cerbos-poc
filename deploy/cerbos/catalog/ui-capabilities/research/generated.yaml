@@ -1,0 +1,358 @@
+# GENERATED FILE - DO NOT EDIT BY HAND.
+#
+# Produced by libs/capabilitycatalog's archetype generator (catalog
+# revision 1, issue #10, PRD "UI capability catalog"). Edit
+# libs/cataloggen/manifest.yaml or the archetype definitions in
+# libs/capabilitycatalog/generator.go and re-run `make capability-gen`,
+# or regenerate directly with
+# `go run ./libs/capabilitycatalog/cmd/capabilitycatalog-gen -root .`.
+#
+# Hand-authored capabilities for this module live beside this file in the
+# same module directory and are never touched by the generator.
+catalogRevision: 1
+capabilities:
+  - key: artifact_assessment.action.delete
+    module: research
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: artifact_assessment
+            action: read
+            targetRef: artifact_assessment
+        - permission:
+            resource: artifact_assessment
+            action: delete
+            targetRef: artifact_assessment
+  - key: artifact_assessment.button.assign
+    module: research
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: artifact_assessment
+            action: read
+            targetRef: artifact_assessment
+        - permission:
+            resource: artifact_assessment
+            action: assign
+            targetRef: artifact_assessment
+  - key: artifact_assessment.route.details
+    module: research
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: artifact_assessment
+            action: read
+            targetRef: artifact_assessment
+        - permission:
+            resource: audit_event
+            action: read
+            targetRef: audit_event
+  - key: artifact_assessment.route.edit
+    module: research
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: artifact_assessment
+            action: read
+            targetRef: artifact_assessment
+        - permission:
+            resource: artifact_assessment
+            action: update
+            targetRef: artifact_assessment
+        - permission:
+            resource: audit_event
+            action: list
+            targetRef: audit_eventCollection
+  - key: artifact_assessment.route.list
+    module: research
+    context: COLLECTION
+    expression:
+      allOf:
+        - permission:
+            resource: artifact_assessment
+            action: list
+            targetRef: artifact_assessmentCollection
+        - permission:
+            resource: hospital_context
+            action: read
+            targetRef: hospitalContext
+  - key: citation.action.delete
+    module: research
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: citation
+            action: read
+            targetRef: citation
+        - permission:
+            resource: citation
+            action: delete
+            targetRef: citation
+  - key: citation.button.assign
+    module: research
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: citation
+            action: read
+            targetRef: citation
+        - permission:
+            resource: citation
+            action: assign
+            targetRef: citation
+  - key: citation.route.details
+    module: research
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: citation
+            action: read
+            targetRef: citation
+        - permission:
+            resource: claim
+            action: read
+            targetRef: claim
+  - key: citation.route.edit
+    module: research
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: citation
+            action: read
+            targetRef: citation
+        - permission:
+            resource: citation
+            action: update
+            targetRef: citation
+        - permission:
+            resource: claim
+            action: list
+            targetRef: claimCollection
+  - key: citation.route.list
+    module: research
+    context: COLLECTION
+    expression:
+      allOf:
+        - permission:
+            resource: citation
+            action: list
+            targetRef: citationCollection
+        - permission:
+            resource: hospital_context
+            action: read
+            targetRef: hospitalContext
+  - key: evidence.action.delete
+    module: research
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: evidence
+            action: read
+            targetRef: evidence
+        - permission:
+            resource: evidence
+            action: delete
+            targetRef: evidence
+  - key: evidence.button.assign
+    module: research
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: evidence
+            action: read
+            targetRef: evidence
+        - permission:
+            resource: evidence
+            action: assign
+            targetRef: evidence
+  - key: evidence.route.details
+    module: research
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: evidence
+            action: read
+            targetRef: evidence
+        - permission:
+            resource: evidence_report
+            action: read
+            targetRef: evidence_report
+  - key: evidence.route.edit
+    module: research
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: evidence
+            action: read
+            targetRef: evidence
+        - permission:
+            resource: evidence
+            action: update
+            targetRef: evidence
+        - permission:
+            resource: evidence_report
+            action: list
+            targetRef: evidence_reportCollection
+  - key: evidence.route.list
+    module: research
+    context: COLLECTION
+    expression:
+      allOf:
+        - permission:
+            resource: evidence
+            action: list
+            targetRef: evidenceCollection
+        - permission:
+            resource: hospital_context
+            action: read
+            targetRef: hospitalContext
+  - key: evidence_report.action.delete
+    module: research
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: evidence_report
+            action: read
+            targetRef: evidence_report
+        - permission:
+            resource: evidence_report
+            action: delete
+            targetRef: evidence_report
+  - key: evidence_report.button.assign
+    module: research
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: evidence_report
+            action: read
+            targetRef: evidence_report
+        - permission:
+            resource: evidence_report
+            action: assign
+            targetRef: evidence_report
+  - key: evidence_report.route.details
+    module: research
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: evidence_report
+            action: read
+            targetRef: evidence_report
+        - permission:
+            resource: evidence_variable
+            action: read
+            targetRef: evidence_variable
+  - key: evidence_report.route.edit
+    module: research
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: evidence_report
+            action: read
+            targetRef: evidence_report
+        - permission:
+            resource: evidence_report
+            action: update
+            targetRef: evidence_report
+        - permission:
+            resource: evidence_variable
+            action: list
+            targetRef: evidence_variableCollection
+  - key: evidence_report.route.list
+    module: research
+    context: COLLECTION
+    expression:
+      allOf:
+        - permission:
+            resource: evidence_report
+            action: list
+            targetRef: evidence_reportCollection
+        - permission:
+            resource: hospital_context
+            action: read
+            targetRef: hospitalContext
+  - key: evidence_variable.action.delete
+    module: research
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: evidence_variable
+            action: read
+            targetRef: evidence_variable
+        - permission:
+            resource: evidence_variable
+            action: delete
+            targetRef: evidence_variable
+  - key: evidence_variable.button.assign
+    module: research
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: evidence_variable
+            action: read
+            targetRef: evidence_variable
+        - permission:
+            resource: evidence_variable
+            action: assign
+            targetRef: evidence_variable
+  - key: evidence_variable.route.details
+    module: research
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: evidence_variable
+            action: read
+            targetRef: evidence_variable
+        - permission:
+            resource: example_scenario
+            action: read
+            targetRef: example_scenario
+  - key: evidence_variable.route.edit
+    module: research
+    context: INSTANCE
+    expression:
+      allOf:
+        - permission:
+            resource: evidence_variable
+            action: read
+            targetRef: evidence_variable
+        - permission:
+            resource: evidence_variable
+            action: update
+            targetRef: evidence_variable
+        - permission:
+            resource: example_scenario
+            action: list
+            targetRef: example_scenarioCollection
+  - key: evidence_variable.route.list
+    module: research
+    context: COLLECTION
+    expression:
+      allOf:
+        - permission:
+            resource: evidence_variable
+            action: list
+            targetRef: evidence_variableCollection
+        - permission:
+            resource: hospital_context
+            action: read
+            targetRef: hospitalContext

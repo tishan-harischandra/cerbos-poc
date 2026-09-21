@@ -9,7 +9,11 @@ import (
 	"github.com/tishan-harischandra/cerbos-poc/apps/ads/internal/capability"
 )
 
-const fixtureDefinitions = `
+// fixtureModules is the catalog laid out the way the generator writes it:
+// one directory per module, so a reader can take one without the rest
+// (ADR-013).
+var fixtureModules = map[string]string{
+	"clinical": `
 catalogRevision: 1
 capabilities:
   - key: patient.route.details
@@ -20,6 +24,10 @@ capabilities:
         resource: patient_record
         action: read
         targetRef: patient
+`,
+	"financial": `
+catalogRevision: 1
+capabilities:
   - key: account.route.list
     module: financial
     context: COLLECTION
@@ -28,13 +36,20 @@ capabilities:
         resource: account
         action: list
         targetRef: accountCollection
-`
+`,
+}
 
 func writeFixture(t *testing.T) string {
 	t.Helper()
 	dir := t.TempDir()
-	if err := os.WriteFile(filepath.Join(dir, "definitions.yaml"), []byte(fixtureDefinitions), 0o644); err != nil {
-		t.Fatalf("writing fixture: %v", err)
+	for module, body := range fixtureModules {
+		moduleDir := filepath.Join(dir, module)
+		if err := os.MkdirAll(moduleDir, 0o755); err != nil {
+			t.Fatalf("creating %s: %v", moduleDir, err)
+		}
+		if err := os.WriteFile(filepath.Join(moduleDir, "generated.yaml"), []byte(body), 0o644); err != nil {
+			t.Fatalf("writing fixture: %v", err)
+		}
 	}
 	return dir
 }
@@ -74,5 +89,27 @@ func TestFSCatalogServesFromCacheOnASecondCall(t *testing.T) {
 	}
 	if len(defs) != 1 || defs[0].Key != "account.route.list" {
 		t.Errorf("defs = %+v, want exactly account.route.list", defs)
+	}
+}
+
+// The OOMKill ADR-013 measured is a whole-catalog parse on the first request
+// after a pod start. Serving one module must cost one module, proven by
+// making every other module unparseable: a catalog that still reads them
+// fails here instead of failing in production at 60,000 capabilities.
+func TestFSCatalogDoesNotParseOtherModulesToServeOne(t *testing.T) {
+	dir := writeFixture(t)
+	poisoned := filepath.Join(dir, "financial", "generated.yaml")
+	if err := os.WriteFile(poisoned, []byte("capabilities: [not: valid yaml\n"), 0o644); err != nil {
+		t.Fatalf("poisoning the sibling module: %v", err)
+	}
+
+	catalog := capability.NewFSCatalog(dir, 12, nil)
+
+	defs, _, err := catalog.Definitions(context.Background(), "clinical")
+	if err != nil {
+		t.Fatalf("serving clinical parsed the financial module: %v", err)
+	}
+	if len(defs) != 1 || defs[0].Key != "patient.route.details" {
+		t.Errorf("defs = %+v, want exactly patient.route.details", defs)
 	}
 }
