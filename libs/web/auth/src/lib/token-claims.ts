@@ -15,9 +15,9 @@ export interface TokenClaims {
   roles: string[];
   expiresAt: number;
   /**
-   * Whether the token carries the tenant-wide realm role (issue #78's
-   * `admin`), read for display purposes only - e.g. issue #82's link to
-   * Keycloak's own administration console. Every administrative call
+   * Whether the token is a valid tenant-wide session carrying issue #78's
+   * `admin` marker, read for display purposes only - e.g. issue #82's link
+   * to Keycloak's own administration console. Every administrative call
    * still goes through the server, which verifies this independently.
    */
   isAdministrator: boolean;
@@ -35,33 +35,52 @@ export interface TokenClaims {
  * Decodes a JWT's payload without verifying its signature.
  *
  * Hospital-scoped roles come only from `organization_roles`; global realm and
- * receiving-client roles are used only when the token has no active hospital.
+ * receiving-client roles are used only for a genuine tenant-wide token carrying
+ * the `admin` marker. Invalid or ambiguous scope exposes no effective roles.
  * This mirrors the server's no-fallback organization-role contract.
  */
-export function decodeAccessToken(token: string, clientId: string): TokenClaims {
+export function decodeAccessToken(
+  token: string,
+  clientId: string,
+): TokenClaims {
   const parts = token.split('.');
   if (parts.length !== 3) {
     throw new Error('not a JWT: expected three dot-separated segments');
   }
-  const payload = JSON.parse(base64UrlDecode(parts[1])) as Record<string, unknown>;
+  const payload = JSON.parse(base64UrlDecode(parts[1])) as Record<
+    string,
+    unknown
+  >;
 
   const realmAccess = (payload['realm_access'] ?? {}) as { roles?: string[] };
   const resourceAccess = (payload['resource_access'] ?? {}) as Record<
     string,
     { roles?: string[] }
   >;
-  const hospitalId = activeHospitalOf(payload);
-  const globalRoles = [...(realmAccess.roles ?? []), ...(resourceAccess[clientId]?.roles ?? [])];
+  const hasTenantWideMarker = (realmAccess.roles ?? []).includes('admin');
+  const scope = accessScopeOf(payload, hasTenantWideMarker);
+  const hospitalId = scope.kind === 'organization' ? scope.hospitalId : '';
+  const globalRoles = [
+    ...(realmAccess.roles ?? []),
+    ...(resourceAccess[clientId]?.roles ?? []),
+  ];
+  const roles =
+    scope.kind === 'organization'
+      ? organizationRolesOf(payload, clientId)
+      : scope.kind === 'tenant-wide'
+        ? globalRoles
+        : [];
 
   return {
     subject: String(payload['sub'] ?? ''),
     username: String(payload['preferred_username'] ?? ''),
     tenantId: tenantIdOf(payload),
     hospitalId,
-    roles: hospitalId ? organizationRolesOf(payload, clientId) : globalRoles,
+    roles,
     expiresAt: Number(payload['exp'] ?? 0),
-    isAdministrator: (realmAccess.roles ?? []).includes('admin'),
-    otherHospitals: otherHospitalsOf(payload, hospitalId),
+    isAdministrator: scope.kind === 'tenant-wide',
+    otherHospitals:
+      scope.kind === 'invalid' ? [] : otherHospitalsOf(payload, hospitalId),
   };
 }
 
@@ -82,7 +101,10 @@ function tenantIdOf(payload: Record<string, unknown>): string {
   return index === -1 ? '' : issuer.slice(index + marker.length);
 }
 
-function organizationRolesOf(payload: Record<string, unknown>, clientId: string): string[] {
+function organizationRolesOf(
+  payload: Record<string, unknown>,
+  clientId: string,
+): string[] {
   const claim = payload['organization_roles'];
   if (typeof claim !== 'object' || claim === null || Array.isArray(claim)) {
     return [];
@@ -92,7 +114,9 @@ function organizationRolesOf(payload: Record<string, unknown>, clientId: string)
     client?: Record<string, unknown>;
   };
   const realm = Array.isArray(organizationRoles.realm)
-    ? organizationRoles.realm.filter((role): role is string => typeof role === 'string')
+    ? organizationRoles.realm.filter(
+        (role): role is string => typeof role === 'string',
+      )
     : [];
   const client = organizationRoles.client?.[clientId];
   const clientRoles = Array.isArray(client)
@@ -101,25 +125,37 @@ function organizationRolesOf(payload: Record<string, unknown>, clientId: string)
   return [...realm, ...clientRoles];
 }
 
+type AccessScope =
+  | { kind: 'organization'; hospitalId: string }
+  | { kind: 'tenant-wide' }
+  | { kind: 'invalid' };
+
 /**
- * The active hospital is the token's organization claim (issue #78,
- * §75) - a JSON array of alias strings Keycloak's organization scope
- * itself produces, e.g. `"organization": ["north-hospital"]` - never a
- * `hospital_id` claim, which does not exist. Mirrors
- * libs/tokenverifier's own hospitalOf/organizationAliases: any other
- * shape (absent, empty, more than one alias, a non-string entry) is
- * "no active hospital" for display purposes, the same as the server
- * treats it as unscoped or ambiguous.
+ * Mirrors tokenverifier's three outcomes: one organization alias is scoped,
+ * multiple aliases are ambiguous and invalid, and no usable organization is
+ * tenant-wide only when the token carries the explicit admin marker.
  */
-function activeHospitalOf(payload: Record<string, unknown>): string {
+function accessScopeOf(
+  payload: Record<string, unknown>,
+  hasTenantWideMarker: boolean,
+): AccessScope {
   const raw = payload['organization'];
-  if (!Array.isArray(raw) || raw.length !== 1 || typeof raw[0] !== 'string') {
-    return '';
+  if (
+    Array.isArray(raw) &&
+    raw.length > 0 &&
+    raw.every((alias) => typeof alias === 'string')
+  ) {
+    return raw.length === 1
+      ? { kind: 'organization', hospitalId: raw[0] }
+      : { kind: 'invalid' };
   }
-  return raw[0];
+  return hasTenantWideMarker ? { kind: 'tenant-wide' } : { kind: 'invalid' };
 }
 
-function otherHospitalsOf(payload: Record<string, unknown>, active: string): string[] {
+function otherHospitalsOf(
+  payload: Record<string, unknown>,
+  active: string,
+): string[] {
   const memberships = payload['organization_memberships'];
   if (!Array.isArray(memberships)) {
     return [];

@@ -2,7 +2,10 @@ import { decodeAccessToken } from './token-claims';
 
 function fakeJwt(payload: Record<string, unknown>): string {
   const encode = (value: unknown) =>
-    btoa(JSON.stringify(value)).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+    btoa(JSON.stringify(value))
+      .replace(/\+/g, '-')
+      .replace(/\//g, '_')
+      .replace(/=+$/, '');
   return `${encode({ alg: 'RS256', typ: 'JWT' })}.${encode(payload)}.signature`;
 }
 
@@ -31,7 +34,9 @@ describe('decodeAccessToken', () => {
   it('derives the tenant from the realm in the issuer, not a tenant_id claim (ADR-010)', () => {
     const token = fakeJwt({ iss: 'http://keycloak:8080/realms/tenant-b' });
 
-    expect(decodeAccessToken(token, 'patient-app').tenantId).toEqual('tenant-b');
+    expect(decodeAccessToken(token, 'patient-app').tenantId).toEqual(
+      'tenant-b',
+    );
   });
 
   it('names no tenant when the issuer has no /realms/ segment', () => {
@@ -43,11 +48,15 @@ describe('decodeAccessToken', () => {
   it('derives the active hospital from the organization claim, not a hospital_id claim (issue #78)', () => {
     const token = fakeJwt({ organization: ['north-hospital'] });
 
-    expect(decodeAccessToken(token, 'patient-app').hospitalId).toEqual('north-hospital');
+    expect(decodeAccessToken(token, 'patient-app').hospitalId).toEqual(
+      'north-hospital',
+    );
   });
 
   it('names no active hospital when the organization claim names more than one alias', () => {
-    const token = fakeJwt({ organization: ['north-hospital', 'south-hospital'] });
+    const token = fakeJwt({
+      organization: ['north-hospital', 'south-hospital'],
+    });
 
     expect(decodeAccessToken(token, 'patient-app').hospitalId).toEqual('');
   });
@@ -58,10 +67,58 @@ describe('decodeAccessToken', () => {
     expect(decodeAccessToken(token, 'patient-app').hospitalId).toEqual('');
   });
 
+  it('exposes no effective roles for multiple organization aliases with a global doctor role', () => {
+    const token = fakeJwt({
+      organization: ['north-hospital', 'south-hospital'],
+      realm_access: { roles: ['admin', 'doctor'] },
+      organization_memberships: ['north-hospital', 'south-hospital'],
+    });
+
+    const claims = decodeAccessToken(token, 'patient-app');
+
+    expect(claims.hospitalId).toEqual('');
+    expect(claims.roles).toEqual([]);
+    expect(claims.isAdministrator).toBe(false);
+    expect(claims.otherHospitals).toEqual([]);
+  });
+
+  it('exposes no effective roles for a malformed scalar organization with a global doctor role', () => {
+    const token = fakeJwt({
+      organization: 'north-hospital',
+      realm_access: { roles: ['doctor'] },
+      organization_memberships: ['north-hospital'],
+    });
+
+    const claims = decodeAccessToken(token, 'patient-app');
+
+    expect(claims.hospitalId).toEqual('');
+    expect(claims.roles).toEqual([]);
+    expect(claims.isAdministrator).toBe(false);
+    expect(claims.otherHospitals).toEqual([]);
+  });
+
+  it('exposes no effective roles when organization is absent without the tenant-wide admin marker', () => {
+    const token = fakeJwt({
+      realm_access: { roles: ['doctor'] },
+      resource_access: { 'patient-app': { roles: ['clinician'] } },
+      organization_memberships: ['north-hospital'],
+    });
+
+    const claims = decodeAccessToken(token, 'patient-app');
+
+    expect(claims.hospitalId).toEqual('');
+    expect(claims.roles).toEqual([]);
+    expect(claims.isAdministrator).toBe(false);
+    expect(claims.otherHospitals).toEqual([]);
+  });
+
   it('does not fall back to global roles for an organization-scoped token', () => {
     const token = fakeJwt({
       organization: ['south-hospital'],
-      organization_roles: { realm: ['auditor'], client: { 'patient-app': ['reviewer'] } },
+      organization_roles: {
+        realm: ['auditor'],
+        client: { 'patient-app': ['reviewer'] },
+      },
       realm_access: { roles: ['doctor'] },
       resource_access: { 'patient-app': { roles: ['administrator'] } },
     });
@@ -77,7 +134,10 @@ describe('decodeAccessToken', () => {
       resource_access: { 'patient-app': { roles: ['administrator'] } },
     });
 
-    expect(decodeAccessToken(token, 'patient-app').roles).toEqual(['admin', 'administrator']);
+    expect(decodeAccessToken(token, 'patient-app').roles).toEqual([
+      'admin',
+      'administrator',
+    ]);
   });
 
   it('rejects a value that is not a three-segment JWT', () => {
@@ -114,11 +174,14 @@ describe('decodeAccessToken', () => {
       organization_memberships: ['north-hospital', 'south-hospital'],
     });
 
-    expect(decodeAccessToken(token, 'patient-app').otherHospitals).toEqual(['south-hospital']);
+    expect(decodeAccessToken(token, 'patient-app').otherHospitals).toEqual([
+      'south-hospital',
+    ]);
   });
 
-  it('reports every membership when there is no active hospital (a tenant-wide session)', () => {
+  it('reports every membership for a genuine tenant-wide admin session', () => {
     const token = fakeJwt({
+      realm_access: { roles: ['admin'] },
       organization_memberships: ['north-hospital', 'south-hospital'],
     });
 
