@@ -89,10 +89,17 @@ def check_images_carry_no_native_clients() -> None:
 def check_keycloak_version_alignment(services: dict) -> None:
     dockerfile = KEYCLOAK_DOCKERFILE.read_text()
     pom = KEYCLOAK_POM.read_text()
-    loadtest_image = services["keycloak-loadtest"]["image"]
+    loadtest = services["keycloak-loadtest"]
+    loadtest_image = loadtest["image"]
+    loadtest_build = loadtest.get("build") or {}
     check("Keycloak runtime is pinned to 26.7.3", f"keycloak:{KEYCLOAK_VERSION}" in dockerfile)
     check("Keycloak SPI compiles against 26.7.3", f"<keycloak.version>{KEYCLOAK_VERSION}</keycloak.version>" in pom)
-    check("load-test Keycloak is pinned to 26.7.3", loadtest_image.endswith(f":{KEYCLOAK_VERSION}"))
+    check("load-test Keycloak image tag is pinned to 26.7.3", loadtest_image.endswith(f":{KEYCLOAK_VERSION}"))
+    check(
+        "load-test Keycloak builds the custom organization provider image",
+        loadtest_build.get("context") == "."
+        and loadtest_build.get("dockerfile") == "apps/keycloak-org-selector/Dockerfile",
+    )
 
 
 def check_identity_role_seed_order() -> None:

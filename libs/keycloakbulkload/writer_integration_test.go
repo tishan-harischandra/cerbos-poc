@@ -14,7 +14,7 @@ import (
 	"github.com/tishan-harischandra/cerbos-poc/libs/keycloakbulkload"
 )
 
-// This suite runs against a real Keycloak 26.4 backed by a real PostgreSQL -
+// This suite runs against a real Keycloak 26.7.3 backed by a real PostgreSQL -
 // docker-compose.yml's keycloak-loadtest / keycloak-db pair, started with
 // `docker compose --profile loadtest up --detach keycloak-db keycloak-loadtest`
 // - because the whole point of this package is behaviour that only a real
@@ -144,12 +144,15 @@ func TestBulkLoadedUsersCarryOrganizationMembership(t *testing.T) {
 	_, roleIDByName, err := admin.EnsureRealm(ctx, keycloakbulkload.RealmSetup{
 		Realm:          realm,
 		ClientID:       clientID,
-		RoleNames:      []string{"doctor"},
+		RoleNames:      []string{"doctor", "auditor"},
 		PasswordPolicy: keycloakbulkload.LoadTestPasswordPolicy,
 		Organizations:  aliases,
 	})
 	if err != nil {
 		t.Fatalf("EnsureRealm: %v", err)
+	}
+	if err := admin.EnsureOrganizationRoleGroups(ctx, realm, aliases, []string{"doctor", "auditor"}); err != nil {
+		t.Fatalf("EnsureOrganizationRoleGroups: %v", err)
 	}
 
 	realmID, err := admin.RealmID(ctx, realm)
@@ -172,6 +175,25 @@ func TestBulkLoadedUsersCarryOrganizationMembership(t *testing.T) {
 			t.Fatalf("OrganizationGroupIDs is missing alias %q: %v", alias, groupIDByAlias)
 		}
 	}
+	roleGroupIDs, err := keycloakbulkload.OrganizationRoleGroupIDs(ctx, pool, realmID)
+	if err != nil {
+		t.Fatalf("OrganizationRoleGroupIDs: %v", err)
+	}
+	for _, alias := range aliases {
+		for _, roleName := range []string{"doctor", "auditor"} {
+			groupID := roleGroupIDs[alias][roleName]
+			if groupID == "" {
+				t.Fatalf("OrganizationRoleGroupIDs is missing %q/%q: %v", alias, roleName, roleGroupIDs)
+			}
+			groupType, err := admin.GroupType(ctx, realm, alias, groupID)
+			if err != nil {
+				t.Fatalf("GroupType(%q/%q): %v", alias, roleName, err)
+			}
+			if groupType != "ORGANIZATION" {
+				t.Fatalf("group type for %q/%q = %q, want GroupModel.Type.ORGANIZATION", alias, roleName, groupType)
+			}
+		}
+	}
 
 	cred, err := keycloakbulkload.NewSharedCredential("Load-Test-Only-P@ss1")
 	if err != nil {
@@ -184,19 +206,25 @@ func TestBulkLoadedUsersCarryOrganizationMembership(t *testing.T) {
 		memberGroupIDs[i] = groupIDByAlias[alias]
 	}
 
+	organizationRoleGroupIDs := []string{
+		roleGroupIDs[memberOf[0]]["doctor"],
+		roleGroupIDs[memberOf[1]]["auditor"],
+		roleGroupIDs[memberOf[0]]["doctor"], // duplicate proves per-user deduplication
+	}
 	users := make(chan keycloakbulkload.UserRecord, 8)
 	go func() {
 		defer close(users)
 		users <- keycloakbulkload.UserRecord{
-			ID:               deterministicTestUUID(realm + ":user-0"),
-			Username:         "bulkload-it-org-user-0",
-			FirstName:        "Load",
-			LastName:         "TestUser",
-			Email:            "bulkload-it-org-user-0@example.test",
-			TenantID:         "tenant-a",
-			HospitalID:       memberOf[0],
-			RoleIDs:          []string{roleIDByName["doctor"]},
-			HospitalGroupIDs: memberGroupIDs,
+			ID:                       deterministicTestUUID(realm + ":user-0"),
+			Username:                 "bulkload-it-org-user-0",
+			FirstName:                "Load",
+			LastName:                 "TestUser",
+			Email:                    "bulkload-it-org-user-0@example.test",
+			TenantID:                 "tenant-a",
+			HospitalID:               memberOf[0],
+			RoleIDs:                  []string{roleIDByName["doctor"]},
+			HospitalGroupIDs:         memberGroupIDs,
+			OrganizationRoleGroupIDs: organizationRoleGroupIDs,
 		}
 	}()
 
@@ -208,16 +236,26 @@ func TestBulkLoadedUsersCarryOrganizationMembership(t *testing.T) {
 	if err != nil {
 		t.Fatalf("BulkLoad: %v", err)
 	}
-	if stats.Memberships != 2 {
-		t.Fatalf("stats.Memberships = %d, want 2", stats.Memberships)
+	if stats.Memberships != 4 {
+		t.Fatalf("stats.Memberships = %d, want 4 deduplicated backing and role-group memberships", stats.Memberships)
 	}
 
+	expectedRoles := map[string]string{
+		aliases[0]: "doctor",
+		aliases[1]: "auditor",
+	}
 	for _, alias := range memberOf {
 		token := organizationScopedPasswordGrant(t, adminURL, realm, clientID, "bulkload-it-org-user-0", "Load-Test-Only-P@ss1", alias)
 		claims := decodeJWTClaims(t, token)
 		orgs, _ := claims["organization"].([]any)
 		if len(orgs) != 1 || orgs[0] != alias {
 			t.Errorf("organization claim for alias %q = %v, want exactly [%q]", alias, orgs, alias)
+		}
+		organizationRoles, _ := claims["organization_roles"].(map[string]any)
+		realmRoles, _ := organizationRoles["realm"].([]any)
+		if len(realmRoles) != 1 || realmRoles[0] != expectedRoles[alias] {
+			t.Errorf("organization_roles.realm for alias %q = %v, want exactly [%q] (all claims: %v)",
+				alias, realmRoles, expectedRoles[alias], claims)
 		}
 	}
 

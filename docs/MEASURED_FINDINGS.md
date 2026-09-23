@@ -298,38 +298,57 @@ administrator can bring up an arbitrary new tenant. A production
 deployment wanting to restrict this would need a platform-operator
 credential this prototype does not have a design for yet.
 
-## Keycloak 26.4's organization schema, for the direct-SQL bulk loader (issue #87)
+## Keycloak 26.7.3's organization schema, for the direct-SQL bulk loader (issue #87)
 
-`libs/keycloakbulkload` writes users, credentials and role mappings straight
-into Keycloak's PostgreSQL schema because the Admin REST API cannot reach
-600,000 users in a bounded time (see the package doc comment). Issue #87
-needs the same throughput for organizations and memberships, and Keycloak
-publishes no schema documentation for either. Measured directly: created a
-realm with `organizationsEnabled: true`, an organization and a membership
-through the real Admin REST API against a Postgres-backed Keycloak 26.4
-(`docker compose --profile loadtest up keycloak-db keycloak-loadtest`, with
-`--features=organization`), then inspected the rows with `psql`.
+`libs/keycloakbulkload` writes users and their high-cardinality mappings
+straight into Keycloak's PostgreSQL schema because Admin REST cannot seed
+600,000 users in bounded time. This was re-measured rather than inferred from
+26.4: the custom provider image is based on exactly Keycloak 26.7.3, with a
+Postgres-backed `keycloak-loadtest`; the integration test created
+organizations, role subgroups and realm-role mappings through Admin REST, then
+`psql` inspected the resulting rows.
 
-**Finding: a Keycloak organization is a `KEYCLOAK_GROUP` row with
-`type = 1`, plus one `ORG` row pointing at it.** Membership is an ordinary
-`USER_GROUP_MEMBERSHIP` row against that group - organizations are not a
-separate membership mechanism, they are the existing group model with a
-marker.
+**Finding: 26.7.3 models both the organization backing group and each role
+subgroup as `KEYCLOAK_GROUP.type = 1` (`GroupModel.Type.ORGANIZATION`).** The
+role group is a child of the exact backing group in `ORG.group_id`; both rows
+also carry the same `org_id`. A realm-role mapping is
+`GROUP_ROLE_MAPPING(group_id, role_id)`, and direct membership in both the
+backing group and selected role subgroup is an ordinary
+`USER_GROUP_MEMBERSHIP` row.
 
-| Table | Columns that matter | Notes |
+| Table | Measured columns that matter | Measured relationship |
 |---|---|---|
-| `keycloak_group` | `id`, `name`, `parent_group`, `realm_id`, `type` | `type = 1` marks an organization-backed group (`0` is an ordinary group). `name` holds the **organization's own id**, not a display name. `parent_group` is `''` (empty string), not `NULL`, for a top-level group. |
-| `org` | `id`, `enabled`, `realm_id`, `group_id`, `name`, `description`, `alias`, `redirect_url` | `group_id` is a unique FK to the `keycloak_group` row above. `alias` is what a direct grant's `scope=organization:<alias>` matches against. |
-| `org_domain` | `id`, `name`, `verified`, `org_id` | Optional; not required for a direct grant to carry the `organization` claim. |
-| `user_group_membership` | `group_id`, `user_id`, `membership_type` | `membership_type = 'UNMANAGED'` is what the Admin REST API itself writes for a member added directly (as opposed to via an invitation). |
+| `org` | `id`, `realm_id`, `group_id`, `alias` | `group_id` identifies the backing group; `alias` is the organization scope value. |
+| `keycloak_group` | `id`, `name`, `parent_group`, `realm_id`, `type`, `org_id`, `created_timestamp`, `last_modified_timestamp` | Backing row: `id = org.group_id`, `org_id = org.id`, `type = 1`. Role subgroup: `parent_group = org.group_id`, the same `realm_id`/`org_id`, and `type = 1`. |
+| `group_role_mapping` | `role_id`, `group_id` | `group_id` is the role subgroup, not the backing organization group. |
+| `keycloak_role` | `id`, `name`, `realm_id`, `client_role`, `client_realm_constraint` | Native pilot roles measured here are realm roles: `client_role = false`, with both realm constraints equal to `org.realm_id`. |
+| `user_group_membership` | `group_id`, `user_id`, `membership_type` | One `UNMANAGED` row backs organization membership and one per selected role subgroup grants organization-local roles. |
 
-Confirmed end to end: inserting these four tables' rows directly with `psql`
-(no Admin REST call) for a user already loaded by the bulk writer produced a
-direct grant (`scope=openid organization:<alias>`) whose access token
-carried `"organization": ["<alias>"]`, identical in shape to one obtained
-through a real invitation. No custom provider jar or authenticator is
-required for this - only `--features=organization` on the Keycloak command
-line, confirming issue #75's finding again at this lower level.
+The loader query consequently constrains every hop by `org.realm_id`, joins
+role groups only through the exact `org.group_id` parent, verifies matching
+`org_id` and `type = 1`, and reaches role names only through
+`GROUP_ROLE_MAPPING`; names alone never establish ownership. The integration
+also reads each SQL-discovered group through the organization Admin REST API
+and confirms the ordinary groups endpoint rejects it as an “organization
+related group”, Keycloak 26.7.3's REST-visible discriminator for
+`GroupModel.Type.ORGANIZATION` (the returned `GroupRepresentation` itself
+omits `type`).
+
+Exact verification command:
+
+```bash
+GO_NETWORK=organization-scoped-roles_default \
+KEYCLOAK_LOADTEST_ADMIN_URL=http://keycloak-loadtest:8080 \
+KEYCLOAK_LOADTEST_DB_DSN='postgres://keycloak:change-me@keycloak-db:5432/keycloak?sslmode=disable' \
+GO_ENV_PASS='KEYCLOAK_LOADTEST_ADMIN_URL KEYCLOAK_LOADTEST_DB_DSN' \
+bash scripts/go.sh libs/keycloakbulkload test ./... -run TestBulkLoadedUsersCarryOrganizationMembership -count=1 -v
+```
+
+It passed against 26.7.3 and produced real organization-scoped tokens for one
+user with `organization_roles.realm == ["doctor"]` in `hospital-1` and
+`["auditor"]` in `hospital-2`. The same direct SQL transaction inserted the
+backing and role-subgroup memberships, and a deliberate duplicate role-group
+id was counted/written once.
 
 **Finding: specifying `optionalClientScopes` at all on client creation
 disables Keycloak's own default-scope assignment, rather than merging with
@@ -390,21 +409,22 @@ authorization database's overrides, in under 30 seconds end to end,
 logged per tenant by `loadseed` itself:
 
 ```
-loadseed: [tenant-1] done - 25 users, 100 role mappings, 50 memberships, 1 batches (0 already loaded, skipped), 141ms (176 users/sec)
-loadseed: [tenant-2] done - 25 users, 100 role mappings, 50 memberships, 1 batches (0 already loaded, skipped), 82ms (306 users/sec)
-loadseed: keycloak done for all 2 tenants - 50 users, 200 role mappings, 100 memberships, 2 batches, 27.9s (2 users/sec, 7 mappings/sec)
+loadseed: [tenant-1] done - 25 users, 100 role mappings, 150 memberships, 1 batches (0 already loaded, skipped), 25ms (979 users/sec)
+loadseed: [tenant-2] done - 25 users, 100 role mappings, 150 memberships, 1 batches (0 already loaded, skipped), 23ms (1111 users/sec)
+loadseed: keycloak done for all 2 tenants - 50 users, 200 role mappings, 300 memberships, 2 batches, 10.3s (5 users/sec, 19 mappings/sec)
 ```
 
 The per-tenant Keycloak writes themselves are fast (hundreds of
 users/sec, consistent with the existing single-realm measurement in this
 file); the wall-clock total is dominated by `EnsureRealm`/
-`EnsureOrganizations`'s Admin REST round trips (one realm, one client, N
-roles, 4 organizations - all one-time per tenant, not per user) rather
-than the bulk write.
+`EnsureOrganizations`/`EnsureOrganizationRoleGroups` Admin REST round trips
+(one realm, one client, N roles, organizations and their one-time role-group
+catalog per tenant, never one call per user) rather than the bulk write.
 
 **Not measured: the full profile's actual wall-clock cost** (5 realms,
-600,000 users, 42,000,000 role mappings, 6,000,000 organization
-memberships) - that run is the load run itself, not something this
+600,000 users, 42,000,000 compatibility role mappings, 1,200,000 backing
+organization memberships and 42,000,000 organization-role memberships) -
+that run is the load run itself, not something this
 investigation could run to completion in this environment. Extrapolating
 naively from the demo numbers is exactly the kind of unmeasured guess this
 document exists to avoid; the honest statement is that the mechanism is

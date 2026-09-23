@@ -154,19 +154,20 @@ services:
       timeout: 5s
       retries: 20
 
-  # A second Keycloak, pinned to the same 26.7.3 image as the demo instance
-  # (libs/keycloakbulkload's direct-SQL writer is version-pinned to this exact
-  # schema) but backed by keycloak-db instead of dev-mode's file store, and
-  # published on a different port so both can run side by side.
+  # A second Keycloak, pinned to the same custom 26.7.3 provider image as the
+  # demo instance (libs/keycloakbulkload's direct-SQL writer is version-pinned
+  # to this exact schema) but backed by keycloak-db instead of dev-mode's file
+  # store, and published on a different port so both can run side by side.
   keycloak-loadtest:
-    image: quay.io/keycloak/keycloak:26.7.3
+    image: cerbos-poc/keycloak-org-selector:26.7.3
+    build:
+      context: .
+      dockerfile: apps/keycloak-org-selector/Dockerfile
     profiles:
       - loadtest
     # --features=organization (issue #87): the load model's hospital is a
-    # Keycloak organization, the same as the demo realms, and a direct
-    # grant's organization-scoped claim is native to this preview feature -
-    # no custom provider jar required for it (§75's finding: "no browser,
-    # no custom authenticator SPI in the path").
+    # Keycloak organization, and the baked-in mapper emits organization_roles
+    # for the active organization's native role-group memberships.
     command: ["start-dev", "--features=organization"]
     environment:
       KC_BOOTSTRAP_ADMIN_USERNAME: ${KEYCLOAK_ADMIN:-admin}

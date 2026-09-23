@@ -29,7 +29,8 @@ package keycloakbulkload
 // KeycloakVersion is the exact Keycloak image tag this package's direct-SQL
 // writer is verified against (docker-compose.yml's keycloak-loadtest
 // service). The schema of USER_ENTITY, CREDENTIAL, USER_ATTRIBUTE,
-// USER_ROLE_MAPPING and KEYCLOAK_ROLE was inspected against a running
+// USER_ROLE_MAPPING, USER_GROUP_MEMBERSHIP, ORG, KEYCLOAK_GROUP,
+// GROUP_ROLE_MAPPING and KEYCLOAK_ROLE was inspected against a running
 // instance of exactly this version; nothing here is derived from Keycloak's
 // public API or documentation, because there isn't one for these tables.
-const KeycloakVersion = "26.4"
+const KeycloakVersion = "26.7.3"

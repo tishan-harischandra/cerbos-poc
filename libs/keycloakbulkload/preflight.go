@@ -15,11 +15,10 @@ type PreflightEstimate struct {
 	Users int
 	// RoleMappings is the total number of user_role_mapping rows.
 	RoleMappings int
-	// Memberships is the total number of user_group_membership rows
-	// (issue #87): 5 realms x 600,000 users x 2 hospitals each is
-	// 6,000,000 rows, the same order of magnitude as the role mappings
-	// this estimate already accounts for, so a five-realm population's
-	// disk estimate must count them too.
+	// Memberships is the total number of user_group_membership rows: one
+	// backing row per hospital membership plus one role-subgroup row per
+	// organization-local role. The full profile therefore has 1,200,000
+	// backing rows and 42,000,000 role-group rows.
 	Memberships int
 }
 

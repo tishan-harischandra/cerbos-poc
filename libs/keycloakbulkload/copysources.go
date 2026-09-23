@@ -142,13 +142,36 @@ func (r *roleMappingRows) Values() ([]any, error) {
 
 func (r *roleMappingRows) Err() error { return nil }
 
-// membershipRows writes one user_group_membership row per hospital in
-// HospitalGroupIDs (issue #87), the same "flatten a per-user slice" shape
-// roleMappingRows already uses for RoleIDs.
+// membershipGroupIDs combines backing organization groups and their role
+// subgroups while preventing a duplicate USER_GROUP_MEMBERSHIP primary key
+// when a caller supplies the same id more than once.
+func membershipGroupIDs(user UserRecord) []string {
+	groupIDs := make([]string, 0, len(user.HospitalGroupIDs)+len(user.OrganizationRoleGroupIDs))
+	seen := make(map[string]struct{}, cap(groupIDs))
+	add := func(ids []string) {
+		for _, groupID := range ids {
+			if groupID == "" {
+				continue
+			}
+			if _, ok := seen[groupID]; ok {
+				continue
+			}
+			seen[groupID] = struct{}{}
+			groupIDs = append(groupIDs, groupID)
+		}
+	}
+	add(user.HospitalGroupIDs)
+	add(user.OrganizationRoleGroupIDs)
+	return groupIDs
+}
+
+// membershipRows writes both kinds of native organization membership with the
+// same "flatten a per-user slice" shape roleMappingRows uses for RoleIDs.
 type membershipRows struct {
-	batch []UserRecord
-	i     int
-	j     int
+	batch    []UserRecord
+	i        int
+	j        int
+	groupIDs []string
 }
 
 func (r *membershipRows) Next() bool {
@@ -156,12 +179,16 @@ func (r *membershipRows) Next() bool {
 		if r.i >= len(r.batch) {
 			return false
 		}
-		if r.j < len(r.batch[r.i].HospitalGroupIDs) {
+		if r.groupIDs == nil {
+			r.groupIDs = membershipGroupIDs(r.batch[r.i])
+		}
+		if r.j < len(r.groupIDs) {
 			r.j++
 			return true
 		}
 		r.i++
 		r.j = 0
+		r.groupIDs = nil
 	}
 }
 
@@ -170,7 +197,7 @@ func (r *membershipRows) Values() ([]any, error) {
 	// UNMANAGED is what the Admin REST API itself writes for a member
 	// added directly rather than through an invitation (measured
 	// alongside the schema itself; see docs/MEASURED_FINDINGS.md).
-	return []any{u.HospitalGroupIDs[r.j-1], u.ID, "UNMANAGED"}, nil
+	return []any{r.groupIDs[r.j-1], u.ID, "UNMANAGED"}, nil
 }
 
 func (r *membershipRows) Err() error { return nil }

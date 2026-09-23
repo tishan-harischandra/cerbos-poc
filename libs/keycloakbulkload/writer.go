@@ -34,6 +34,10 @@ type UserRecord struct {
 	// caller, the same way RoleIDs already is, so a batch never repeats an
 	// alias-to-group-id lookup per row.
 	HospitalGroupIDs []string
+	// OrganizationRoleGroupIDs are the native role subgroups below those
+	// backing organization groups. A user joins the subgroup for each role
+	// they hold in each hospital, in addition to the backing group itself.
+	OrganizationRoleGroupIDs []string
 }
 
 // LoadConfig is everything BulkLoad needs beyond the users themselves.
@@ -106,6 +110,15 @@ func BulkLoad(ctx context.Context, pool *pgxpool.Pool, cfg LoadConfig, users <-c
 			return err
 		}
 		if already {
+			// A batch seeded by an older loader can have all user rows while
+			// lacking the newly introduced organization-role memberships.
+			// Reconcile those rows non-destructively before treating the users
+			// themselves as skipped.
+			memberships, err := writeMissingMemberships(ctx, pool, batch)
+			if err != nil {
+				return err
+			}
+			stats.Memberships += memberships
 			stats.SkippedBatches++
 			batch = batch[:0]
 			return nil
@@ -116,7 +129,7 @@ func BulkLoad(ctx context.Context, pool *pgxpool.Pool, cfg LoadConfig, users <-c
 		stats.Users += len(batch)
 		for _, u := range batch {
 			stats.RoleMappings += len(u.RoleIDs)
-			stats.Memberships += len(u.HospitalGroupIDs)
+			stats.Memberships += len(membershipGroupIDs(u))
 		}
 		stats.Batches++
 		batch = batch[:0]
@@ -156,6 +169,29 @@ func batchAlreadyLoaded(ctx context.Context, pool *pgxpool.Pool, batch []UserRec
 		return false, fmt.Errorf("keycloakbulkload: checking whether a batch was already loaded: %w", err)
 	}
 	return count == len(batch), nil
+}
+
+func writeMissingMemberships(ctx context.Context, pool *pgxpool.Pool, batch []UserRecord) (int, error) {
+	groupIDs := make([]string, 0)
+	userIDs := make([]string, 0)
+	for _, user := range batch {
+		for _, groupID := range membershipGroupIDs(user) {
+			groupIDs = append(groupIDs, groupID)
+			userIDs = append(userIDs, user.ID)
+		}
+	}
+	if len(groupIDs) == 0 {
+		return 0, nil
+	}
+	result, err := pool.Exec(ctx, `
+		INSERT INTO user_group_membership (group_id, user_id, membership_type)
+		SELECT membership.group_id, membership.user_id, 'UNMANAGED'
+		FROM unnest($1::varchar[], $2::varchar[]) AS membership(group_id, user_id)
+		ON CONFLICT DO NOTHING`, groupIDs, userIDs)
+	if err != nil {
+		return 0, fmt.Errorf("keycloakbulkload: reconciling memberships for an existing batch: %w", err)
+	}
+	return int(result.RowsAffected()), nil
 }
 
 func writeBatch(ctx context.Context, pool *pgxpool.Pool, realmID string, cred SharedCredential, createdTimestamp int64, batch []UserRecord) error {

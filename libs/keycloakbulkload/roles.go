@@ -191,6 +191,14 @@ func (c *AdminClient) EnsureRealm(ctx context.Context, setup RealmSetup) (client
 					"id.token.claim":     "true",
 				},
 			},
+			{
+				"name":           "organization roles",
+				"protocol":       "openid-connect",
+				"protocolMapper": "cerbos-poc-organization-roles-mapper",
+				"config": map[string]any{
+					"access.token.claim": "true",
+				},
+			},
 		},
 	})
 	if err != nil {
@@ -218,6 +226,25 @@ func (c *AdminClient) EnsureRealm(ctx context.Context, setup RealmSetup) (client
 		return "", nil, fmt.Errorf("keycloakbulkload: client %q was created but cannot be found", setup.ClientID)
 	}
 	clientUUID = clients[0].ID
+
+	// Reconcile the custom mapper separately as well as including it in the
+	// create payload: an existing load realm from an earlier seed predates the
+	// organization_roles claim and must become usable without deleting data.
+	status, body, err = c.call(ctx, http.MethodPost,
+		"/admin/realms/"+setup.Realm+"/clients/"+clientUUID+"/protocol-mappers/models", map[string]any{
+			"name":           "organization roles",
+			"protocol":       "openid-connect",
+			"protocolMapper": "cerbos-poc-organization-roles-mapper",
+			"config": map[string]any{
+				"access.token.claim": "true",
+			},
+		})
+	if err != nil {
+		return "", nil, err
+	}
+	if status != http.StatusCreated && status != http.StatusConflict {
+		return "", nil, fmt.Errorf("keycloakbulkload: creating organization roles mapper failed with %d: %s", status, body)
+	}
 
 	roleIDByName = make(map[string]string, len(setup.RoleNames))
 	for _, name := range setup.RoleNames {

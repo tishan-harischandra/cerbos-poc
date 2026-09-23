@@ -48,7 +48,7 @@ func run() error {
 	estimate := keycloakbulkload.PreflightEstimate{
 		Users:        cfg.Users,
 		RoleMappings: cfg.Users * cfg.RolesPerUser,
-		Memberships:  cfg.Users * cfg.HospitalsPerUser,
+		Memberships:  cfg.Users * (cfg.HospitalsPerUser + cfg.RolesPerUser),
 	}
 	if err := keycloakbulkload.Preflight(estimate, dataDir); err != nil {
 		return err
@@ -133,11 +133,18 @@ func run() error {
 		if err != nil {
 			return fmt.Errorf("[%s] setting up the realm: %w", tenantID, err)
 		}
+		if err := admin.EnsureOrganizationRoleGroups(ctx, realm, hospitalAliases, pop.RoleNames()); err != nil {
+			return fmt.Errorf("[%s] creating organization role groups: %w", tenantID, err)
+		}
 		realmID, err := admin.RealmID(ctx, realm)
 		if err != nil {
 			return fmt.Errorf("[%s] %w", tenantID, err)
 		}
 		groupIDByAlias, err := keycloakbulkload.OrganizationGroupIDs(ctx, pool, realmID)
+		if err != nil {
+			return fmt.Errorf("[%s] %w", tenantID, err)
+		}
+		roleGroupIDsByAlias, err := keycloakbulkload.OrganizationRoleGroupIDs(ctx, pool, realmID)
 		if err != nil {
 			return fmt.Errorf("[%s] %w", tenantID, err)
 		}
@@ -175,16 +182,31 @@ func run() error {
 					}
 					groupIDs[i] = id
 				}
+				// Partition the generated role set across this user's hospitals.
+				// This keeps the existing global client-role mappings for legacy
+				// load checks, while native organization groups are now the sole
+				// source of pilot authorization and deliberately differ by scope.
+				organizationRoleGroupIDs := make([]string, 0, len(u.RoleNames))
+				for i, roleName := range u.RoleNames {
+					alias := u.HospitalIDs[i%len(u.HospitalIDs)]
+					id, ok := roleGroupIDsByAlias[alias][roleName]
+					if !ok {
+						generateErr <- fmt.Errorf("organization role group %q/%q was not created in realm %q", alias, roleName, realm)
+						return false
+					}
+					organizationRoleGroupIDs = append(organizationRoleGroupIDs, id)
+				}
 				users <- keycloakbulkload.UserRecord{
-					ID:               deterministicUserID(realm, u.Username),
-					Username:         u.Username,
-					FirstName:        u.FirstName,
-					LastName:         u.LastName,
-					Email:            u.Email,
-					TenantID:         u.TenantID,
-					HospitalID:       u.HospitalID(),
-					RoleIDs:          roleIDs,
-					HospitalGroupIDs: groupIDs,
+					ID:                       deterministicUserID(realm, u.Username),
+					Username:                 u.Username,
+					FirstName:                u.FirstName,
+					LastName:                 u.LastName,
+					Email:                    u.Email,
+					TenantID:                 u.TenantID,
+					HospitalID:               u.HospitalID(),
+					RoleIDs:                  roleIDs,
+					HospitalGroupIDs:         groupIDs,
+					OrganizationRoleGroupIDs: organizationRoleGroupIDs,
 				}
 				return true
 			})
