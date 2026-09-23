@@ -40,5 +40,7 @@ class OrganizationRolesClaimTest {
     void mapperContractIsStable() {
         assertEquals("cerbos-poc-organization-roles-mapper", OrganizationRolesMapper.PROVIDER_ID);
         assertEquals("organization_roles", OrganizationRolesMapper.CLAIM_NAME);
+        assertEquals(10, new OrganizationRolesMapper().getPriority(),
+                "organization roles must run after Keycloak resolves the active organization");
     }
 }

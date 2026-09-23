@@ -50,6 +50,14 @@ public class OrganizationRolesMapper extends AbstractOIDCProtocolMapper implemen
     }
 
     @Override
+    public int getPriority() {
+        // Keycloak's organization membership mapper resolves the selected
+        // scope into KeycloakContext. Equal-priority mappers retain their
+        // database order, which differs between independently imported realms.
+        return 10;
+    }
+
+    @Override
     protected void setClaim(IDToken token, ProtocolMapperModel mappingModel, UserSessionModel userSession,
             KeycloakSession keycloakSession, ClientSessionContext clientSessionCtx) {
         OrganizationModel active = keycloakSession.getContext().getOrganization();

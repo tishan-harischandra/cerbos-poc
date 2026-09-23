@@ -193,7 +193,9 @@ fi
 
 # §77's other half of the acceptance criterion: the refusal is logged
 # distinguishably from an ordinary deny, so it is alertable on its own.
-if docker compose logs ads 2>/dev/null | grep -q "cross-tenant or cross-hospital access attempt refused"; then
+# Do not use grep -q under pipefail: once the log grows beyond a pipe buffer,
+# grep's early exit gives `docker compose logs` SIGPIPE and inverts a match.
+if docker compose logs ads 2>/dev/null | grep "cross-tenant or cross-hospital access attempt refused" >/dev/null; then
   pass "the cross-tenant refusal is logged distinguishably"
 else
   fail "the cross-tenant refusal is logged distinguishably (no matching ADS log line found)"
