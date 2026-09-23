@@ -1,1 +1,2 @@
 org.cerbospoc.keycloak.orgselector.OrganizationMembershipsMapper
+org.cerbospoc.keycloak.orgselector.OrganizationRolesMapper
