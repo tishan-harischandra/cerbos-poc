@@ -122,6 +122,90 @@ func TestRoleSearchProducesTheSameCanonicalIdentifiersAsTokenNormalisation(t *te
 	}
 }
 
+func TestOrganizationRoleSearchMergesRealmAndBrowserClientBeforePaging(t *testing.T) {
+	fake := newFakeKeycloak(t)
+	fake.realmRoles = []role{
+		{ID: "realm-doctor", Name: "doctor"},
+		{ID: "shared-realm", Name: "shared"},
+	}
+	fake.clientRoles = []role{
+		{ID: "client-care-team", Name: "care-team"},
+		{ID: "shared-client", Name: "shared"},
+	}
+	defer fake.Close()
+
+	page, err := fake.directoryWithRoleSource(t, tokenverifier.RoleSourceOrganization).SearchRoles(
+		context.Background(), tenant, idpdirectory.RoleSearch{Page: idpdirectory.PageRequest{Offset: 0, Limit: 2}},
+	)
+	if err != nil {
+		t.Fatalf("SearchRoles: %v", err)
+	}
+	got := []string{page.Items[0].CanonicalID, page.Items[1].CanonicalID}
+	want := []string{
+		"kc:tenant-a:realm:doctor",
+		"kc:tenant-a:realm:shared",
+	}
+	if fmt.Sprint(got) != fmt.Sprint(want) {
+		t.Errorf("canonical role page = %v, want %v", got, want)
+	}
+	if !page.HasMore {
+		t.Error("HasMore = false, want the merged catalog to contain client roles after this page")
+	}
+	for _, path := range []string{
+		"/admin/realms/tenant-a/roles",
+		"/admin/realms/tenant-a/clients/client-uuid/roles",
+	} {
+		if query := fake.lastQuery(path); query.Get("first") != "" || query.Get("max") != "" {
+			t.Errorf("%s query = %v, want pagination applied only after merging", path, query)
+		}
+	}
+}
+
+func TestOrganizationRoleSearchReturnsRealmAndConfiguredClientCanonicalIDs(t *testing.T) {
+	fake := newFakeKeycloak(t)
+	fake.realmRoles = []role{{ID: "realm-doctor", Name: "doctor"}}
+	fake.clientRoles = []role{{ID: "client-care-team", Name: "care-team"}}
+	defer fake.Close()
+
+	page, err := fake.directoryWithRoleSource(t, tokenverifier.RoleSourceOrganization).SearchRoles(
+		context.Background(), tenant, idpdirectory.RoleSearch{},
+	)
+	if err != nil {
+		t.Fatalf("SearchRoles: %v", err)
+	}
+	got := []string{page.Items[0].CanonicalID, page.Items[1].CanonicalID}
+	want := []string{
+		"kc:tenant-a:realm:doctor",
+		"kc:tenant-a:patient-app:care-team",
+	}
+	if fmt.Sprint(got) != fmt.Sprint(want) {
+		t.Errorf("canonical roles = %v, want %v", got, want)
+	}
+}
+
+func TestOrganizationGetRolePreservesTheRolesSource(t *testing.T) {
+	fake := newFakeKeycloak(t)
+	fake.realmRoles = []role{{ID: "realm-doctor", Name: "doctor"}}
+	fake.clientRoles = []role{{ID: "client-care-team", Name: "care-team"}}
+	defer fake.Close()
+	directory := fake.directoryWithRoleSource(t, tokenverifier.RoleSourceOrganization)
+
+	realmRole, err := directory.GetRole(context.Background(), tenant, "realm-doctor")
+	if err != nil {
+		t.Fatalf("GetRole(realm): %v", err)
+	}
+	if realmRole.CanonicalID != "kc:tenant-a:realm:doctor" {
+		t.Errorf("realm CanonicalID = %q, want source-preserving realm ID", realmRole.CanonicalID)
+	}
+	clientRole, err := directory.GetRole(context.Background(), tenant, "client-care-team")
+	if err != nil {
+		t.Fatalf("GetRole(client): %v", err)
+	}
+	if clientRole.CanonicalID != "kc:tenant-a:patient-app:care-team" {
+		t.Errorf("client CanonicalID = %q, want source-preserving client ID", clientRole.CanonicalID)
+	}
+}
+
 // The client's internal UUID is cached as realm configuration, but a realm can
 // be rebuilt underneath a running service - `make down && make up` does exactly
 // that to the development database. The cached UUID is then a 404 forever, and
@@ -440,6 +524,7 @@ type fakeKeycloak struct {
 	t *testing.T
 
 	users       []user
+	realmRoles  []role
 	clientRoles []role
 	// userRoleMappings keys a user's external id to the roles the fake
 	// reports as directly assigned, from the same authoritative source
@@ -523,6 +608,17 @@ func (f *fakeKeycloak) serve(w http.ResponseWriter, r *http.Request) {
 	case strings.HasPrefix(path, "/admin/realms/"+realm+"/organizations/") && strings.HasSuffix(path, "/members"):
 		id := strings.TrimSuffix(strings.TrimPrefix(path, "/admin/realms/"+realm+"/organizations/"), "/members")
 		writeJSON(f.t, w, window(f.organizationMembers[id], r))
+	case path == "/admin/realms/"+realm+"/roles":
+		writeJSON(f.t, w, window(f.realmRoles, r))
+	case strings.HasPrefix(path, "/admin/realms/"+realm+"/roles/"):
+		name := strings.TrimPrefix(path, "/admin/realms/"+realm+"/roles/")
+		for _, candidate := range f.realmRoles {
+			if candidate.Name == name || candidate.ID == name {
+				writeJSON(f.t, w, candidate)
+				return
+			}
+		}
+		w.WriteHeader(http.StatusNotFound)
 	case path == "/admin/realms/"+realm+"/clients":
 		writeJSON(f.t, w, []map[string]string{{"id": f.clientUUID, "clientId": clientID}})
 	case path == "/admin/realms/"+realm+"/clients/"+f.clientUUID+"/roles":
@@ -565,11 +661,16 @@ func (f *fakeKeycloak) lastQuery(path string) url.Values {
 
 func (f *fakeKeycloak) directory(t *testing.T) idpdirectory.IdentityDirectory {
 	t.Helper()
+	return f.directoryWithRoleSource(t, tokenverifier.RoleSourceClient)
+}
+
+func (f *fakeKeycloak) directoryWithRoleSource(t *testing.T, roleSource tokenverifier.RoleSource) idpdirectory.IdentityDirectory {
+	t.Helper()
 	directory, err := keycloak.New(keycloak.Config{
 		BaseURL:      f.URL,
 		Realm:        realm,
 		TenantID:     tenant,
-		RoleSource:   tokenverifier.RoleSourceClient,
+		RoleSource:   roleSource,
 		ClientID:     clientID,
 		ServiceUser:  "authorization-admin-service",
 		ClientSecret: "a-secret-nobody-should-see",

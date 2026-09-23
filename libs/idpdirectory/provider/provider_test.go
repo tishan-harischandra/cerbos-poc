@@ -230,6 +230,45 @@ func TestConfigFromTenantResolvesIdentityFromTheRegistryRow(t *testing.T) {
 	}
 }
 
+func TestConfigFromTenantPreservesOrganizationRoleModeForTheVerifier(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "idp-admin-credentials")
+	if err := os.WriteFile(path, []byte(secret), 0o600); err != nil {
+		t.Fatalf("writing the secret file: %v", err)
+	}
+
+	cfg, err := provider.ConfigFromTenant(lookup(map[string]string{
+		"IDP_TYPE":        "KEYCLOAK",
+		"IDP_BASE_URL":    "http://keycloak:8080",
+		"IDP_ROLE_SOURCE": "ORGANIZATION",
+	}), provider.Tenant{
+		Realm:               "tenant-a",
+		Issuer:              "http://localhost:8081/realms/tenant-a",
+		BrowserClientID:     "patient-app",
+		ServiceClientID:     "authorization-admin-service",
+		CredentialSecretRef: path,
+	})
+	if err != nil {
+		t.Fatalf("ConfigFromTenant: %v", err)
+	}
+	if cfg.RoleSource != tokenverifier.RoleSourceOrganization {
+		t.Errorf("RoleSource = %q, want ORGANIZATION", cfg.RoleSource)
+	}
+	if cfg.ClientID != "patient-app" {
+		t.Errorf("ClientID = %q, want the configured browser client", cfg.ClientID)
+	}
+	if _, err := provider.NewVerifier(cfg); err != nil {
+		t.Fatalf("NewVerifier rejected organization mode and its browser client: %v", err)
+	}
+}
+
+func TestKeycloakRejectsUnknownRoleSources(t *testing.T) {
+	cfg := configFor(t, "KEYCLOAK")
+	cfg.RoleSource = tokenverifier.RoleSource("GROUPS")
+	if _, err := provider.New(cfg); err == nil {
+		t.Fatal("New accepted a Keycloak role source other than CLIENT, REALM, or ORGANIZATION")
+	}
+}
+
 func TestConfigFromTenantRejectsAnUnreadableSecretReference(t *testing.T) {
 	_, err := provider.ConfigFromTenant(lookup(map[string]string{
 		"IDP_TYPE":     "KEYCLOAK",

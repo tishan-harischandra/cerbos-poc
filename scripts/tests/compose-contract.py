@@ -134,6 +134,8 @@ def check_identity_provider(services: dict) -> None:
     check("the ads waits for a healthy keycloak",
           (ads.get("depends_on") or {}).get("keycloak", {}).get("condition") == "service_healthy")
     check("the ads is told which identity provider to use", "IDP_TYPE" in environment)
+    check("ADS uses organization-scoped token roles",
+          environment.get("IDP_ROLE_SOURCE") == "${IDP_ROLE_SOURCE:-ORGANIZATION}")
 
     # §7.1's credentialSecretRef, now the tenant registry's own column
     # (issue #76): the path travels as a bind mount, and the ads reads the

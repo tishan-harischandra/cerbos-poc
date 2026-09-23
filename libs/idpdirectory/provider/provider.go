@@ -249,11 +249,20 @@ func finish(cfg Config, credentialSecretRef string) (Config, error) {
 func New(cfg Config) (idpdirectory.IdentityDirectory, error) {
 	switch cfg.Type {
 	case TypeKeycloak:
+		roleSource := cfg.RoleSource
+		if roleSource == "" {
+			roleSource = tokenverifier.RoleSourceClient
+		}
+		switch roleSource {
+		case tokenverifier.RoleSourceClient, tokenverifier.RoleSourceRealm, tokenverifier.RoleSourceOrganization:
+		default:
+			return nil, fmt.Errorf("%s=%q is unsupported for Keycloak; supported sources are CLIENT, REALM, and ORGANIZATION", EnvRoleSource, roleSource)
+		}
 		return keycloak.New(keycloak.Config{
 			BaseURL:      cfg.BaseURL,
 			Realm:        cfg.Realm,
 			TenantID:     cfg.TenantID,
-			RoleSource:   cfg.RoleSource,
+			RoleSource:   roleSource,
 			ClientID:     cfg.ClientID,
 			ServiceUser:  cfg.ServiceClientID,
 			ClientSecret: cfg.ClientSecret.Reveal(),

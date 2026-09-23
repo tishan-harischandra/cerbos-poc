@@ -17,6 +17,7 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"sort"
 	"strconv"
 	"strings"
 	"sync"
@@ -86,8 +87,13 @@ func New(cfg Config) (*Directory, error) {
 	if cfg.RoleSource == "" {
 		cfg.RoleSource = tokenverifier.RoleSourceClient
 	}
-	if cfg.RoleSource == tokenverifier.RoleSourceClient && cfg.ClientID == "" {
-		return nil, errors.New("keycloak: a client id is required when roles come from a client")
+	switch cfg.RoleSource {
+	case tokenverifier.RoleSourceClient, tokenverifier.RoleSourceRealm, tokenverifier.RoleSourceOrganization:
+	default:
+		return nil, fmt.Errorf("keycloak: unsupported role source %q; supported sources are CLIENT, REALM, and ORGANIZATION", cfg.RoleSource)
+	}
+	if (cfg.RoleSource == tokenverifier.RoleSourceClient || cfg.RoleSource == tokenverifier.RoleSourceOrganization) && cfg.ClientID == "" {
+		return nil, errors.New("keycloak: a client id is required when roles come from a client or organization")
 	}
 	if cfg.Now == nil {
 		cfg.Now = time.Now
@@ -144,8 +150,12 @@ func (d *Directory) SearchRoles(ctx context.Context, tenant idpdirectory.TenantI
 	if query.Query != "" {
 		params.Set("search", query.Query)
 	}
-	applyWindow(params, page)
 
+	if d.cfg.RoleSource == tokenverifier.RoleSourceOrganization {
+		return d.searchOrganizationRoles(ctx, params, page)
+	}
+
+	applyWindow(params, page)
 	var found []roleRepresentation
 	if err := d.getRoles(ctx, "", params, &found); err != nil {
 		return empty, err
@@ -158,6 +168,55 @@ func (d *Directory) SearchRoles(ctx context.Context, tenant idpdirectory.TenantI
 	}
 	return idpdirectory.Page[idpdirectory.RoleRef]{
 		Items: refs, Offset: page.Offset, Limit: page.Limit, HasMore: hasMore,
+	}, nil
+}
+
+// searchOrganizationRoles presents the tenant-wide catalog available when
+// organization mode is active: realm roles followed by the configured browser
+// client's roles. Both sources are read before the caller's page is applied so
+// offsets and HasMore describe one deterministic catalog, not either backend
+// endpoint in isolation.
+func (d *Directory) searchOrganizationRoles(ctx context.Context, params url.Values, page idpdirectory.PageRequest) (idpdirectory.Page[idpdirectory.RoleRef], error) {
+	realmRoles, err := d.readRealmRoles(ctx, params)
+	if err != nil {
+		return idpdirectory.Page[idpdirectory.RoleRef]{}, err
+	}
+	clientRoles, err := d.readClientRoles(ctx, params)
+	if err != nil {
+		return idpdirectory.Page[idpdirectory.RoleRef]{}, err
+	}
+
+	refsByCanonicalID := make(map[string]idpdirectory.RoleRef, len(realmRoles)+len(clientRoles))
+	for _, sourced := range []struct {
+		source tokenverifier.RoleSource
+		roles  []roleRepresentation
+	}{
+		{source: tokenverifier.RoleSourceRealm, roles: realmRoles},
+		{source: tokenverifier.RoleSourceClient, roles: clientRoles},
+	} {
+		for _, representation := range sourced.roles {
+			ref := d.toRoleRefFrom(representation, sourced.source)
+			refsByCanonicalID[ref.CanonicalID] = ref
+		}
+	}
+
+	refs := make([]idpdirectory.RoleRef, 0, len(refsByCanonicalID))
+	for _, ref := range refsByCanonicalID {
+		refs = append(refs, ref)
+	}
+	sort.Slice(refs, func(i, j int) bool {
+		iRealm := strings.Contains(refs[i].CanonicalID, ":realm:")
+		jRealm := strings.Contains(refs[j].CanonicalID, ":realm:")
+		if iRealm != jRealm {
+			return iRealm
+		}
+		return refs[i].CanonicalID < refs[j].CanonicalID
+	})
+
+	start := min(page.Offset, len(refs))
+	end := min(start+page.Limit, len(refs))
+	return idpdirectory.Page[idpdirectory.RoleRef]{
+		Items: refs[start:end], Offset: page.Offset, Limit: page.Limit, HasMore: end < len(refs),
 	}, nil
 }
 
@@ -179,6 +238,21 @@ func (d *Directory) GetRole(ctx context.Context, tenant idpdirectory.TenantID, e
 	if err := d.checkTenant(tenant); err != nil {
 		return idpdirectory.RoleRef{}, err
 	}
+	if d.cfg.RoleSource == tokenverifier.RoleSourceOrganization {
+		var representation roleRepresentation
+		err := d.getRealmRole(ctx, externalID, &representation)
+		if err == nil {
+			return d.toRoleRefFrom(representation, tokenverifier.RoleSourceRealm), nil
+		}
+		if !errors.Is(err, idpdirectory.ErrNotFound) {
+			return idpdirectory.RoleRef{}, err
+		}
+		if err := d.getClientRole(ctx, externalID, &representation); err != nil {
+			return idpdirectory.RoleRef{}, err
+		}
+		return d.toRoleRefFrom(representation, tokenverifier.RoleSourceClient), nil
+	}
+
 	var representation roleRepresentation
 	if err := d.getRoles(ctx, externalID, nil, &representation); err != nil {
 		return idpdirectory.RoleRef{}, err
@@ -211,13 +285,13 @@ func (d *Directory) GetUserRoles(ctx context.Context, tenant idpdirectory.Tenant
 }
 
 // userRoleMappingsPath resolves where one user's role mappings live,
-// reusing rolesPath's client-id-to-UUID resolution and cache rather than
+// reusing clientRolesPath's client-id-to-UUID resolution and cache rather than
 // re-deriving it.
 func (d *Directory) userRoleMappingsPath(ctx context.Context, userExternalID string) (string, error) {
 	if d.cfg.RoleSource == tokenverifier.RoleSourceRealm {
 		return d.adminPath("users", userExternalID, "role-mappings", "realm"), nil
 	}
-	if _, err := d.rolesPath(ctx); err != nil {
+	if _, err := d.clientRolesPath(ctx); err != nil {
 		return "", err
 	}
 	d.mu.Lock()
@@ -326,9 +400,13 @@ func (d *Directory) checkTenant(tenant idpdirectory.TenantID) error {
 }
 
 func (d *Directory) toRoleRef(representation roleRepresentation) idpdirectory.RoleRef {
+	return d.toRoleRefFrom(representation, d.cfg.RoleSource)
+}
+
+func (d *Directory) toRoleRefFrom(representation roleRepresentation, source tokenverifier.RoleSource) idpdirectory.RoleRef {
 	canonical := tokenverifier.CanonicalRoles(tokenverifier.Config{
 		Realm:      d.cfg.Realm,
-		RoleSource: d.cfg.RoleSource,
+		RoleSource: source,
 		ClientID:   d.cfg.ClientID,
 	}, []string{representation.Name})
 
@@ -343,17 +421,50 @@ func (d *Directory) toRoleRef(representation roleRepresentation) idpdirectory.Ro
 	return ref
 }
 
-// getRoles reads from the authoritative role source, retrying once against a
-// freshly resolved client.
-//
-// The client's internal id is realm configuration, so it is cached - but a
-// realm can be rebuilt underneath a running service, and the cached id is then
-// a 404 for the rest of the process' life. Nothing about "no such identity"
-// would point an operator at a cache, so the recovery is automatic. One retry,
-// because a second failure is a real absence rather than a stale id.
+func (d *Directory) readRealmRoles(ctx context.Context, params url.Values) ([]roleRepresentation, error) {
+	var found []roleRepresentation
+	if err := d.getJSON(ctx, d.adminPath("roles"), params, &found); err != nil {
+		return nil, err
+	}
+	return found, nil
+}
+
+func (d *Directory) readClientRoles(ctx context.Context, params url.Values) ([]roleRepresentation, error) {
+	var found []roleRepresentation
+	if err := d.getClientRoles(ctx, "", params, &found); err != nil {
+		return nil, err
+	}
+	return found, nil
+}
+
+func (d *Directory) getRealmRole(ctx context.Context, roleName string, into any) error {
+	return d.getJSON(ctx, d.adminPath("roles", roleName), nil, into)
+}
+
+func (d *Directory) getClientRole(ctx context.Context, roleName string, into any) error {
+	return d.getClientRoles(ctx, roleName, nil, into)
+}
+
+// getRoles preserves the legacy single-source fast paths. Organization mode
+// uses the explicit realm and client helpers above so source information is not
+// lost while the catalogs are merged.
 func (d *Directory) getRoles(ctx context.Context, roleName string, params url.Values, into any) error {
+	if d.cfg.RoleSource == tokenverifier.RoleSourceRealm {
+		path := d.adminPath("roles")
+		if roleName != "" {
+			path += "/" + url.PathEscape(roleName)
+		}
+		return d.getJSON(ctx, path, params, into)
+	}
+	return d.getClientRoles(ctx, roleName, params, into)
+}
+
+// getClientRoles retries once against a freshly resolved client. The client's
+// internal id is cached realm configuration, but a rebuilt realm can replace
+// that id while this process is running.
+func (d *Directory) getClientRoles(ctx context.Context, roleName string, params url.Values, into any) error {
 	for attempt := range 2 {
-		path, err := d.rolesPath(ctx)
+		path, err := d.clientRolesPath(ctx)
 		if err != nil {
 			return err
 		}
@@ -377,14 +488,10 @@ func (d *Directory) forgetClient() {
 	d.mu.Unlock()
 }
 
-// rolesPath resolves where the authoritative roles live, translating the
-// configured client id into the internal UUID the Admin API needs. The
+// clientRolesPath resolves where the configured client's roles live,
+// translating its public id into the internal UUID the Admin API needs. The
 // translation is cached: it is realm configuration, not per-request data.
-func (d *Directory) rolesPath(ctx context.Context) (string, error) {
-	if d.cfg.RoleSource == tokenverifier.RoleSourceRealm {
-		return d.adminPath("roles"), nil
-	}
-
+func (d *Directory) clientRolesPath(ctx context.Context) (string, error) {
 	d.mu.Lock()
 	cached, ok := d.clientUUID, d.clientUUIDSet
 	d.mu.Unlock()
