@@ -4,7 +4,7 @@
 |---|---|
 | Status | Discovery prerequisite and implementation gate |
 | Target application | `phr-pharmacygui` (PHR) |
-| Target identity platform | CSI-IAM on the requested Keycloak **26.2.5** baseline |
+| Target identity platform | CSI-IAM on the required Keycloak **26.7.3** baseline |
 | Authorization target | Cerbos PDP plus an Authorization Decision Service (ADS); Keycloak supplies verified identity context |
 | Evidence boundary | Only `cerbos-poc/`, `phr-pharmacygui/`, and `csi-iam/` in this workspace |
 
@@ -49,21 +49,19 @@ server-side capability evaluation in
 | Legacy audit group (`x-group`) | Verified `csi_audit_context.rms_tenant_id` claim | Carry the legacy RMS tenant/group ID as a decimal string. It is compatibility audit data mapped from the verified realm; it must not replace issuer/realm as the authorization tenant. |
 | Legacy audit hospital (`x-hospital`) | Verified active `organization` claim | When the numeric-hospital-alias rule applies, inject the selected alias unchanged as the legacy hospital ID. The PEP derives authorization scope from the verified claim, not from the injected header. |
 | Legacy audit location (`x-location`) | Authenticated server-side operational-location context | Optional operational context only. It must be validated against the verified active hospital and omitted when unset; it must never establish authorization scope. |
-| Effective roles at the active hospital | Verified, configured `oidc-hospital-roles-mapper` claim, selected by the active organization/hospital mapping | Use exactly this hospital's role list. An absent, malformed, or unmatched entry grants no role-based permission; do not fall back to realm/client roles. |
+| Effective roles at the active hospital | Verified `organization_roles` claim derived from the active native organization's groups | Accept exactly `{"realm": string[], "client": {"<receiving-client-id>": string[]}}`, with either section omitted when empty and no other keys. Use only this claim; absent or malformed data grants no role-based permission, and there is no fallback to `realm_access` or `resource_access`. |
 | Hospital membership list | `organization_memberships` claim | Alias-only display list. It must not establish decision scope or widen access. |
 | Hospital display directory | Verified `csi_hospital_directory` claim | Display-only `{alias, name}` records for hospital selectors. Display names are not identifiers and must never be submitted or used for a decision. |
-| Realm/client roles | Verified token role claims | Preserve as the CSI-IAM hospital-role SPI's eligibility input and for legacy compatibility only. They are not the PHR Cerbos role source. |
+| Realm/client roles | Verified global token role claims | Preserve only for tenant-wide administration and legacy compatibility. Hospital-scoped PHR decisions never use them as a fallback. |
 | Permissions and capabilities | ADS/Cerbos | Do not put role grants, user overrides, capability results, or `permissionContext` in an access token. |
 
 The current POC token verifier validates signature, issuer, audience, validity
-period, organization scope, and reserved roles before exposing an identity
-(`cerbos-poc/libs/tokenverifier/tokenverifier.go:112-189,242-325`), but its role
-source supports only `realm_access.roles` or `resource_access.<client>.roles`
-(`:69-76,336-377`). It must gain a third, hospital-role source before it can
-honor CSI-IAM's hospital-specific role model. That source must parse the
-configured map only after token verification and active-organization resolution,
-select roles only for that active organization/hospital, validate every map
-entry's type, and include all mapped roles in the reserved-role check.
+period, reserved roles, organization scope, and the strict `organization_roles`
+shape before exposing an identity
+(`cerbos-poc/libs/tokenverifier/tokenverifier.go:242-383`). In organization mode,
+it canonicalizes only the active organization's structured role claim. Global
+`realm_access` and `resource_access` claims remain visible for compatibility and
+tenant-wide administration but can never grant a hospital-scoped permission.
 
 ### 1.2 Legacy transaction-audit compatibility boundary
 
@@ -128,16 +126,17 @@ mTLS), so callers cannot bypass header stripping/injection.
 No PHR route should be cut over until all of these gates have named owners and
 passing evidence.
 
-1. **Version truth is reconciled.** The requested target is 26.2.5, but the
-   checked-in CSI-IAM parent POM and current custom Admin UI packages are
-   26.0.1 (`csi-iam/csi-iam-extentions/pom.xml:5-20` and
-   `csi-iam/csi-iam-ui/admin-ui/package.json:12-28`). The POC organization
-   provider is compiled for 26.4.0 and its image is 26.4
-   (`cerbos-poc/apps/keycloak-org-selector/pom.xml:19-56` and `Dockerfile:21-27`).
-   Establish the exact CSI-IAM image tag, source revision, Maven coordinates,
-   Node package versions, JDK, and database migration path that actually form
-   the 26.2.5 release. `@csi/csi-auth-v2` version `26.2.11` in PHR is a library
-   version, not proof that the checked-out server/provider source is 26.2.5.
+1. **Version truth is reconciled.** Keycloak 26.7.3 is required because the
+   approved role source depends on native organization groups and their role
+   mappings. The checked-in CSI-IAM parent POM and current custom Admin UI
+   packages are 26.0.1 (`csi-iam/csi-iam-extentions/pom.xml:5-20` and
+   `csi-iam/csi-iam-ui/admin-ui/package.json:12-28`), while the POC provider and
+   runtime are aligned to exactly 26.7.3
+   (`cerbos-poc/apps/keycloak-org-selector/pom.xml` and `Dockerfile`). Establish
+   the exact CSI-IAM image tag, source revision, Maven coordinates, Node package
+   versions, JDK, and database migration path that form the coordinated 26.7.3
+   release. `@csi/csi-auth-v2` version `26.2.11` in PHR is a library version,
+   not proof that the checked-out server/provider source is 26.7.3.
 2. **The PHR API inventory exists.** For every PHR read, mutation, print,
    export, workflow, and controlled-medication operation, name the endpoint,
    owning service, persistent resource identity, owner tenant/hospital, and PEP
@@ -159,20 +158,20 @@ passing evidence.
    PEP enforcement. Database backups/exports and a tested restoration procedure
    are required before any irreversible migration.
 
-## 3. Keycloak 26.2.5 upgrade requirements
+## 3. Keycloak 26.7.3 upgrade requirements
 
 ### 3.1 Align every server-side artifact to the selected patch release
 
 A Keycloak provider JAR must be compiled and tested against the exact runtime
-that loads it. The following work is required for the 26.2.5 image:
+that loads it. The following work is required for the 26.7.3 image:
 
 | Area | Current local evidence | Required action |
 |---|---|---|
-| CSI extension reactor | Parent and module coordinates are 26.0.1; Java target is 21. | Update the parent/version convention and every explicit module dependency/version to the approved 26.2.5 coordinates; compile the entire reactor with the release JDK. |
+| CSI extension reactor | Parent and module coordinates are 26.0.1; Java target is 21. | Update the parent/version convention and every explicit module dependency/version to the approved 26.7.3 coordinates; compile the entire reactor with the release JDK. |
 | CSI Admin UI and Account UI | The Admin UI uses 26.0.1 Keycloak JS/admin-client dependencies, while `@keycloak/keycloak-ui-shared` is 26.0.4. | Align its Keycloak dependencies and lockfiles to the server baseline, then rebuild its Maven theme assembly. |
-| POC organization provider | Compiles against 26.4.0 with Keycloak SPI, private SPI, services, and Jakarta REST APIs. | Port/recompile from source against 26.2.5, retain its unit tests, and execute real-server integration tests. Never copy the 26.4-built JAR into CSI-IAM. |
+| POC organization provider | Compiles against exactly 26.7.3 with Keycloak SPI, private SPI, services, and Jakarta REST APIs. | Port/recompile from source in the coordinated CSI-IAM 26.7.3 build, retain its unit tests, and execute real-server integration tests. Never copy a JAR built for another Keycloak patch into CSI-IAM. |
 | CSI image assembly | The Dockerfile copies provider JARs and themes into `/opt/keycloak`, but does not run `kc.sh build`. | After every selected provider/theme is copied, run the appropriate `kc.sh build` during image creation, then start the optimized built image in integration tests. |
-| Runtime configuration | The compose configuration passes Keycloak, database, proxy, Infinispan, and custom SPI settings. | Validate every setting against the selected 26.2.5 distribution; delete or replace only after contract tests prove no client/runtime dependency. |
+| Runtime configuration | The compose configuration passes Keycloak, database, proxy, Infinispan, and custom SPI settings. | Validate every setting against the selected 26.7.3 distribution; delete or replace only after contract tests prove no client/runtime dependency. |
 
 The reactor currently lists 22 modules (`csi-iam/csi-iam-extentions/pom.xml:64-87`),
 and the image copies their artifacts into the provider directory
@@ -209,13 +208,13 @@ Apply the same packaging discipline to CSI-IAM:
    (`csi-iam/docker-compose.yaml:43-65`); use a secret-managed deployment
    configuration instead.
 
-### 3.3 Prove Organizations on exactly 26.2.5
+### 3.3 Prove Organizations on exactly 26.7.3
 
-The POC's organization model depends on the `organization` feature. Its 26.4
-development deployment explicitly enables `--features=organization`
-(`cerbos-poc/docker-compose.yml:84-106`). Because the target is 26.2.5, the
-team must demonstrate the same required configuration and behavior on 26.2.5,
-not infer compatibility from the POC image.
+The POC's organization model depends on the `organization` feature and native
+organization groups. Its 26.7.3 development deployment explicitly enables
+`--features=organization` (`cerbos-poc/docker-compose.yml`). CSI-IAM must use the
+same patch release for provider compilation, image build, schema migration, and
+runtime verification; a mixed-version deployment is unsupported.
 
 For every PHR realm:
 
@@ -226,7 +225,7 @@ For every PHR realm:
    (for example, `"120045"`) when it is unique and immutable within that realm.
    The `organization` claim and `organization:<alias>` scope treat this as a
    string, never a JSON number. This makes the verified active alias directly
-   usable as legacy `x-hospital` and as the hospital-role-map key. If that
+   usable as legacy `x-hospital`. If that
    uniqueness/immutability condition does not hold, use a separate immutable
    alias and a documented server-side alias-to-legacy-hospital-ID adapter. Never
    use a hospital display name as an alias or reuse an alias after retirement.
@@ -238,28 +237,29 @@ For every PHR realm:
    organization per hospital-scoped token. A user with no organization scope
    must be denied for a hospital-scoped PHR operation; a token with multiple
    organization aliases is ambiguous, not broader access.
-5. Configure CSI-IAM's `oidc-hospital-roles-mapper` for the PHR client and
-   publish a documented map of `{legacyHospitalId: [roleName, ...]}`. When the
-   numeric-alias rule applies, the verified active alias selects this map entry
-   directly. Otherwise, its key must be deterministically translated by the
-   documented server-side alias mapping. The mapped role list for the active
-   hospital—not all entries in the map and not the realm-role list—is the role
-   input to ADS.
+5. Create role-bearing groups under each native Keycloak Organization, map realm
+   or receiving-client roles to those groups, and assign users to the groups.
+   Configure the PHR client with the organization-role mapper so it emits only
+   the selected organization's assignments as `organization_roles`. The exact
+   shape is `{"realm": string[], "client": {"<receiving-client-id>":
+   string[]}}`; either section is omitted when empty, arrays contain non-blank
+   role names, and no foreign client or additional top-level key is accepted.
 6. Configure the browser client for Authorization Code with PKCE, exact redirect
    URIs/web origins, explicit audience, the organization client scope, the
-   hospital-role mapper, and the audit/display claim mappers in §5.1. The POC
+   organization-role mapper, and the audit/display claim mappers in §5.1. The POC
    switcher requests `openid organization:<alias>` and exchanges a PKCE
    authorization code (`cerbos-poc/libs/web/auth/src/lib/hospital-switcher.ts:34-82`).
-7. Define a tenant-wide administrative marker and its allowed operations. The
-   organization selector allows a no-organization tenant-wide route only for a
-   configured admin realm role (`OrganizationSelectorAuthenticator.java:52-59,74-93,142-150`).
-   The ADS/PEP must separately define and verify which tenant-wide operations
-   are permitted. It must also define whether a tenant-wide session has a
-   distinct tenant-wide role source or is denied all hospital-only capabilities.
-8. Reserve the POC platform role namespace from client assignment. The POC
-   verifier refuses a token carrying a reserved role before any decision is made
-   (`cerbos-poc/apps/ads/internal/tokenauth/tokenauth.go:75-101`); extend this
-   rejection to roles carried by the hospital-role map.
+7. Define tenant-wide administrative roles through ordinary realm groups kept
+   outside every Organization. The selector allows a no-organization route only
+   for the configured admin realm role
+   (`OrganizationSelectorAuthenticator.java`). ADS/PEPs must explicitly limit
+   those sessions to tenant-wide operations; they receive no hospital scope or
+   hospital-role fallback.
+8. Reserve the POC platform role namespace from every client and group
+   assignment. The POC verifier checks global and structured organization-role
+   claims before scope resolution and refuses a token carrying a reserved role
+   before any decision is made
+   (`cerbos-poc/apps/ads/internal/tokenauth/tokenauth.go:75-101`).
 
 ### 3.4 Migrate context and permission ownership deliberately
 
@@ -270,7 +270,7 @@ Keycloak or Cerbos:
 |---|---|---|
 | Realm-to-RMS-tenant mapping | `REALM_TENANT_MAPPING` stores a unique realm/RMS tenant pair. | Retain the mapping as the source for the signed legacy audit `csi_audit_context.rms_tenant_id` claim. The existing `GroupClaimProtocolMapper` already reads `rms_tenant_id` at token issue time. ADS must derive authorization tenancy from the verified realm/issuer, not the legacy claim or a client-supplied value. |
 | Employee identity to legacy audit user | `csi_employeeinfo` maps the Keycloak user ID to immutable `employee_code`; `logged-in` exposes that code as the legacy `id`. | Add a PHR client-scope mapper that resolves the authenticated `sub` to `csi_audit_context.employee_code` at token issue/refresh time. A missing or malformed value fails a transaction that requires `x-user`; do not query this mapping on every backend request. |
-| Hospital membership and hospital roles | `HospitalRolesProtocolMapper` emits a signed `{hospitalId: [roleName, ...]}` token map, sourced from custom hospital assignments, filtered against realm roles, and cached in the `hospital_roles` session note. | This is a required PHR authorization input. Port it to 26.2.5, keep its map shape/role-filter semantics, and make ADS select and normalize only the entry matching the verified active organization. Where an organization alias is the canonical numeric hospital ID, it selects the map entry directly. Do not use the membership display list or a browser-supplied hospital header to choose the entry. |
+| Hospital membership and hospital roles | Legacy `HospitalRolesProtocolMapper` emits a `{hospitalId: [roleName, ...]}` map from custom hospital assignments. | Do not port this third role store into the authorization path. Migrate assignments to role-bearing native Organization groups and emit the selected organization's roles through the structured `organization_roles` claim. Reconcile migration counts before cutover; do not use membership display data or a browser-supplied hospital header as scope or authority. |
 | Hospital identity and display name | `org_structure` separates `original_id` from `name`; hospital conversion preserves this as organization ID/code and display name. | On organization migration, preserve the canonical numeric hospital ID as the immutable alias where §3.3 permits, and copy the approved hospital name into the Keycloak Organization display name. Expose the name to the PHR browser only through the display-only directory claim; the login selector reads that native organization name directly. Aliases remain the only selector values. |
 | Current hospital / location | `csi-user-detail/current-location` reads/writes a session-derived location; PHR stores `current-location` in local storage. | Replace the authorization-hospital part with a fresh organization-scoped token. Keep a pharmacy operational location as a separate server-side authenticated selection, validated as belonging to the active authorization hospital. It supplies optional legacy `x-location` after validation, never from browser storage/header. |
 | Legacy transaction audit headers | PHR's installed security interceptor builds `x-group`, `x-hospital`, `x-location`, and `x-user` from `logged-in` data and browser storage before every request. | Preserve the backend header/column contract through trusted gateway/BFF injection. After verifying the access token, discard browser-supplied values; inject `x-user` from `employee_code`, `x-group` from `rms_tenant_id`, `x-hospital` from the active organization alias or approved mapping, and optional `x-location` from server-side operational context. The headers are audit compatibility data only, not PEP inputs. |
@@ -317,7 +317,7 @@ capability feature is released.
 
 | Library or surface | Current local use | Required change |
 |---|---|---|
-| `@csi/csi-auth-v2` | Initializes PHR auth, route guard, token access, logged user, and dynamic realm configuration. | Add a supported Keycloak 26.2.5 OIDC/PKCE integration, typed access to `iss`, `sub`, active `organization`, the configured hospital-role map, realm/client eligibility roles, `csi_audit_context`, and display-only hospital directory claims; also provide token-refresh events and a fresh-token organization switch. PHR must not switch authorization context by writing browser storage. |
+| `@csi/csi-auth-v2` | Initializes PHR auth, route guard, token access, logged user, and dynamic realm configuration. | Add a supported Keycloak 26.7.3 OIDC/PKCE integration, typed access to `iss`, `sub`, active `organization`, strict `organization_roles`, `csi_audit_context`, and display-only hospital directory claims; also provide token-refresh events and a fresh-token organization switch. PHR must not switch authorization context by writing browser storage. |
 | `@csi/csi-security-appmenu` | Supplies menu, location-change, permission cache, and bearer `AuthInterceptor` behavior. | Replace its screen-permission cache inputs with a capability-aware menu adapter. Every menu/route/section/component needs a stable capability key. Remove its browser-side injection of `x-user`, `x-group`, `x-hospital`, and `x-location`; it may attach the bearer token only. On login, logout, token replacement, realm change, organization switch, or revision change, invalidate snapshots and reload the correct module snapshot. |
 | `@csi/csi-base-library-version2` | PHR components call legacy visibility/editability helpers. | Add named capability bindings or make temporary compatibility helpers read only the evaluated capability snapshot. They must not reconstruct permissions from legacy screen data. |
 | `@csi/csi-auth-popup-v2` | Used for authorization-related popup flows. | Separate reauthentication/MFA from authorization. Replace business-permission evaluation with a PEP-protected operation or an ADS capability pre-check. |
@@ -417,7 +417,7 @@ PHR business endpoint must enforce the same resource action server-side.
 |---|---|---|
 | Active organization selection during interactive login | `Authenticator` and `AuthenticatorFactory` | After credentials and required MFA, read native organization membership. Automatically choose one membership; otherwise present only authorized choices. Render the organization display name but submit only its immutable alias. Re-read membership and administrator status on form submission so a tampered alias is rejected. The POC implementation is `OrganizationSelectorAuthenticator` and factory. |
 | Legacy audit user and group | New PHR OIDC `ProtocolMapper`, optionally composed from the existing group mapper | Emit the versioned access-token claim `csi_audit_context: {version, employee_code, rms_tenant_id}`. Resolve `employee_code` from the authenticated user mapping and `rms_tenant_id` from the verified realm at issue/refresh time. Do not expose a mutable header/claim input and do not make a per-request database lookup. The values are audit compatibility data, not authorization input. |
-| Hospital-scoped effective role map | Existing CSI-IAM OIDC `ProtocolMapper`: `oidc-hospital-roles-mapper` | Port and configure the current `HospitalRolesProtocolMapper` on the PHR client. It must issue a documented map of `{hospitalId: [roleName, ...]}` and invalidate its session-note cache whenever a hospital-role assignment changes. This claim is the ADS role source for the active hospital. |
+| Hospital-scoped effective roles | POC `OrganizationRolesMapper` | Port and configure the mapper on the PHR client. It reads role mappings from only those native Organization groups that contain the user under the active organization and emits the strict `organization_roles` object. This claim is the sole ADS role source for a hospital-scoped token. |
 | Organization membership display for the PHR switcher | OIDC `ProtocolMapper` | Retain `organization_memberships: string[]` containing only the aliases the user belongs to. It is display data only. The verified active `organization` claim remains the authorization scope. |
 | Hospital display directory for selectors | New OIDC `ProtocolMapper` | Emit `csi_hospital_directory: [{alias, name}]`, restricted to the authenticated user's organization memberships. `alias` is the selector value and `name` is the visible label. Do not include roles, permissions, or decision data, and never use the name to establish scope. |
 | Organization selection login page | CSI login theme addition | Merge/adapt `select-organization.ftl` into the CSI `csi` login theme, retaining existing CSI OTP/MFA pages, styles, localization, and accessibility. Each option's submitted value must be the alias and its displayed text must be the hospital name. |
@@ -436,25 +436,25 @@ value and revalidation input. The PHR switcher must likewise render
 `csi_hospital_directory[*].name` and request a fresh token using the paired
 `alias`.
 
-CSI-IAM separately registers `HospitalRolesProtocolMapper` as
-`oidc-hospital-roles-mapper`
-(`csi-iam/csi-iam-extentions/token/src/main/resources/META-INF/services/org.keycloak.protocol.ProtocolMapper:1-2`).
-It constructs its map from hospital assignments and invalidates the
-`hospital_roles` session note when assignments are changed
-(`hospital-mapping/.../HospitalServiceImpl.java:73-80,171-205`).
+As historical migration evidence, CSI-IAM separately registers
+`HospitalRolesProtocolMapper` as `oidc-hospital-roles-mapper` and invalidates its
+`hospital_roles` session note when legacy assignments change
+(`hospital-mapping/.../HospitalServiceImpl.java:73-80,171-205`). That mechanism
+must remain outside the new authorization path and may be retired only after
+native Organization-group assignment reconciliation succeeds.
 
-Port the POC sources—not their built artifact—to the CSI-IAM 26.2.5 provider
-reactor. Add their JAR alongside the ported hospital-role provider in the final
-CSI-IAM image, run the image build step, and configure the providers, mappers,
-client scope, login flow, and theme in every PHR realm.
+Port the POC sources—not their built artifact—to the CSI-IAM 26.7.3 provider
+reactor. Add their JAR to the final CSI-IAM image, run the image build step, and
+configure the providers, mappers, client scope, login flow, and theme in every
+PHR realm.
 
 ### 5.2 Changes required to existing CSI-IAM extensions
 
 | Current extension / API | Required disposition for Cerbos adaptation |
 |---|---|
-| `token` / `HospitalRolesProtocolMapper` | This is a required PHR role source, not merely a legacy compatibility adapter. Port it to 26.2.5 and configure it on the PHR client. ADS must read only the map entry corresponding to the verified active organization/hospital, then normalize those roles before querying the role matrix. It must never use the mapper's map to establish active-hospital scope. |
+| `token` / `HospitalRolesProtocolMapper` | Treat as a legacy migration source only. Do not port its custom assignment map into the new authorization path; reconcile its rows into native Organization groups, then retire or isolate it after dependent legacy consumers are migrated. |
 | `token` / legacy audit and display mappers | Retain/port `GroupClaimProtocolMapper` without breaking existing consumers, and add the versioned PHR `csi_audit_context` mapper plus the display-only `csi_hospital_directory` mapper. The first emits stable employee/RMS tenant audit identifiers at token issue/refresh time; the second emits paired numeric-string alias/name options only for actual memberships. Neither mapper supplies authorization grants or PEP scope. |
-| `hospital-mapping` and `org-structure` | Reconcile native organization aliases/memberships with the legacy hospital ID used as the hospital-role map key. Prefer direct equality by configuring the immutable canonical numeric hospital ID as the organization alias when valid per §3.3; otherwise retain a documented adapter. Preserve the current role-filtering semantics: a hospital role is effective only when it is also a current realm role. Any change in role filtering or visible hospital list needs a compatibility contract and per-realm rollout. |
+| `hospital-mapping` and `org-structure` | Reconcile native organization aliases/memberships and migrate legacy role assignments into native Organization groups. Prefer the immutable canonical numeric hospital ID as the organization alias when valid per §3.3; otherwise retain a documented audit-header adapter. Any change in visible hospital lists needs a compatibility contract and per-realm rollout. |
 | `tenant-realm-mapping` | Keep/adapt the mapping as the source for the `rms_tenant_id` audit claim and for legacy tenant-addressed callers. ADS uses the verified issuer/realm as its authorization tenant and must not query this SPI in its decision path. |
 | `login-module` / `csi-user-detail` | Continue `logged-in`, profile, and default-location routes behind a compatibility contract until PHR no longer needs them. Remove `evaluate-bp` and `bulk-evaluation` from the authorization authority path; they accept an `x-hospital` header today, which must never define Cerbos scope. The current-location route may update only server-side operational location after validating it under the active token hospital. |
 | `user-permission`, `screen-permission`, `feature-permission`, `business-permission`, `dynamic-permission`, and `resource-permission` | Retire them as authorities for PHR operations after equivalent ADS/Cerbos policies and PEPs exist. A temporary facade may translate old responses from the new authoritative decision path, but must have revision semantics, auditability, a feature flag, and an owner. |
@@ -471,17 +471,14 @@ make a final Cerbos decision based on browser-provided scope.
 
 ### 5.3 APIs that must be added or changed
 
-1. **Extend the POC token verifier and ADS identity contract for hospital
-   roles.** Add an explicit hospital-role source/configuration that, after the
-   JWT has passed signature, issuer, audience, expiry, and active-organization
-   validation, reads the configured `oidc-hospital-roles-mapper` output. It must
-   resolve the active organization alias to the documented map key, validate the
-   selected role list, canonicalize it as the effective ADS role set, and reject
-   any selected reserved role. A missing or malformed active-hospital entry
-   produces no role-based grants; it must never fall back to realm/client roles.
-   The current POC reads realm/client roles before resolving the hospital
-   (`cerbos-poc/libs/tokenverifier/tokenverifier.go:307-357`), so this is a
-   required source change.
+1. **Adopt the POC token verifier and ADS organization-role contract.** After
+   signature, issuer, audience, and expiry validation, reject reserved roles
+   across every role-bearing claim before organization scope resolution. For a
+   hospital-scoped token, validate and canonicalize only the strict
+   `organization_roles` object. A missing or malformed claim is rejected; an
+   empty object grants no role permissions; and `realm_access` or
+   `resource_access` never acts as a fallback. Tenant-wide sessions use only
+   ordinary administrative group roles and carry no `organization_roles`.
 2. **Add the legacy audit-context and operational-location contracts.** Configure
    the PHR client scope to issue `csi_audit_context` as an access-token claim
    containing exactly `{version, employee_code, rms_tenant_id}`. Configure the
@@ -525,9 +522,11 @@ make a final Cerbos decision based on browser-provided scope.
    correct snapshot rather than indefinitely displaying a stale decision.
 8. **Version additive replacements before removing existing CSI IAM routes or
    claims.** `logged-in`, `current-location`, `navigate`, `version`, and
-   `evaluate-bp` need named consumer evidence before retirement. The
-   hospital-role claim is required by the target PHR authorization model and
-   must remain available unless a successor has the same tested semantics.
+   `evaluate-bp` need named consumer evidence before retirement. Roll out the
+   26.7.3 server, provider, schema, mapper configuration, and PHR claim consumer
+   as one coordinated release. Invalidate all existing user, offline, and SSO
+   sessions at cutover so no token or session note minted under the legacy role
+   source survives into the `organization_roles` authorization path.
 9. **Secure and characterize all retained custom realm-resource endpoints.**
    Several current user-detail methods have authorization calls commented out,
    including user lookup routes (`UserDetailResource.java:145-220`). Do not copy
@@ -576,18 +575,19 @@ automatic authorization model for PHR workflows.
 
 ### 7.1 Identity platform and provider evidence
 
-- Full CSI-IAM image build and boot on the final 26.2.5 tag, with no provider
+- Full CSI-IAM image build and boot on the final 26.7.3 tag, with no provider
   discovery/load errors.
 - A provider-load test for every retained custom provider and every new POC
   organization provider.
 - Fresh-schema and upgrade-schema tests for each supported production database.
 - Token contract tests for signature/issuer/audience/expiry, one active
   organization, canonical numeric-string aliases, unscoped and ambiguous
-  tokens, active-organization-to-hospital-role-map-key correlation, expected
-  effective hospital roles, no fallback when the active map entry is absent,
-  malformed map rejection, alias-only membership display claim, membership-
-  constrained `{alias, name}` hospital-directory claim, canonical role IDs,
-  `csi_audit_context` shape/value/type validation, and reserved role rejection.
+  tokens, role-bearing native Organization groups, exact `organization_roles`
+  shape and types, expected effective hospital roles, no global-role fallback,
+  malformed structured-claim rejection, alias-only membership display claim,
+  membership-constrained `{alias, name}` hospital-directory claim, canonical
+  role IDs, `csi_audit_context` shape/value/type validation, and reserved role
+  rejection before scope resolution.
 - Authentication-flow tests for no membership, one membership, multiple
   memberships, forged/stale form selection, tenant-wide administrator, MFA
   ordering, organization switching, and a displayed hospital name whose
@@ -625,12 +625,13 @@ automatic authorization model for PHR workflows.
 
 ## 8. Recommended delivery sequence
 
-1. Reconcile the version truth and build a clean 26.2.5 CSI-IAM image with its
+1. Reconcile the version truth and build a clean 26.7.3 CSI-IAM image with its
    existing providers and theme under characterization tests.
-2. Prove Organizations, the numeric-alias eligibility and name migration,
-   hospital-role mapper and its active-organization key mapping, organization
-   selector, membership/directory mappers, audit-context mapper, and
-   organization-switch behavior on that exact image.
+2. Prove Organizations, native Organization groups and role mappings, the
+   numeric-alias eligibility and name migration, strict `organization_roles`
+   mapper, organization selector, ordinary tenant-admin groups,
+   membership/directory mappers, audit-context mapper, and organization-switch
+   behavior on that exact image.
 3. Add the gateway/BFF audit-header injection filter in observe-only mode. For
    representative routes, compare its claim/context-derived values with current
    headers and downstream audit writes; correct mappings and the known location

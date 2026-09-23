@@ -157,6 +157,48 @@ Every demo user's password is `demo-password`, in both deployment paths.
 | `user-clerk-granted` | No role grants; a user GRANT on `read` alone |
 | `user-unassigned` | A valid login with no permissions at all |
 
+### Organization-scoped role contract
+
+The pilot requires **Keycloak 26.7.3 exactly**. Runtime, provider compilation,
+realm/schema migration, and integration tests must move together; mixed
+26.4/26.7.3 deployments are unsupported. A production upgrade must invalidate
+existing user, offline, and SSO sessions so no token or session state minted by
+the old role model survives the cutover.
+
+Hospital role assignments come from native Keycloak groups nested under each
+Organization. The seed creates role-bearing groups such as North Hospital's
+`Doctors` and South Hospital's `Auditors`, maps Keycloak roles to those groups,
+and assigns users to them. The token mapper reads only groups containing the
+user under the selected Organization and emits:
+
+```json
+{
+  "organization_roles": {
+    "realm": ["doctor"],
+    "client": {
+      "patient-app": ["care-team"]
+    }
+  }
+}
+```
+
+`realm` and `client` are omitted when empty; an empty assignment is `{}`. Arrays
+contain non-blank role names, and `client` may name only the client receiving the
+token. Hospital-scoped ADS verification accepts no additional keys and never
+falls back to `realm_access` or `resource_access`. Tenant-wide administrators
+are instead assigned through the ordinary `tenant-admins` realm group, outside
+all Organizations; their unscoped session is limited to tenant-wide operations.
+
+Use `user-doctor-multi` to verify isolation. Select North Hospital and its token
+has `organization=["north-hospital"]` plus
+`organization_roles.realm=["doctor"]`, so `patient_record:read` is allowed.
+Select South Hospital and the same user gets
+`organization=["south-hospital"]` plus
+`organization_roles.realm=["auditor"]`, so that read is denied. The South token
+still carries the adversarial global `doctor` role in `realm_access`; the deny
+proves global roles are not a hospital-role fallback. `make smoke` executes this
+North-doctor/South-auditor proof.
+
 ## Exposed URLs
 
 Three things are published: the two browser entry points and the identity

@@ -94,7 +94,7 @@ check "a missing console asset is a 404 rather than the shell" "$?"
 # The nginx proxy resolved its upstream once at startup, so recreating the ADS
 # left it proxying to an address nobody answered on. The Go resolver looks the
 # name up per request, so the console survives a rebuild of the ADS.
-docker compose up --detach --force-recreate ads >/dev/null 2>&1
+docker compose up --detach --force-recreate --no-deps ads >/dev/null 2>&1
 for _ in $(seq 1 30); do
   curl -fsS --max-time 2 "${BASE}/api/ads/healthz" >/dev/null 2>&1 && break
   sleep 1

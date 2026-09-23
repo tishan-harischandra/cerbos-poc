@@ -4,7 +4,7 @@
 // Keycloak's Admin REST API cannot reach the target population in a bounded
 // time. A spike measured partialImport batching (the fastest REST-shaped
 // path: whole users, 70 roles inline, in one request) at ~4 users/sec and
-// ~280 role-mapping rows/sec against a real Postgres-backed Keycloak 26.4 -
+// ~280 role-mapping rows/sec in a historical Postgres-backed Keycloak 26.4 run -
 // roughly 42 hours to seed 600,000 users and 42,000,000 role mappings,
 // because Keycloak still does one JPA persist per row underneath the batched
 // HTTP call. Direct SQL, using PostgreSQL's COPY protocol, is the only path

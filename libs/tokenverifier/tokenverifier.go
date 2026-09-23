@@ -319,6 +319,10 @@ func (v *Verifier) Verify(ctx context.Context, raw string) (VerifiedToken, error
 		}
 	}
 
+	if err := rejectReservedRoles(claims); err != nil {
+		return VerifiedToken{}, err
+	}
+
 	hospital, err := hospitalOf(claims)
 	if err != nil {
 		return VerifiedToken{}, err
@@ -353,22 +357,26 @@ type organizationRoles struct {
 	Client map[string][]string `json:"client"`
 }
 
-// normaliseRoles selects the claims allowed by the configured source and token
-// scope, then renders each role as a canonical §7.5 identifier.
-func (v *Verifier) normaliseRoles(claims jwtClaims, hospital string) ([]string, error) {
+func rejectReservedRoles(claims jwtClaims) error {
 	// The reserved-role check runs over every role claim the token carries,
 	// not only the configured source. A caller smuggling `sys:` into an
 	// unselected global or organization claim is still attempting to
 	// impersonate the platform.
 	for _, role := range allRoles(claims) {
 		if canonicalid.IsReserved(role) {
-			return nil, fmt.Errorf("%w: %q", ErrReservedRole, role)
+			return fmt.Errorf("%w: %q", ErrReservedRole, role)
 		}
 	}
-	if raw, ok := claims.rest[OrganizationRolesClaim]; ok {
-		if role, ok := reservedRoleIn(raw); ok {
-			return nil, fmt.Errorf("%w: %q", ErrReservedRole, role)
-		}
+	if role, ok := reservedRoleIn(claims.rest[OrganizationRolesClaim]); ok {
+		return fmt.Errorf("%w: %q", ErrReservedRole, role)
+	}
+	return nil
+}
+
+// normaliseRoles selects the claims allowed by the configured source and token
+// scope, then renders each role as a canonical §7.5 identifier.
+func (v *Verifier) normaliseRoles(claims jwtClaims, hospital string) ([]string, error) {
+	if _, ok := claims.rest[OrganizationRolesClaim]; ok {
 		if hospital == "" {
 			return nil, fmt.Errorf("%w: unexpected %s", ErrOrganizationRolesScopeMismatch, OrganizationRolesClaim)
 		}

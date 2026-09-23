@@ -135,10 +135,10 @@ other_issuer_token="$(token_for user-doctor patient-app other-issuer)" || exit 1
 expect_status "a token from another issuer is refused" 401 "$(decide_with "${other_issuer_token}")"
 
 # The realm carries a hostile global sys: role, but organization mode does not
-# treat global claims as authority. Because this user has no active hospital,
-# the genuine token is refused as unscoped rather than interpreting that role.
+# treat global claims as authority. The genuine token is refused as a reserved-
+# role forgery even though this user has no active hospital.
 forger_token="$(token_for user-forger)" || exit 1
-expect_status "global roles do not grant authority in organization mode" 401 "$(decide_with "${forger_token}")"
+expect_status "global roles do not grant authority in organization mode" 403 "$(decide_with "${forger_token}")"
 
 echo
 echo "--- the browser cannot name itself ---"

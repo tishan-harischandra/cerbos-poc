@@ -148,8 +148,8 @@ func (c *AdminClient) EnsureRealm(ctx context.Context, setup RealmSetup) (client
 	}
 
 	// Deliberately no explicit defaultClientScopes/optionalClientScopes
-	// here: measured directly against this same Keycloak 26.4 (see
-	// docs/MEASURED_FINDINGS.md) that specifying either at all - even only
+	// here: a historical measurement against Keycloak 26.4 (see
+	// docs/MEASURED_FINDINGS.md) found that specifying either at all - even only
 	// to add "organization" to the optional list - makes Keycloak skip
 	// assigning its own sensible defaults (including "roles", without
 	// which a seeded user's token would carry no resource_access claim at

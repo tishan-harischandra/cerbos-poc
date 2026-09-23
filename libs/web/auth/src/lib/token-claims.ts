@@ -1,8 +1,8 @@
 /**
  * The subset of an access token's claims the console reads for display
  * purposes: the realm in `iss` as the tenant (ADR-010), the organization
- * claim as the active hospital (§75), and §7.3's realm role claim (this
- * installation's `IDP_ROLE_SOURCE=REALM`).
+ * claim as the active hospital (§75), and the selected organization's
+ * structured roles.
  * Nothing here is a security decision: the backend independently
  * verifies every claim on every request regardless of what the browser
  * decoded.
@@ -34,11 +34,9 @@ export interface TokenClaims {
 /**
  * Decodes a JWT's payload without verifying its signature.
  *
- * clientId is accepted for backwards compatibility with callers configured
- * for a browser client (§7.1), but roles themselves come from the realm
- * role claim (`realm_access.roles`), matching this installation's
- * `IDP_ROLE_SOURCE=REALM` (§7.3): a role belongs to the tenant, never to
- * one browser-facing client, so there is no per-client claim to read.
+ * Hospital-scoped roles come only from `organization_roles`; global realm and
+ * receiving-client roles are used only when the token has no active hospital.
+ * This mirrors the server's no-fallback organization-role contract.
  */
 export function decodeAccessToken(token: string, clientId: string): TokenClaims {
   const parts = token.split('.');
@@ -47,16 +45,20 @@ export function decodeAccessToken(token: string, clientId: string): TokenClaims 
   }
   const payload = JSON.parse(base64UrlDecode(parts[1])) as Record<string, unknown>;
 
-  void clientId;
   const realmAccess = (payload['realm_access'] ?? {}) as { roles?: string[] };
+  const resourceAccess = (payload['resource_access'] ?? {}) as Record<
+    string,
+    { roles?: string[] }
+  >;
   const hospitalId = activeHospitalOf(payload);
+  const globalRoles = [...(realmAccess.roles ?? []), ...(resourceAccess[clientId]?.roles ?? [])];
 
   return {
     subject: String(payload['sub'] ?? ''),
     username: String(payload['preferred_username'] ?? ''),
     tenantId: tenantIdOf(payload),
     hospitalId,
-    roles: realmAccess.roles ?? [],
+    roles: hospitalId ? organizationRolesOf(payload, clientId) : globalRoles,
     expiresAt: Number(payload['exp'] ?? 0),
     isAdministrator: (realmAccess.roles ?? []).includes('admin'),
     otherHospitals: otherHospitalsOf(payload, hospitalId),
@@ -78,6 +80,25 @@ function tenantIdOf(payload: Record<string, unknown>): string {
   const marker = '/realms/';
   const index = issuer.lastIndexOf(marker);
   return index === -1 ? '' : issuer.slice(index + marker.length);
+}
+
+function organizationRolesOf(payload: Record<string, unknown>, clientId: string): string[] {
+  const claim = payload['organization_roles'];
+  if (typeof claim !== 'object' || claim === null || Array.isArray(claim)) {
+    return [];
+  }
+  const organizationRoles = claim as {
+    realm?: unknown;
+    client?: Record<string, unknown>;
+  };
+  const realm = Array.isArray(organizationRoles.realm)
+    ? organizationRoles.realm.filter((role): role is string => typeof role === 'string')
+    : [];
+  const client = organizationRoles.client?.[clientId];
+  const clientRoles = Array.isArray(client)
+    ? client.filter((role): role is string => typeof role === 'string')
+    : [];
+  return [...realm, ...clientRoles];
 }
 
 /**

@@ -241,6 +241,32 @@ seed_tenant_admins() {
   echo "seeded ${realm}/tenant-admins: admin,administrator -> user-admin user-admin-clinician"
 }
 
+configure_browser_ports() {
+  local realm="$1"
+  local clients_url="${KEYCLOAK_URL}/admin/realms/${realm}/clients"
+  get_json "${clients_url}?clientId=patient-app"
+  local count client client_id host redirects origins
+  count="$(jq '[.[] | select(.clientId == "patient-app")] | length' <<<"${HTTP_BODY}")"
+  [[ "${count}" == "1" ]] || {
+    echo "${realm}: expected exactly one patient-app client, found ${count}" >&2
+    exit 1
+  }
+  client="$(jq '.[] | select(.clientId == "patient-app")' <<<"${HTTP_BODY}")"
+  client_id="$(jq -r '.id' <<<"${client}")"
+  host="${realm}.localtest.me"
+  redirects="$(jq -nc --arg host "${host}" --arg admin "${ADMIN_CONSOLE_PORT:-4200}" --arg business "${BUSINESS_UI_PORT:-4201}" '["http://\($host):\($admin)/*", "http://\($host):\($business)/*"]')"
+  origins="$(jq -nc --arg host "${host}" --arg admin "${ADMIN_CONSOLE_PORT:-4200}" --arg business "${BUSINESS_UI_PORT:-4201}" '["http://\($host):\($admin)", "http://\($host):\($business)"]')"
+  client="$(jq --argjson redirects "${redirects}" --argjson origins "${origins}" '
+    .redirectUris = ((.redirectUris // []) + $redirects | unique)
+    | .webOrigins = ((.webOrigins // []) + $origins | unique)
+    | .attributes = (.attributes // {})
+    | .attributes["post.logout.redirect.uris"] = (((.attributes["post.logout.redirect.uris"] // "") | split("##") | map(select(length > 0))) + $redirects | unique | join("##"))
+  ' <<<"${client}")"
+  request PUT "${clients_url}/${client_id}" "${client}"
+  expect_status 204 "configure browser ports for ${realm}/patient-app"
+  echo "configured ${realm}/patient-app browser ports: ${ADMIN_CONSOLE_PORT:-4200},${BUSINESS_UI_PORT:-4201}"
+}
+
 token_response="$(curl --silent --show-error --fail-with-body \
   --data-urlencode 'grant_type=password' \
   --data-urlencode 'client_id=admin-cli' \
@@ -260,5 +286,8 @@ seed_organization_group tenant-a south-hospital Auditors auditor user-doctor-mul
 seed_organization_group tenant-b hospital-b1 Doctors doctor user-doctor-b
 seed_organization_group tenant-c hospital-c1 Doctors doctor user-doctor-c
 seed_tenant_admins
+configure_browser_ports tenant-a
+configure_browser_ports tenant-b
+configure_browser_ports tenant-c
 
 echo "Keycloak organization and tenant-admin role fixtures are seeded and confirmed"

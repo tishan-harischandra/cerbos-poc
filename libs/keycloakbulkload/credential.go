@@ -11,7 +11,7 @@ import (
 
 // LoadTestPasswordPolicy is the realm password policy this package's
 // credential rows are computed against: Argon2id at the minimum work factor
-// Keycloak 26.4 accepts. It must be set on the load realm before login is
+// Keycloak 26.7.3 accepts. It must be set on the load realm before login is
 // attempted against rows this package writes, or Keycloak's own login path
 // will hash an operator-entered password at a different work factor than the
 // one baked into every seeded row and every login will fail to verify.
@@ -25,7 +25,7 @@ import (
 const LoadTestPasswordPolicy = "hashIterations(1)"
 
 // argon2Time, argon2MemoryKiB and argon2Parallelism are the Argon2id
-// parameters LoadTestPasswordPolicy above maps to in Keycloak 26.4's default
+// parameters LoadTestPasswordPolicy above maps to in Keycloak 26.7.3's default
 // Argon2 credential provider. hashLength and the "id"/"1.3" markers below are
 // that provider's fixed defaults, not configurable via the password policy.
 const (

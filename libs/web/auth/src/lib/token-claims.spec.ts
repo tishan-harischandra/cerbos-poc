@@ -7,14 +7,15 @@ function fakeJwt(payload: Record<string, unknown>): string {
 }
 
 describe('decodeAccessToken', () => {
-  it('extracts the tenant, hospital and realm roles from a token', () => {
+  it('extracts the tenant, hospital and organization roles from a token', () => {
     const token = fakeJwt({
       sub: 'user-1',
       preferred_username: 'doctor',
       iss: 'https://localhost:8443/realms/tenant-a',
       organization: ['hospital-1'],
+      organization_roles: { realm: ['doctor'] },
       exp: 1893456000,
-      realm_access: { roles: ['doctor'] },
+      realm_access: { roles: ['auditor'] },
     });
 
     const claims = decodeAccessToken(token, 'patient-app');
@@ -57,15 +58,26 @@ describe('decodeAccessToken', () => {
     expect(decodeAccessToken(token, 'patient-app').hospitalId).toEqual('');
   });
 
-  it('reads the realm role claim regardless of the configured client', () => {
+  it('does not fall back to global roles for an organization-scoped token', () => {
     const token = fakeJwt({
+      organization: ['south-hospital'],
+      organization_roles: { realm: ['auditor'], client: { 'patient-app': ['reviewer'] } },
       realm_access: { roles: ['doctor'] },
-      resource_access: { 'another-app': { roles: ['administrator'] } },
+      resource_access: { 'patient-app': { roles: ['administrator'] } },
     });
 
     const claims = decodeAccessToken(token, 'patient-app');
 
-    expect(claims.roles).toEqual(['doctor']);
+    expect(claims.roles).toEqual(['auditor', 'reviewer']);
+  });
+
+  it('reads global roles for a tenant-wide token', () => {
+    const token = fakeJwt({
+      realm_access: { roles: ['admin'] },
+      resource_access: { 'patient-app': { roles: ['administrator'] } },
+    });
+
+    expect(decodeAccessToken(token, 'patient-app').roles).toEqual(['admin', 'administrator']);
   });
 
   it('rejects a value that is not a three-segment JWT', () => {

@@ -445,6 +445,17 @@ func TestTenantWideAndOrganizationRoleSourcesRemainSeparated(t *testing.T) {
 func TestReservedRolesAreRejectedFromUnselectedOrganizationAndGlobalClaims(t *testing.T) {
 	fixture := newFixture(t)
 
+	t.Run("global role in an unscoped token", func(t *testing.T) {
+		payload := fixture.valid(claims{
+			"organization": nil,
+			"realm_access": map[string]any{"roles": []string{"sys:permission-evaluator"}},
+		})
+		_, err := organizationVerifier(t, fixture).Verify(context.Background(), fixture.sign(t, payload))
+		if !errors.Is(err, tokenverifier.ErrReservedRole) {
+			t.Fatalf("Verify error = %v, want %v", err, tokenverifier.ErrReservedRole)
+		}
+	})
+
 	t.Run("global role under organization mode", func(t *testing.T) {
 		payload := fixture.valid(claims{
 			"realm_access":       map[string]any{"roles": []string{"sys:permission-evaluator"}},

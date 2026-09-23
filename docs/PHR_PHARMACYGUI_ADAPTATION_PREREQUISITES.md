@@ -3,7 +3,7 @@
 | Field | Value |
 |---|---|
 | Status | Discovery and migration prerequisite document |
-| Target identity platform | CSI-IAM rebased onto Keycloak **26.2.5** |
+| Target identity platform | CSI-IAM rebased onto Keycloak **26.7.3** |
 | Target UI | `phr-pharmacygui` (`PHR`) |
 | Authorization model | Cerbos PDP + Authorization Decision Service (ADS); Keycloak authenticates and supplies identity context |
 | Source evidence | Local Cerbos POC, PHR Pharmacy GUI, CSI-IAM, and CSI-IAM extension source checkouts |
@@ -28,9 +28,9 @@ Four independently versioned baselines exist in the local checkouts:
 
 | Area | Observed state | Required decision / action |
 |---|---|---|
-| Cerbos POC Keycloak provider | POC provider and container image are pinned to Keycloak **26.4**. | Recompile and integration-test the provider against **exactly 26.2.5**. Do not copy a 26.4-built provider JAR into CSI-IAM. |
-| CSI-IAM server checkout | Current `release/1.0.0` source declares Keycloak **6.0.1**, WildFly 16, Java 8-era dependencies. | Treat 26.2.5 as a full rebase/port, not an in-place dependency bump. |
-| CSI domain extension source | `csi-iam-extentions-v2` declares Keycloak **6.0.1**, Java 8, `javax.*`, and WildFly module assumptions. | Port, replace, or retire each extension before deploying the 26.2.5 image. |
+| Cerbos POC Keycloak provider | POC provider and container image are pinned to Keycloak **26.7.3**. | Recompile and integration-test the provider in the coordinated CSI-IAM **26.7.3** build. Do not copy a provider JAR built for another patch into CSI-IAM. |
+| CSI-IAM server checkout | Current `release/1.0.0` source declares Keycloak **6.0.1**, WildFly 16, Java 8-era dependencies. | Treat 26.7.3 as a full rebase/port, not an in-place dependency bump. |
+| CSI domain extension source | `csi-iam-extentions-v2` declares Keycloak **6.0.1**, Java 8, `javax.*`, and WildFly module assumptions. | Port, replace, or retire each extension before deploying the 26.7.3 image. |
 | PHR frontend | Angular **7.2**, TypeScript **3.2**, RxJS **6.3**. | Upgrade to a maintained Angular baseline before reusing the POC web capability library, which currently uses Angular 21, TypeScript 5.9, and RxJS 7. |
 
 Evidence:
@@ -45,7 +45,7 @@ Evidence:
 
 Before changing PHR or the production identity platform, create and approve a short compatibility register containing:
 
-1. the exact CSI-IAM 26.2.5 source branch/tag and its build image;
+1. the exact CSI-IAM 26.7.3 source branch/tag and its build image;
 2. source repositories and owners for every currently deployed CSI extension JAR;
 3. current production realm, client, role, hospital, user-permission, business-permission, and screen-permission data exports;
 4. the source of truth for each hospital identifier and PHR pharmacy-location identifier;
@@ -53,21 +53,21 @@ Before changing PHR or the production identity platform, create and approve a sh
 6. browser client IDs, valid redirect URIs, web origins, audience configuration, and service-account roles for every environment; and
 7. a rollback plan which preserves the pre-cutover identity database and existing PHR permission behavior.
 
-**Do not point Keycloak 26.2.5 at a Keycloak 6.0.1 production database or deploy opaque legacy JARs into the new runtime.** First choose and prove a supported staged migration or a clean-target import/reconstruction path in an isolated environment.
+**Do not point Keycloak 26.7.3 at a Keycloak 6.0.1 production database or deploy opaque legacy JARs into the new runtime.** First choose and prove a supported staged migration or a clean-target import/reconstruction path in an isolated environment.
 
-## 3. Keycloak 26.2.5 upgrade requirements
+## 3. Keycloak 26.7.3 upgrade requirements
 
 ### 3.1 Replace the server distribution, not just Maven versions
 
-CSI-IAM's current image unpacks a WildFly-based `keycloak-6.0.1` archive, runs `jboss-cli`, adds JBoss modules, and starts `standalone.sh`. Keycloak 26.2.5 must use the supported Keycloak 26 distribution and its build/start lifecycle instead.
+CSI-IAM's current image unpacks a WildFly-based `keycloak-6.0.1` archive, runs `jboss-cli`, adds JBoss modules, and starts `standalone.sh`. Keycloak 26.7.3 must use the supported Keycloak 26 distribution and its build/start lifecycle instead.
 
 Required work:
 
-1. Base the image on the approved Keycloak **26.2.5** distribution.
+1. Base the image on the approved Keycloak **26.7.3** distribution.
 2. Replace WildFly subsystem configuration, `standalone*.xml`, JBoss CLI scripts, and `module add` commands with Keycloak 26 configuration and provider packaging.
 3. Build providers into `/opt/keycloak/providers` and run `kc.sh build` once in the image build after all providers are present.
 4. Translate legacy bootstrap, database, hostname/proxy, TLS, health, metrics, cache, and cluster settings to the Keycloak 26 configuration contract. Do not carry forward `KEYCLOAK_USER`, `KEYCLOAK_PASSWORD`, `DB_VENDOR`, or `standalone.sh` behavior without explicit compatibility verification.
-5. Compile every provider against the 26.2.5 BOM/API supplied by the production image, using the JDK supported by that distribution. Keycloak APIs are not a cross-major binary compatibility promise.
+5. Compile every provider against the 26.7.3 BOM/API supplied by the production image, using the JDK supported by that distribution. Keycloak APIs are not a cross-major binary compatibility promise.
 6. Convert provider code and dependencies from `javax.*` to `jakarta.*`; review all JPA/Hibernate, RESTEasy, Infinispan, Jackson, Feign, logging, and serialization behavior under the new platform.
 7. Remove bundled or server-module copies of Keycloak classes and server-owned libraries. Use explicit dependency scopes and verify `kc.sh build` reports no split-package or provider conflicts.
 
@@ -79,7 +79,7 @@ The migration must maintain separate ownership boundaries.
 
 | Data | Target owner | Requirement |
 |---|---|---|
-| Keycloak users, credentials, clients, realm/client roles, groups, identity-provider links, sessions, and standard realm configuration | Keycloak | Migrate through a verified 6.x-to-26.2.5 process or rebuild/import into a clean target. Validate all login and token flows before cutover. |
+| Keycloak users, credentials, clients, realm/client roles, groups, identity-provider links, sessions, and standard realm configuration | Keycloak | Migrate through a verified 6.x-to-26.7.3 process or rebuild/import into a clean target. Validate all login and token flows before cutover. |
 | Legacy CSI hospital and organization mappings | Keycloak Organizations or a dedicated domain service | Decide one authoritative representation. Map each hospital to a stable Keycloak Organization alias if it is an authorization hospital. Keep PHR's dispensing/pharmacy location separate if it is a sub-hospital operational location. |
 | Legacy screen, business, feature, and user permission tables | ADS authorization database | Extract and map semantics to the POC role matrix and user override model only after business approval. They are not Keycloak authorization state in the target design. |
 | POC role permissions, user overrides, revisions, audit log, outbox, resource metadata, and capability catalog | ADS authorization database and policy release | Deploy and migrate separately from Keycloak. No POC authorization table belongs in the Keycloak schema. |
@@ -94,19 +94,20 @@ The POC semantic model is:
 - **tenant** = the Keycloak realm that issued the verified token;
 - **hospital** = the active Keycloak Organization alias in that realm;
 - a user may be a member of multiple hospitals but a decision uses exactly one active hospital, or an explicit tenant-wide administrator context;
-- roles come from one configured Keycloak role source and are normalized to a canonical, stable identifier.
+- hospital roles come only from role-bearing native Organization groups and the strict `organization_roles` claim; global roles are not a fallback.
 
-Required Keycloak 26.2.5 configuration and tests:
+Required Keycloak 26.7.3 configuration and tests:
 
-1. Confirm the exact Keycloak 26.2.5 availability and configuration of the Organizations feature. The POC's 26.4 image explicitly starts with `--features=organization`; do not assume feature naming, maturity, imports, or claims behave identically in 26.2.5.
+1. Use exactly Keycloak 26.7.3 and enable `--features=organization` at build and runtime. Native Organization groups and their role-mapping APIs are required, so a mixed-version deployment is unsupported.
 2. Enable Organizations for every PHR realm where hospital-scoped authorization is required.
 3. Migrate or create organizations with immutable/stable aliases, membership, and administration rules. Define the alias-to-legacy-hospital-ID mapping once and expose it through an adapter where PHR still needs legacy IDs.
 4. Configure an `organization` client scope and test an authorization request scoped as `organization:<alias>`.
 5. Install the organization-selector authentication step after credentials and MFA. It must re-derive membership from Keycloak during form submission; it must not trust a submitted hospital alias.
-6. Install the `organization_memberships` OIDC protocol mapper for display-only hospital switching. The active `organization` claim is authoritative for the current decision; membership claims must never widen access.
-7. Define and protect the tenant-wide administrator marker. Tokens carrying any reserved `sys:` role must be rejected by the PEP/ADS token verifier; the synthetic Cerbos evaluator role is never assigned by Keycloak.
-8. Create a public PHR browser client using Authorization Code + PKCE, exact redirect URIs and origins per environment, and an audience accepted by each PHR PEP/ADS endpoint.
-9. Create a separate confidential ADS/admin-directory service account with only the Keycloak Admin REST permissions needed to read users, roles, and organizations. No browser receives that credential.
+6. Create role-bearing groups under each Organization, assign users there, and install the `organization_roles` mapper. Its exact object contains optional `realm: string[]` and `client: {"<receiving-client-id>": string[]}` sections and no other keys.
+7. Install the `organization_memberships` OIDC protocol mapper for display-only hospital switching. The active `organization` claim is authoritative for the current decision; membership claims must never widen access.
+8. Assign tenant-wide administrators through an ordinary realm group outside all Organizations. Tokens carrying any reserved `sys:` role must be rejected before scope resolution; the synthetic Cerbos evaluator role is never assigned by Keycloak.
+9. Create a public PHR browser client using Authorization Code + PKCE, exact redirect URIs and origins per environment, and an audience accepted by each PHR PEP/ADS endpoint.
+10. Create a separate confidential ADS/admin-directory service account with only the Keycloak Admin REST permissions needed to read users, roles, and organizations. No browser receives that credential.
 
 ### 3.4 Identity and token contract
 
@@ -118,7 +119,7 @@ The following is a cross-system contract, not an optional mapper convention:
 | Tenant | verified issuer plus trusted tenant registry | Derive the realm from the verified issuer; do not trust a `tenantId` in a browser body or header. |
 | Active hospital | Keycloak active `organization` claim | Require exactly one alias, or an explicitly authorized tenant-wide context. |
 | Other hospitals | `organization_memberships` custom claim | Display-only. Never use it for decision scope. |
-| Runtime roles | configured `realm_access` or `resource_access.<client>.roles` | Normalize identically in the ADS token verifier and Keycloak Identity Directory adapter. |
+| Hospital-scoped roles | `organization_roles` derived from native Organization groups | Validate the strict shape and normalize only its realm and receiving-client arrays. Never fall back to `realm_access` or `resource_access`. |
 | Permissions and capabilities | ADS/Cerbos only | Do not encode role grants, user overrides, evaluated capabilities, or `permissionContext` in the access token. |
 
 Every PHR PEP and the ADS must verify signature, issuer, audience, expiration, accepted algorithm, and role source. The POC verifier implements this contract in `libs/tokenverifier/tokenverifier.go`; its tenant and hospital data flow must be kept intact when PHR services are introduced.
@@ -129,7 +130,7 @@ Every PHR PEP and the ADS must verify signature, issuer, audience, expiration, a
 
 The existing image dynamically injects JARs as WildFly modules. The installed list includes organization structure, login/multimodule, screen permission, user permission, token, email, RMS integration, hospital mapping, business permission, dynamic permission, events, feature permission, and response-handler extensions. Source for a broad set of these exists under `../../../Security-new/csi-iam-extentions-v2` but currently targets Keycloak 6.0.1.
 
-For each JAR, the owner must declare **port**, **replace**, or **retire** before the Keycloak 26.2.5 build starts. A binary-only JAR is a blocker: obtain its source and an automated test suite, or remove its runtime responsibility.
+For each JAR, the owner must declare **port**, **replace**, or **retire** before the Keycloak 26.7.3 build starts. A binary-only JAR is a blocker: obtain its source and an automated test suite, or remove its runtime responsibility.
 
 ### 4.2 Required disposition for Cerbos adaptation
 
@@ -140,7 +141,7 @@ For each JAR, the owner must declare **port**, **replace**, or **retire** before
 | Organization structure and hospital mapping JPA/REST/SPIs | `csi-iam-extentions-v2/org-structure`, `hospital-mapping` | **Replace or narrow.** Use native Keycloak Organizations for authorization hospitals. Port only legacy hierarchy/profile APIs that PHR still needs, with a documented adapter between legacy hospital IDs and organization aliases. |
 | `csi-user-detail` login/multimodule Realm Resource Provider | `login-module/.../UserDetailResource.java` | **Port selectively.** Preserve `logged-in` and required profile/default-location contracts during transition, but move authorization decisions out. Its current `evaluate-bp`, bulk business-permission, and header-driven hospital decisions must not remain authority. |
 | Business, screen, user, feature, and dynamic-permission providers | `business-permission`, `screen-permission`, `user-permission`, `feature-permission`, `dynamic-permission-management` | **Retire as authorization authorities.** Migrate their data/UI semantics into POC resource actions, role permissions, overrides, and capability definitions. Provide a short-lived compatibility façade only where a consumer cannot migrate atomically. |
-| Kafka event listener | `event-kafka/.../KafkaEventListenerProvider*` | **Port only for remaining IAM event consumers.** It can publish identity/audit events after a 26.2.5 compatibility and privacy review, but it is not the Cerbos decision path or assignment outbox. |
+| Kafka event listener | `event-kafka/.../KafkaEventListenerProvider*` | **Port only for remaining IAM event consumers.** It can publish identity/audit events after a 26.7.3 compatibility and privacy review, but it is not the Cerbos decision path or assignment outbox. |
 | RMS/Feign integration | `rms-integration` and CSI-IAM `RealmManager`/`RealmsAdminResource` | **Port or externalize.** Remove hard-coded service URLs; use explicit configuration, timeouts, auth, observability, and failure behavior. Keep RMS synchronization outside the authorization hot path. |
 | MFA, SMS, email, token, user-session limiter, response-handler extensions | extension root modules | **Port independently if required by existing login/product flows.** They are Keycloak upgrade prerequisites but not Cerbos authorization SPIs. |
 | Legacy login, admin, and FreeMarker themes | CSI-IAM `themes` and deployed custom themes | **Port and visual-regression test.** Add the POC organization-selection template to the target login theme, preserving accessibility and localization. |
@@ -153,11 +154,11 @@ Only the following new Keycloak extensions are required for the Cerbos POC ident
 |---|---|---|
 | Active-hospital selection during login | `Authenticator` + `AuthenticatorFactory` | After primary credentials/MFA, read native organization membership, select one membership automatically when unambiguous, otherwise show a controlled selection form, and refuse an invalid or unauthorized selection. |
 | Membership list for the PHR hospital switcher | OIDC `ProtocolMapper` | Add `organization_memberships: string[]` from native organization membership. It is display data only. |
-| Existing PHR profile/default-location APIs, only while consumers remain | `RealmResourceProvider` + factory | Port to Jakarta/Keycloak 26.2.5 and require verified bearer authentication for protected routes. Keep the response contract under versioned tests. |
+| Existing PHR profile/default-location APIs, only while consumers remain | `RealmResourceProvider` + factory | Port to Jakarta/Keycloak 26.7.3 and require verified bearer authentication for protected routes. Keep the response contract under versioned tests. |
 | Existing custom domain entities that cannot be removed | JPA Entity Provider plus a versioned changelog | Isolate in provider JARs, scope by realm, supply a migration/reconciliation plan, and test provider discovery plus clean and upgraded databases. |
 | IAM audit/integration events that still have consumers | `EventListenerProvider` + factory | Publish only approved, scrubbed identity/audit events. Do not use it for ADS role/user permission invalidation. |
 
-The POC's organization selector and mapper are implemented in `apps/keycloak-org-selector`. It currently references `keycloak-server-spi-private` and `keycloak-services`; therefore it must be source-compiled and end-to-end tested against **26.2.5**, not treated as a portable binary.
+The POC's organization selector and mapper are implemented in `apps/keycloak-org-selector`. It currently references `keycloak-server-spi-private` and `keycloak-services`; therefore it must be source-compiled and end-to-end tested against **26.7.3**, not treated as a portable binary.
 
 ### 4.4 Explicitly not required
 
@@ -202,7 +203,7 @@ Required prerequisites:
 | Library / concern | Required change |
 |---|---|
 | New shared capability library | Publish a maintained capability package based on the POC contract: typed snapshot models, a snapshot client, an in-memory store, route guard helpers, structural/attribute directives, context keys, cache invalidation, and a one-time 403 stale-snapshot retry. It may not evaluate policy expressions in the browser. |
-| `@csi/csi-auth-v2` and its Keycloak adapter | Support Keycloak 26.2.5 Authorization Code + PKCE, token refresh, typed token-claim access, token-change events, and an organization/hospital switch operation that obtains a fresh organization-scoped token. Preserve the dynamic realm resolver only if the derived issuer is in the trusted deployment configuration. |
+| `@csi/csi-auth-v2` and its Keycloak adapter | Support Keycloak 26.7.3 Authorization Code + PKCE, token refresh, typed token-claim access, token-change events, and an organization/hospital switch operation that obtains a fresh organization-scoped token. Preserve the dynamic realm resolver only if the derived issuer is in the trusted deployment configuration. |
 | `@csi/csi-security-appmenu` | Replace the `navigate`/`version` screen-permission cache with a capability-aware menu adapter. Menu, route, screen, section, and component entries need stable capability keys. Invalidate all snapshots on login/logout, token replacement, realm change, hospital change, and authorization/catalog revision mismatch. |
 | `@csi/csi-base-library-version2` | Replace `getComponentVisibility`/`getComponentEditability` as authorization inputs with named capability bindings. If compatibility methods remain temporarily, they must read a capability snapshot and not reconstruct permissions from legacy screen JSON. |
 | `@csi/csi-auth-popup-v2` | Replace any business-permission popup evaluation with an explicit, server-authorized operation or a capability pre-check. Keep reauthentication/MFA behavior separate from authorization. |
@@ -267,7 +268,7 @@ Capability definitions are application-owned, versioned expressions. PHR adminis
 
 | API | Caller | Required contract |
 |---|---|---|
-| Keycloak OIDC discovery, authorization, token, logout, and JWKS | PHR auth library and PEPs | Standard Keycloak 26.2.5 endpoints, Authorization Code + PKCE for the browser, verified issuer/audience/signature at PEPs. |
+| Keycloak OIDC discovery, authorization, token, logout, and JWKS | PHR auth library and PEPs | Standard Keycloak 26.7.3 endpoints, Authorization Code + PKCE for the browser, verified issuer/audience/signature at PEPs. |
 | Keycloak Admin REST users, roles, role mappings, organizations, and memberships | ADS Identity Directory adapter only | Dedicated read-only service account. Stable user and role IDs; canonical role normalization matches verified runtime tokens. |
 | Capability snapshot endpoint | PHR browser through the approved gateway/BFF route | `module`, capability keys, and route identifiers only. Returns capability map plus authorization revision, root policy revision, catalog revision, active tenant/hospital, and context fingerprint. |
 | ADS decision endpoint | PHR backend PEPs only | Trusted identity plus server-loaded resource context. Browser never calls Cerbos directly. |
@@ -292,12 +293,12 @@ Capability definitions are application-owned, versioned expressions. PHR adminis
 - Complete the PHR resource/action and legacy-permission mapping inventory.
 - Freeze a compatibility contract for PHR profile APIs and for the capability snapshot.
 
-### Phase 1 — Keycloak 26.2.5 platform
+### Phase 1 — Keycloak 26.7.3 platform
 
-- Build a clean 26.2.5 CSI-IAM image without core source patches.
+- Build a clean 26.7.3 CSI-IAM image without core source patches.
 - Port/replace/retire every CSI extension with source, service-loader registration, Jakarta imports, dependency review, and automated tests.
 - Import/migrate a non-production realm and verify login, logout, refresh, MFA, themes, existing PHR profile calls, and required admin flows.
-- Enable and test Keycloak Organizations, the selector authenticator, the membership mapper, client scope, audience, and tenant-wide administrator path.
+- Enable and test Keycloak Organizations, native Organization groups and role mappings, the selector authenticator, the membership and `organization_roles` mappers, client scope, audience, and ordinary-group tenant-wide administrator path.
 
 ### Phase 2 — authorization service and PHR backend
 
@@ -316,7 +317,8 @@ Capability definitions are application-owned, versioned expressions. PHR adminis
 ### Phase 4 — controlled cutover
 
 - Run dual-read comparison telemetry only where it does not allow the old result to bypass the new PEP.
-- Reconcile users, roles, organizations, resource attributes, mapped permissions, and revisions.
+- Reconcile users, native Organization-group assignments, roles, organizations, resource attributes, mapped permissions, and revisions.
+- Release the 26.7.3 server, provider, schema, mapper configuration, and PHR claim consumer together; invalidate all user, offline, and SSO sessions at cutover.
 - Cut over one PHR workflow/hospital/tenant cohort at a time with rollback checkpoints.
 - Remove compatibility façades, old permission caches, and retired Keycloak extensions after all consumers migrate.
 
@@ -335,7 +337,7 @@ Capability definitions are application-owned, versioned expressions. PHR adminis
 
 ## 9. Open decisions that block policy authoring
 
-1. Which existing CSI-IAM 26.2.5 branch/repository, if any, is authoritative? The checked-in CSI-IAM and extension source both currently identify themselves as 6.0.1.
+1. Which existing CSI-IAM 26.7.3 branch/repository, if any, is authoritative? The checked-in CSI-IAM and extension source both currently identify themselves as 6.0.1.
 2. Is a CSI hospital exactly a Keycloak Organization, or does the legacy hierarchy represent additional levels that must remain outside Keycloak?
 3. Which PHR operations and regulated workflows require actions beyond the POC's generated FHIR action vocabulary?
 4. What are the authoritative PHR services/tables for every resource's tenant, hospital, status, controlled-medication state, and other mandatory policy attributes?
