@@ -91,7 +91,7 @@ services:
     build:
       context: .
       dockerfile: apps/keycloak-org-selector/Dockerfile
-    # `organization` is a preview feature in 26.4: Keycloak Organizations
+    # `organization` is a preview feature in 26.7.3: Keycloak Organizations
     # (issue #75/#74) is disabled by default and every organization-scoped
     # token request 400s without it. Enabling it here is required, not
     # optional, once any realm fixture declares "organizationsEnabled".
@@ -154,12 +154,12 @@ services:
       timeout: 5s
       retries: 20
 
-  # A second Keycloak, pinned to the same 26.4 image as the demo instance
+  # A second Keycloak, pinned to the same 26.7.3 image as the demo instance
   # (libs/keycloakbulkload's direct-SQL writer is version-pinned to this exact
   # schema) but backed by keycloak-db instead of dev-mode's file store, and
   # published on a different port so both can run side by side.
   keycloak-loadtest:
-    image: quay.io/keycloak/keycloak:26.4
+    image: quay.io/keycloak/keycloak:26.7.3
     profiles:
       - loadtest
     # --features=organization (issue #87): the load model's hospital is a

@@ -18,6 +18,9 @@ except ModuleNotFoundError:  # pragma: no cover - environment guard
 
 REPO_ROOT = pathlib.Path(__file__).resolve().parents[2]
 COMPOSE_FILE = REPO_ROOT / "docker-compose.yml"
+KEYCLOAK_VERSION = "26.7.3"
+KEYCLOAK_DOCKERFILE = REPO_ROOT / "apps" / "keycloak-org-selector" / "Dockerfile"
+KEYCLOAK_POM = REPO_ROOT / "apps" / "keycloak-org-selector" / "pom.xml"
 
 failures: list[str] = []
 
@@ -79,6 +82,15 @@ def check_images_carry_no_native_clients() -> None:
         )
         if offenders:
             print(f"     found: {', '.join(sorted(set(offenders)))}")
+
+
+def check_keycloak_version_alignment(services: dict) -> None:
+    dockerfile = KEYCLOAK_DOCKERFILE.read_text()
+    pom = KEYCLOAK_POM.read_text()
+    loadtest_image = services["keycloak-loadtest"]["image"]
+    check("Keycloak runtime is pinned to 26.7.3", f"keycloak:{KEYCLOAK_VERSION}" in dockerfile)
+    check("Keycloak SPI compiles against 26.7.3", f"<keycloak.version>{KEYCLOAK_VERSION}</keycloak.version>" in pom)
+    check("load-test Keycloak is pinned to 26.7.3", loadtest_image.endswith(f":{KEYCLOAK_VERSION}"))
 
 
 def check_identity_provider(services: dict) -> None:
@@ -149,6 +161,7 @@ def main() -> int:
 
     compose = yaml.safe_load(COMPOSE_FILE.read_text())
     services = compose.get("services", {})
+    check_keycloak_version_alignment(services)
 
     for name in ("postgres", "cerbos", "ads", "admin-service"):
         check(f"service '{name}' is defined", name in services)

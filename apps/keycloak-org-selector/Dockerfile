@@ -18,7 +18,7 @@ COPY apps/keycloak-org-selector/src ./src
 # criterion): a case that regresses fails the build rather than shipping.
 RUN mvn -q -B package
 
-FROM quay.io/keycloak/keycloak:26.4
+FROM quay.io/keycloak/keycloak:26.7.3
 
 COPY --from=build /src/target/org-selector.jar /opt/keycloak/providers/org-selector.jar
 # `--features=organization` matches docker-compose.yml/the k8s manifests:

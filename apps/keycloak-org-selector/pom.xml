@@ -20,10 +20,10 @@
     <maven.compiler.release>17</maven.compiler.release>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     <!-- Pinned to the Keycloak image tag docker-compose.yml and the k8s
-         manifests both build from (quay.io/keycloak/keycloak:26.4), so the
+         manifests both build from (quay.io/keycloak/keycloak:26.7.3), so the
          SPI is always compiled against the API the runtime actually
          provides. -->
-    <keycloak.version>26.4.0</keycloak.version>
+    <keycloak.version>26.7.3</keycloak.version>
     <junit.version>5.11.4</junit.version>
   </properties>
 
