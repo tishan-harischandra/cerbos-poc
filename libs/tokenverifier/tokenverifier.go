@@ -396,6 +396,9 @@ func (v *Verifier) organizationRoles(claims jwtClaims) ([]string, error) {
 	if !ok {
 		return nil, fmt.Errorf("%w: %s is required", ErrMalformedOrganizationRoles, OrganizationRolesClaim)
 	}
+	if raw == nil {
+		return nil, fmt.Errorf("%w: %s must be an object", ErrMalformedOrganizationRoles, OrganizationRolesClaim)
+	}
 	encoded, err := json.Marshal(raw)
 	if err != nil {
 		return nil, fmt.Errorf("%w: encoding %s: %v", ErrMalformedOrganizationRoles, OrganizationRolesClaim, err)

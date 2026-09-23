@@ -467,6 +467,17 @@ func TestReservedRolesAreRejectedFromUnselectedOrganizationAndGlobalClaims(t *te
 	})
 }
 
+func TestNullOrganizationRolesAreRejected(t *testing.T) {
+	fixture := newFixture(t)
+	payload := fixture.valid(nil)
+	payload["organization_roles"] = nil
+
+	_, err := organizationVerifier(t, fixture).Verify(context.Background(), fixture.sign(t, payload))
+	if !errors.Is(err, tokenverifier.ErrMalformedOrganizationRoles) {
+		t.Fatalf("Verify error = %v, want %v", err, tokenverifier.ErrMalformedOrganizationRoles)
+	}
+}
+
 func TestMalformedOrganizationRolesAreRejected(t *testing.T) {
 	fixture := newFixture(t)
 	tests := []struct {
