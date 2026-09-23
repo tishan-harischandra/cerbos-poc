@@ -349,6 +349,158 @@ func TestOtherHospitalsCarriesEveryMembershipExceptTheActiveHospital(t *testing.
 	}
 }
 
+func TestOrganizationRolesAreCanonicalizedForTheVerifiedRealm(t *testing.T) {
+	fixture := newFixture(t)
+	payload := fixture.valid(claims{
+		"organization": []string{"north-hospital"},
+		"organization_roles": map[string]any{
+			"realm":  []string{"doctor", "doctor"},
+			"client": map[string]any{"patient-app": []string{"care-team", "care-team"}},
+		},
+		"realm_access": map[string]any{"roles": []string{"auditor"}},
+	})
+
+	verified, err := organizationVerifier(t, fixture).Verify(context.Background(), fixture.sign(t, payload))
+	if err != nil {
+		t.Fatalf("Verify: %v", err)
+	}
+	want := []string{"kc:tenant-a:patient-app:care-team", "kc:tenant-a:realm:doctor"}
+	if !slices.Equal(verified.Roles, want) {
+		t.Fatalf("Roles = %v, want %v", verified.Roles, want)
+	}
+}
+
+func TestTenantWideAndOrganizationRoleSourcesRemainSeparated(t *testing.T) {
+	fixture := newFixture(t)
+
+	t.Run("tenant-wide token without organization roles is accepted", func(t *testing.T) {
+		payload := fixture.valid(claims{
+			"realm_access": map[string]any{"roles": []string{"admin", "auditor"}},
+			"resource_access": map[string]any{
+				"patient-app": map[string]any{"roles": []string{"doctor"}},
+				"other-app":   map[string]any{"roles": []string{"must-not-leak"}},
+			},
+		})
+		delete(payload, "organization")
+
+		verified, err := organizationVerifier(t, fixture).Verify(context.Background(), fixture.sign(t, payload))
+		if err != nil {
+			t.Fatalf("Verify: %v", err)
+		}
+		want := []string{
+			"kc:tenant-a:patient-app:doctor",
+			"kc:tenant-a:realm:admin",
+			"kc:tenant-a:realm:auditor",
+		}
+		if !slices.Equal(verified.Roles, want) {
+			t.Fatalf("Roles = %v, want %v", verified.Roles, want)
+		}
+	})
+
+	t.Run("tenant-wide token with organization roles is rejected", func(t *testing.T) {
+		payload := fixture.valid(claims{
+			"realm_access":       map[string]any{"roles": []string{"admin"}},
+			"organization_roles": map[string]any{"realm": []string{"auditor"}, "client": map[string]any{}},
+		})
+		delete(payload, "organization")
+
+		_, err := organizationVerifier(t, fixture).Verify(context.Background(), fixture.sign(t, payload))
+		if !errors.Is(err, tokenverifier.ErrOrganizationRolesScopeMismatch) {
+			t.Fatalf("Verify error = %v, want %v", err, tokenverifier.ErrOrganizationRolesScopeMismatch)
+		}
+	})
+
+	t.Run("active organization never falls back to global roles", func(t *testing.T) {
+		payload := fixture.valid(claims{
+			"realm_access":       map[string]any{"roles": []string{"doctor"}},
+			"organization_roles": map[string]any{"realm": []string{"auditor"}},
+		})
+
+		verified, err := organizationVerifier(t, fixture).Verify(context.Background(), fixture.sign(t, payload))
+		if err != nil {
+			t.Fatalf("Verify: %v", err)
+		}
+		want := []string{"kc:tenant-a:realm:auditor"}
+		if !slices.Equal(verified.Roles, want) {
+			t.Fatalf("Roles = %v, want %v", verified.Roles, want)
+		}
+	})
+
+	t.Run("active organization with empty roles has zero roles", func(t *testing.T) {
+		payload := fixture.valid(claims{
+			"realm_access":       map[string]any{"roles": []string{"doctor"}},
+			"organization_roles": map[string]any{},
+		})
+
+		verified, err := organizationVerifier(t, fixture).Verify(context.Background(), fixture.sign(t, payload))
+		if err != nil {
+			t.Fatalf("Verify: %v", err)
+		}
+		if len(verified.Roles) != 0 {
+			t.Fatalf("Roles = %v, want none", verified.Roles)
+		}
+	})
+}
+
+func TestReservedRolesAreRejectedFromUnselectedOrganizationAndGlobalClaims(t *testing.T) {
+	fixture := newFixture(t)
+
+	t.Run("global role under organization mode", func(t *testing.T) {
+		payload := fixture.valid(claims{
+			"realm_access":       map[string]any{"roles": []string{"sys:permission-evaluator"}},
+			"organization_roles": map[string]any{"realm": []string{}, "client": map[string]any{}},
+		})
+		_, err := organizationVerifier(t, fixture).Verify(context.Background(), fixture.sign(t, payload))
+		if !errors.Is(err, tokenverifier.ErrReservedRole) {
+			t.Fatalf("Verify error = %v, want %v", err, tokenverifier.ErrReservedRole)
+		}
+	})
+
+	t.Run("organization role under client mode", func(t *testing.T) {
+		payload := fixture.valid(claims{
+			"organization_roles": map[string]any{"realm": []string{"sys:permission-evaluator"}, "client": map[string]any{}},
+		})
+		_, err := fixture.verifier(t).Verify(context.Background(), fixture.sign(t, payload))
+		if !errors.Is(err, tokenverifier.ErrReservedRole) {
+			t.Fatalf("Verify error = %v, want %v", err, tokenverifier.ErrReservedRole)
+		}
+	})
+}
+
+func TestMalformedOrganizationRolesAreRejected(t *testing.T) {
+	fixture := newFixture(t)
+	tests := []struct {
+		name  string
+		claim any
+		want  error
+	}{
+		{name: "absent claim", claim: nil, want: tokenverifier.ErrMalformedOrganizationRoles},
+		{name: "scalar claim", claim: "doctor", want: tokenverifier.ErrMalformedOrganizationRoles},
+		{name: "array claim", claim: []string{"doctor"}, want: tokenverifier.ErrMalformedOrganizationRoles},
+		{name: "unknown field", claim: map[string]any{"realm": []string{"doctor"}, "extra": true}, want: tokenverifier.ErrMalformedOrganizationRoles},
+		{name: "non-string role", claim: map[string]any{"realm": []any{"doctor", 42}}, want: tokenverifier.ErrMalformedOrganizationRoles},
+		{name: "nil realm roles", claim: map[string]any{"realm": nil}, want: tokenverifier.ErrMalformedOrganizationRoles},
+		{name: "nil client section", claim: map[string]any{"client": nil}, want: tokenverifier.ErrMalformedOrganizationRoles},
+		{name: "nil client roles", claim: map[string]any{"client": map[string]any{"patient-app": nil}}, want: tokenverifier.ErrMalformedOrganizationRoles},
+		{name: "blank role", claim: map[string]any{"realm": []string{" "}}, want: tokenverifier.ErrMalformedOrganizationRoles},
+		{name: "foreign client key", claim: map[string]any{"realm": []string{}, "client": map[string]any{"another-app": []string{"doctor"}}}, want: tokenverifier.ErrMalformedOrganizationRoles},
+		{name: "reserved role", claim: map[string]any{"realm": []string{"sys:permission-evaluator"}}, want: tokenverifier.ErrReservedRole},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			payload := fixture.valid(claims{"organization": []string{"north-hospital"}})
+			if test.claim != nil {
+				payload["organization_roles"] = test.claim
+			}
+			_, err := organizationVerifier(t, fixture).Verify(context.Background(), fixture.sign(t, payload))
+			if !errors.Is(err, test.want) {
+				t.Fatalf("Verify error = %v, want %v", err, test.want)
+			}
+		})
+	}
+}
+
 // §16.1 says normalise *only* the configured role claims. An installation
 // reading client roles must not silently pick up realm roles as well, or a role
 // granted for an unrelated application becomes an authorization input.
@@ -450,6 +602,23 @@ func (f *fixture) valid(overrides claims) claims {
 		payload[name] = value
 	}
 	return payload
+}
+
+func organizationVerifier(t *testing.T, f *fixture) *tokenverifier.Verifier {
+	t.Helper()
+	verifier, err := tokenverifier.New(tokenverifier.Config{
+		Issuer:     issuer,
+		Audience:   audience,
+		Realm:      realm,
+		RoleSource: tokenverifier.RoleSourceOrganization,
+		ClientID:   "patient-app",
+		Keys:       staticKeys{"test-key": &f.key.PublicKey},
+		Now:        func() time.Time { return f.now },
+	})
+	if err != nil {
+		t.Fatalf("New: %v", err)
+	}
+	return verifier
 }
 
 func (f *fixture) verifier(t *testing.T) *tokenverifier.Verifier {

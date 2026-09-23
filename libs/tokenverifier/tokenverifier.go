@@ -12,6 +12,7 @@
 package tokenverifier
 
 import (
+	"bytes"
 	"context"
 	"crypto"
 	"crypto/rsa"
@@ -21,6 +22,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"sort"
 	"strings"
 	"time"
 
@@ -53,6 +55,12 @@ var (
 	// ErrReservedRole means the token claimed a role only the platform may
 	// assign.
 	ErrReservedRole = errors.New("the token carries a role reserved for the platform")
+	// ErrMalformedOrganizationRoles means the organization role claim is
+	// absent or does not have the exact mapper-produced shape.
+	ErrMalformedOrganizationRoles = errors.New("the token carries malformed organization roles")
+	// ErrOrganizationRolesScopeMismatch means a tenant-wide token carries a
+	// hospital-scoped role claim.
+	ErrOrganizationRolesScopeMismatch = errors.New("the token carries organization roles without an active organization")
 	// ErrUnscopedToken means the token names no active organization and
 	// carries no tenant-wide marker either, so no server-side hospital
 	// context could be derived (issue #78). It is refused rather than
@@ -74,6 +82,9 @@ const (
 	RoleSourceClient RoleSource = "CLIENT"
 	// RoleSourceRealm reads realm_access.roles.
 	RoleSourceRealm RoleSource = "REALM"
+	// RoleSourceOrganization reads roles scoped to the verified active
+	// organization, with no fallback to global role claims.
+	RoleSourceOrganization RoleSource = "ORGANIZATION"
 )
 
 // OrganizationClaim is Keycloak's own claim name for organization scope
@@ -81,6 +92,9 @@ const (
 // configurable: it is Keycloak's organization feature's claim, not a
 // convention this installation invented (§75, issue #78).
 const OrganizationClaim = "organization"
+
+// OrganizationRolesClaim carries roles for the verified active organization.
+const OrganizationRolesClaim = "organization_roles"
 
 // OrganizationMembershipsClaim carries every organization the user belongs
 // to, regardless of which one is active (issue #84). It is populated by the
@@ -121,8 +135,9 @@ type Config struct {
 	Realm string
 
 	RoleSource RoleSource
-	// ClientID is the client whose roles are authoritative when RoleSource is
-	// CLIENT. It is also the audience Keycloak stamps on the token.
+	// ClientID is the client whose roles are authoritative in CLIENT mode and
+	// whose scoped roles are selected in ORGANIZATION mode. It is also the
+	// audience Keycloak stamps on the token.
 	ClientID string
 
 	Keys   KeySource
@@ -172,8 +187,8 @@ func New(cfg Config) (*Verifier, error) {
 	if cfg.RoleSource == "" {
 		cfg.RoleSource = RoleSourceClient
 	}
-	if cfg.RoleSource == RoleSourceClient && cfg.ClientID == "" {
-		return nil, errors.New("tokenverifier: a client id is required when roles come from a client")
+	if (cfg.RoleSource == RoleSourceClient || cfg.RoleSource == RoleSourceOrganization) && cfg.ClientID == "" {
+		return nil, errors.New("tokenverifier: a client id is required when roles come from a client or organization")
 	}
 	if cfg.Now == nil {
 		cfg.Now = time.Now
@@ -304,12 +319,12 @@ func (v *Verifier) Verify(ctx context.Context, raw string) (VerifiedToken, error
 		}
 	}
 
-	roles, err := v.normaliseRoles(claims)
+	hospital, err := hospitalOf(claims)
 	if err != nil {
 		return VerifiedToken{}, err
 	}
 
-	hospital, err := hospitalOf(claims)
+	roles, err := v.normaliseRoles(claims, hospital)
 	if err != nil {
 		return VerifiedToken{}, err
 	}
@@ -333,9 +348,39 @@ func (v *Verifier) Verify(ctx context.Context, raw string) (VerifiedToken, error
 	return verified, nil
 }
 
-// normaliseRoles reads only the configured role claim (§16.1) and renders each
-// role as a canonical §7.5 identifier.
-func (v *Verifier) normaliseRoles(claims jwtClaims) ([]string, error) {
+type organizationRoles struct {
+	Realm  []string            `json:"realm"`
+	Client map[string][]string `json:"client"`
+}
+
+// normaliseRoles selects the claims allowed by the configured source and token
+// scope, then renders each role as a canonical §7.5 identifier.
+func (v *Verifier) normaliseRoles(claims jwtClaims, hospital string) ([]string, error) {
+	// The reserved-role check runs over every role claim the token carries,
+	// not only the configured source. A caller smuggling `sys:` into an
+	// unselected global or organization claim is still attempting to
+	// impersonate the platform.
+	for _, role := range allRoles(claims) {
+		if canonicalid.IsReserved(role) {
+			return nil, fmt.Errorf("%w: %q", ErrReservedRole, role)
+		}
+	}
+	if raw, ok := claims.rest[OrganizationRolesClaim]; ok {
+		if role, ok := reservedRoleIn(raw); ok {
+			return nil, fmt.Errorf("%w: %q", ErrReservedRole, role)
+		}
+		if hospital == "" {
+			return nil, fmt.Errorf("%w: unexpected %s", ErrOrganizationRolesScopeMismatch, OrganizationRolesClaim)
+		}
+	}
+
+	if v.cfg.RoleSource == RoleSourceOrganization {
+		if hospital != "" {
+			return v.organizationRoles(claims)
+		}
+		return v.tenantWideRoles(claims), nil
+	}
+
 	var raw []string
 	switch v.cfg.RoleSource {
 	case RoleSourceRealm:
@@ -343,18 +388,62 @@ func (v *Verifier) normaliseRoles(claims jwtClaims) ([]string, error) {
 	default:
 		raw = claims.ResourceAccess[v.cfg.ClientID].Roles
 	}
+	return CanonicalRoles(v.cfg, raw), nil
+}
 
-	// The reserved-role check runs over every claim the token carries, not
-	// only the configured source. A caller smuggling `sys:` into the realm
-	// claim while the installation reads client roles is still a caller
-	// attempting to impersonate the platform.
-	for _, role := range allRoles(claims) {
-		if canonicalid.IsReserved(role) {
-			return nil, fmt.Errorf("%w: %q", ErrReservedRole, role)
+func (v *Verifier) organizationRoles(claims jwtClaims) ([]string, error) {
+	raw, ok := claims.rest[OrganizationRolesClaim]
+	if !ok {
+		return nil, fmt.Errorf("%w: %s is required", ErrMalformedOrganizationRoles, OrganizationRolesClaim)
+	}
+	encoded, err := json.Marshal(raw)
+	if err != nil {
+		return nil, fmt.Errorf("%w: encoding %s: %v", ErrMalformedOrganizationRoles, OrganizationRolesClaim, err)
+	}
+	// The mapper omits empty sections, so initialize both to valid empties.
+	// Explicit JSON null still overwrites either value with nil and is rejected.
+	scoped := organizationRoles{Realm: []string{}, Client: map[string][]string{}}
+	decoder := json.NewDecoder(bytes.NewReader(encoded))
+	decoder.DisallowUnknownFields()
+	if err := decoder.Decode(&scoped); err != nil {
+		return nil, fmt.Errorf("%w: decoding %s: %v", ErrMalformedOrganizationRoles, OrganizationRolesClaim, err)
+	}
+	if scoped.Realm == nil || scoped.Client == nil {
+		return nil, fmt.Errorf("%w: %s.realm and %s.client must be arrays and an object", ErrMalformedOrganizationRoles, OrganizationRolesClaim, OrganizationRolesClaim)
+	}
+	for clientID, roles := range scoped.Client {
+		if clientID != v.cfg.ClientID {
+			return nil, fmt.Errorf("%w: %s.client contains foreign client %q", ErrMalformedOrganizationRoles, OrganizationRolesClaim, clientID)
+		}
+		if roles == nil {
+			return nil, fmt.Errorf("%w: %s.client.%s must be an array", ErrMalformedOrganizationRoles, OrganizationRolesClaim, clientID)
+		}
+	}
+	for _, role := range append(append([]string(nil), scoped.Realm...), scoped.Client[v.cfg.ClientID]...) {
+		if strings.TrimSpace(role) == "" {
+			return nil, fmt.Errorf("%w: %s contains a blank role", ErrMalformedOrganizationRoles, OrganizationRolesClaim)
 		}
 	}
 
-	return CanonicalRoles(v.cfg, raw), nil
+	roles := make([]string, 0, len(scoped.Realm)+len(scoped.Client[v.cfg.ClientID]))
+	for _, role := range scoped.Realm {
+		roles = append(roles, canonicalid.KeycloakRealmRole(v.cfg.Realm, role))
+	}
+	for _, role := range scoped.Client[v.cfg.ClientID] {
+		roles = append(roles, canonicalid.KeycloakClientRole(v.cfg.Realm, v.cfg.ClientID, role))
+	}
+	return sortedUnique(roles), nil
+}
+
+func (v *Verifier) tenantWideRoles(claims jwtClaims) []string {
+	roles := make([]string, 0, len(claims.RealmAccess.Roles)+len(claims.ResourceAccess[v.cfg.ClientID].Roles))
+	for _, role := range claims.RealmAccess.Roles {
+		roles = append(roles, canonicalid.KeycloakRealmRole(v.cfg.Realm, role))
+	}
+	for _, role := range claims.ResourceAccess[v.cfg.ClientID].Roles {
+		roles = append(roles, canonicalid.KeycloakClientRole(v.cfg.Realm, v.cfg.ClientID, role))
+	}
+	return sortedUnique(roles)
 }
 
 // CanonicalRoles renders provider role names as canonical §7.5 identifiers.
@@ -384,6 +473,40 @@ func allRoles(claims jwtClaims) []string {
 		roles = append(roles, access.Roles...)
 	}
 	return roles
+}
+
+func reservedRoleIn(value any) (string, bool) {
+	switch value := value.(type) {
+	case string:
+		return value, canonicalid.IsReserved(value)
+	case []any:
+		for _, item := range value {
+			if role, ok := reservedRoleIn(item); ok {
+				return role, true
+			}
+		}
+	case map[string]any:
+		for _, item := range value {
+			if role, ok := reservedRoleIn(item); ok {
+				return role, true
+			}
+		}
+	}
+	return "", false
+}
+
+func sortedUnique(values []string) []string {
+	sort.Strings(values)
+	if len(values) == 0 {
+		return values
+	}
+	unique := values[:1]
+	for _, value := range values[1:] {
+		if value != unique[len(unique)-1] {
+			unique = append(unique, value)
+		}
+	}
+	return unique
 }
 
 // hospitalOf derives the active hospital from the verified organization
