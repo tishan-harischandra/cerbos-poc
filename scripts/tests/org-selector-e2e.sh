@@ -18,6 +18,8 @@ command -v jq >/dev/null 2>&1 || { echo "org-selector-e2e: jq is required" >&2; 
 wait_for_keycloak || exit 1
 
 REDIRECT_URI="http://127.0.0.1:4200/"
+PORT="${ADMIN_CONSOLE_PORT:-4200}"
+ADS_URL="http://127.0.0.1:${PORT}/api/ads"
 
 # The browser flow's login form action and its Set-Cookie both carry
 # whatever host Keycloak was configured with (KC_HOSTNAME), which need not
@@ -310,12 +312,14 @@ echo "--- each answer yields a token whose active hospital differs accordingly -
 
 submit_organization "${selection_action}" "${jar}" "south-hospital"
 code="$(code_from_redirect)"
+south_token=""
 south_organization="absent"
 if [[ -n "${code}" ]]; then
   response="$(token_from_code tenant-a patient-app "${code}")"
-  access_token="$(jq -r '.access_token // empty' <<<"${response}")"
-  south_organization="$(claim_of "${access_token}" '.organization | tojson')"
+  south_token="$(jq -r '.access_token // empty' <<<"${response}")"
+  south_organization="$(claim_of "${south_token}" '.organization | tojson')"
 fi
+rm -f "${jar}"
 
 jar="$(mktemp)"
 login_page tenant-a patient-app "${jar}"
@@ -326,11 +330,12 @@ form_body="$(curl -sS --max-time 10 -c "${jar}" -b "${jar}" \
 selection_action="$(login_action "${form_body}")"
 submit_organization "${selection_action}" "${jar}" "north-hospital"
 code="$(code_from_redirect)"
+north_token=""
 north_organization="absent"
 if [[ -n "${code}" ]]; then
   response="$(token_from_code tenant-a patient-app "${code}")"
-  access_token="$(jq -r '.access_token // empty' <<<"${response}")"
-  north_organization="$(claim_of "${access_token}" '.organization | tojson')"
+  north_token="$(jq -r '.access_token // empty' <<<"${response}")"
+  north_organization="$(claim_of "${north_token}" '.organization | tojson')"
 fi
 
 if [[ "${south_organization}" == '["south-hospital"]' && "${north_organization}" == '["north-hospital"]' ]]; then
@@ -338,7 +343,49 @@ if [[ "${south_organization}" == '["south-hospital"]' && "${north_organization}"
 else
   fail "the same user's two answers yield two different active hospitals (south answer -> ${south_organization}, north answer -> ${north_organization})"
 fi
-rm -f "${jar}"
+
+north_roles="$(claim_of "${north_token}" '.organization_roles.realm | sort | tojson')"
+south_roles="$(claim_of "${south_token}" '.organization_roles.realm | sort | tojson')"
+if [[ "${north_roles}" == '["doctor"]' ]]; then
+  pass "north selects only doctor"
+else
+  fail "north selects only doctor (organization roles were ${north_roles:-absent})"
+fi
+if [[ "${south_roles}" == '["auditor"]' ]]; then
+  pass "south selects only auditor"
+else
+  fail "south selects only auditor (organization roles were ${south_roles:-absent})"
+fi
+
+south_global_roles="$(claim_of "${south_token}" '(.realm_access.roles // []) | sort | tojson')"
+if jq -e 'index("doctor") != null' <<<"${south_global_roles}" >/dev/null; then
+  pass "south retains the global doctor role as an adversarial fixture"
+else
+  fail "south retains the global doctor role as an adversarial fixture (global roles were ${south_global_roles:-absent})"
+fi
+
+north_request='{"resources":[{"kind":"patient_record","id":"north-proof","attributes":{"tenantId":"tenant-a","hospitalId":"north-hospital","status":"ACTIVE"},"actions":["read"]}]}'
+south_request='{"resources":[{"kind":"patient_record","id":"south-proof","attributes":{"tenantId":"tenant-a","hospitalId":"south-hospital","status":"ACTIVE"},"actions":["read"]}]}'
+
+north_status="$(curl -sS -o /tmp/org-selector-north-decision.json -w '%{http_code}' \
+  -H 'Content-Type: application/json' -H "Authorization: Bearer ${north_token}" \
+  --data "${north_request}" "${ADS_URL}/internal/authz/check")"
+south_status="$(curl -sS -o /tmp/org-selector-south-decision.json -w '%{http_code}' \
+  -H 'Content-Type: application/json' -H "Authorization: Bearer ${south_token}" \
+  --data "${south_request}" "${ADS_URL}/internal/authz/check")"
+north_allowed="$(jq -r '.resources[0].actions.read.allowed // false' /tmp/org-selector-north-decision.json 2>/dev/null || printf invalid)"
+south_allowed="$(jq -r '.resources[0].actions.read.allowed // false' /tmp/org-selector-south-decision.json 2>/dev/null || printf invalid)"
+if [[ "${north_status}" == "200" && "${north_allowed}" == "true" ]]; then
+  pass "north's live doctor grant allows a matching read"
+else
+  fail "north's live doctor grant allows a matching read (HTTP ${north_status}, allowed=${north_allowed})"
+fi
+if [[ "${south_status}" == "200" && "${south_allowed}" == "false" ]]; then
+  pass "south's expired auditor grant denies a matching read despite the global doctor role"
+else
+  fail "south's expired auditor grant denies a matching read despite the global doctor role (HTTP ${south_status}, allowed=${south_allowed})"
+fi
+rm -f "${jar}" /tmp/org-selector-north-decision.json /tmp/org-selector-south-decision.json
 
 echo
 echo "--- a submitted organization the user is not a member of is rejected ---"

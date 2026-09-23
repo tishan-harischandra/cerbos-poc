@@ -52,16 +52,24 @@ echo "--- a real OIDC login ---"
 doctor_token="$(token_for user-doctor)" || exit 1
 pass "a user can log in against Keycloak and receive a token"
 
-# The seeded realms declare these as realm roles, and the stack runs with
-# IDP_ROLE_SOURCE=REALM, so libs/tokenverifier reads realm_access.roles
-# (§7.3). `// []` keeps a missing claim reporting as an empty role list -
-# the assertion below - rather than as a jq null-iteration error that says
-# nothing about the cause (issue #110).
-roles="$(claim_of "${doctor_token}" '(.realm_access.roles // []) | join(",")')"
-if [[ "${roles}" == *"doctor"* ]]; then
-  pass "the token carries the user's roles"
+# In organization mode, this structured claim is the authoritative role
+# source. Exact equality catches both a missing doctor role and leakage from
+# another organization into the selected North session.
+roles="$(claim_of "${doctor_token}" '.organization_roles.realm | sort | tojson')"
+if [[ "${roles}" == '["doctor"]' ]]; then
+  pass "the token carries exactly the selected organization's roles"
 else
-  fail "the token carries the user's roles (roles were '${roles}')"
+  fail "the token carries exactly the selected organization's roles (roles were '${roles:-absent}')"
+fi
+
+# The legacy global role deliberately remains in the fixture. It is asserted
+# separately so the matching-hospital decisions prove that this adversarial
+# claim is visible but is not the ADS's authority in organization mode.
+global_roles="$(claim_of "${doctor_token}" '(.realm_access.roles // []) | sort | tojson')"
+if jq -e 'index("doctor") != null' <<<"${global_roles}" >/dev/null; then
+  pass "the token also retains the adversarial global doctor role"
+else
+  fail "the token retains the adversarial global doctor role (global roles were '${global_roles:-absent}')"
 fi
 
 subject="$(claim_of "${doctor_token}" '.sub')"
@@ -126,10 +134,11 @@ expect_status "a token minted for another client is refused" 401 \
 other_issuer_token="$(token_for user-doctor patient-app other-issuer)" || exit 1
 expect_status "a token from another issuer is refused" 401 "$(decide_with "${other_issuer_token}")"
 
-# §16.1: the synthetic role prefix is the platform's. The realm carries a
-# hostile fixture role so this is a token Keycloak really issued.
+# The realm carries a hostile global sys: role, but organization mode does not
+# treat global claims as authority. Because this user has no active hospital,
+# the genuine token is refused as unscoped rather than interpreting that role.
 forger_token="$(token_for user-forger)" || exit 1
-expect_status "a token carrying a sys: role is refused outright" 403 "$(decide_with "${forger_token}")"
+expect_status "global roles do not grant authority in organization mode" 401 "$(decide_with "${forger_token}")"
 
 echo
 echo "--- the browser cannot name itself ---"
