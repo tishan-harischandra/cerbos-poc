@@ -24,6 +24,7 @@ up: ## Build and start the whole control plane, waiting for health
 	# health before migrate/seed/seed-tenants have had a chance to run.
 	$(COMPOSE) up --build --detach postgres keycloak cerbos redpanda
 	bash scripts/compose-wait.sh postgres keycloak cerbos redpanda
+	$(MAKE) seed-idp-roles
 	# The ADS reads the role matrix and the tenant registry from the
 	# database, so the schema and both seeds have to be there before the
 	# stack can answer anything. All three steps are idempotent, so `make
@@ -58,6 +59,7 @@ up-tls: tls-certs ## Like `make up`, but every browser-facing port serves HTTPS:
 	export BUSINESS_UI_CONTAINER_PORT=443; \
 	$(COMPOSE_TLS) up --build --detach postgres keycloak cerbos redpanda; \
 	COMPOSE="$(COMPOSE_TLS)" bash scripts/compose-wait.sh postgres keycloak cerbos redpanda; \
+	$(MAKE) seed-idp-roles; \
 	$(MAKE) migrate; \
 	$(MAKE) seed; \
 	tls_hostname="https://localhost:$${KEYCLOAK_HTTPS_PORT:-8443}"; \
@@ -175,6 +177,10 @@ loadtest: ## Full §15.3 k6 run at 1,000 VUs from a clean state (issue #25); LOA
 .PHONY: seed
 seed: ## Write the demo role matrix into the authorization database
 	bash scripts/seed.sh postgres
+
+.PHONY: seed-idp-roles
+seed-idp-roles: ## Seed native Keycloak organization and tenant-admin groups
+	bash scripts/keycloak-organization-role-seed.sh
 
 .PHONY: seed-tenants
 seed-tenants: ## Write the tenant registry file into the authorization database (issue #76)

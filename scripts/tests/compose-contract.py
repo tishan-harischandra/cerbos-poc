@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import json
 import pathlib
+import re
 import sys
 
 try:
@@ -21,6 +22,7 @@ COMPOSE_FILE = REPO_ROOT / "docker-compose.yml"
 KEYCLOAK_VERSION = "26.7.3"
 KEYCLOAK_DOCKERFILE = REPO_ROOT / "apps" / "keycloak-org-selector" / "Dockerfile"
 KEYCLOAK_POM = REPO_ROOT / "apps" / "keycloak-org-selector" / "pom.xml"
+MAKEFILE = REPO_ROOT / "Makefile"
 
 failures: list[str] = []
 
@@ -93,6 +95,34 @@ def check_keycloak_version_alignment(services: dict) -> None:
     check("load-test Keycloak is pinned to 26.7.3", loadtest_image.endswith(f":{KEYCLOAK_VERSION}"))
 
 
+def check_identity_role_seed_order() -> None:
+    makefile = MAKEFILE.read_text()
+    check(
+        "the Makefile defines the seed-idp-roles target",
+        bool(re.search(r"^seed-idp-roles:\s*(?:##.*)?$", makefile, re.MULTILINE)),
+    )
+
+    target_starts = list(
+        re.finditer(r"^(?P<name>[a-zA-Z0-9_-]+):[^=].*$", makefile, re.MULTILINE)
+    )
+    recipes: dict[str, str] = {}
+    for index, match in enumerate(target_starts):
+        end = target_starts[index + 1].start() if index + 1 < len(target_starts) else len(makefile)
+        recipes[match.group("name")] = makefile[match.start():end]
+
+    for target in ("up", "up-tls"):
+        recipe = recipes.get(target, "")
+        health_wait = recipe.find("compose-wait.sh postgres keycloak cerbos redpanda")
+        role_seed = recipe.find("seed-idp-roles")
+        application_start = recipe.find("up --build --detach", health_wait + 1)
+        check(
+            f"{target} seeds identity roles after Keycloak health and before application services",
+            health_wait >= 0
+            and role_seed > health_wait
+            and application_start > role_seed,
+        )
+
+
 def check_identity_provider(services: dict) -> None:
     """The §7.1 installation selection, as the running stack expresses it."""
     check("service 'keycloak' is defined", "keycloak" in services)
@@ -122,12 +152,36 @@ def check_identity_provider(services: dict) -> None:
             check("the browser-facing client is public and has no service account",
                   clients["patient-app"].get("publicClient") is True
                   and not clients["patient-app"].get("serviceAccountsEnabled"))
+            mappers = {
+                mapper["protocolMapper"]
+                for mapper in clients["patient-app"].get("protocolMappers", [])
+            }
+            check(
+                "patient-app emits active organization roles",
+                "cerbos-poc-organization-roles-mapper" in mappers,
+            )
         if "authorization-admin-service" in clients:
             service = clients["authorization-admin-service"]
             check("the service account client is confidential and browserless",
                   service.get("publicClient") is False
                   and service.get("serviceAccountsEnabled") is True
                   and not service.get("redirectUris"))
+
+    for tenant in ("tenant-b", "tenant-c"):
+        pilot_realm = json.loads(
+            (REPO_ROOT / "deploy" / "keycloak" / f"realm-{tenant}.json").read_text()
+        )
+        pilot_clients = {
+            client["clientId"]: client for client in pilot_realm.get("clients", [])
+        }
+        pilot_mappers = {
+            mapper["protocolMapper"]
+            for mapper in pilot_clients.get("patient-app", {}).get("protocolMappers", [])
+        }
+        check(
+            f"{tenant} patient-app emits active organization roles",
+            "cerbos-poc-organization-roles-mapper" in pilot_mappers,
+        )
 
     ads = services.get("ads", {})
     environment = ads.get("environment") or {}
@@ -255,6 +309,7 @@ def main() -> int:
         check(f"service '{name}' is built from a Dockerfile in this repo", bool(build))
 
     check_images_carry_no_native_clients()
+    check_identity_role_seed_order()
     check_identity_provider(services)
 
     if failures:

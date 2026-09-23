@@ -59,6 +59,12 @@
           "protocol": "openid-connect",
           "protocolMapper": "cerbos-poc-organization-memberships-mapper",
           "config": { "access.token.claim": "true" }
+        },
+        {
+          "name": "organization-roles",
+          "protocol": "openid-connect",
+          "protocolMapper": "cerbos-poc-organization-roles-mapper",
+          "config": { "access.token.claim": "true" }
         }
       ]
     },
