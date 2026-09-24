@@ -3,9 +3,7 @@ import {
   HttpTestingController,
   provideHttpClientTesting,
 } from '@angular/common/http/testing';
-import { Provider } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
-import { SILENT_FRAME } from '@cerbos-poc/auth';
 
 import { AuthService } from './auth.service';
 import { OIDC_CONFIG } from './oidc-config';
@@ -13,7 +11,10 @@ import { REDIRECT } from './redirect';
 
 function fakeJwt(payload: Record<string, unknown>): string {
   const encode = (value: unknown) =>
-    btoa(JSON.stringify(value)).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+    btoa(JSON.stringify(value))
+      .replace(/\+/g, '-')
+      .replace(/\//g, '_')
+      .replace(/=+$/, '');
   return `${encode({ alg: 'RS256' })}.${encode(payload)}.signature`;
 }
 
@@ -21,10 +22,7 @@ describe('AuthService', () => {
   let httpMock: HttpTestingController;
   let redirectSpy: ReturnType<typeof vi.fn>;
 
-  // A test naming an extra provider - the switch tests' own fake
-  // SILENT_FRAME - reconfigures the module before injecting anything, since
-  // Angular refuses to override a provider once the module is instantiated.
-  function configure(...extraProviders: Provider[]): void {
+  function configure(): void {
     TestBed.resetTestingModule();
     TestBed.configureTestingModule({
       providers: [
@@ -39,7 +37,6 @@ describe('AuthService', () => {
           },
         },
         { provide: REDIRECT, useValue: redirectSpy },
-        ...extraProviders,
       ],
     });
     httpMock = TestBed.inject(HttpTestingController);
@@ -74,7 +71,9 @@ describe('AuthService', () => {
     expect(url.searchParams.get('client_id')).toEqual('patient-app');
     expect(url.searchParams.get('code_challenge_method')).toEqual('S256');
     expect(url.searchParams.get('code_challenge')).toBeTruthy();
-    expect(url.searchParams.get('state')).toEqual(sessionStorage.getItem('admin-console:pkce-state'));
+    expect(url.searchParams.get('state')).toEqual(
+      sessionStorage.getItem('admin-console:pkce-state'),
+    );
     expect(sessionStorage.getItem('admin-console:pkce-verifier')).toBeTruthy();
   });
 
@@ -93,7 +92,9 @@ describe('AuthService', () => {
 
     const promise = auth.handleCallback('auth-code-1', state);
     httpMock
-      .expectOne('http://localhost:8081/realms/tenant-a/protocol/openid-connect/token')
+      .expectOne(
+        'http://localhost:8081/realms/tenant-a/protocol/openid-connect/token',
+      )
       .flush({ access_token: token });
 
     expect(await promise).toBe(true);
@@ -111,7 +112,9 @@ describe('AuthService', () => {
 
     expect(result).toBe(false);
     expect(auth.isAuthenticated()).toBe(false);
-    httpMock.expectNone('http://localhost:8081/realms/tenant-a/protocol/openid-connect/token');
+    httpMock.expectNone(
+      'http://localhost:8081/realms/tenant-a/protocol/openid-connect/token',
+    );
   });
 
   it('deletes the stored verifier and state after one callback attempt, matching or not', async () => {
@@ -131,67 +134,104 @@ describe('AuthService', () => {
 
     const promise = auth.handleCallback('auth-code-1', state);
     httpMock
-      .expectOne('http://localhost:8081/realms/tenant-a/protocol/openid-connect/token')
-      .flush({ error: 'invalid_grant' }, { status: 400, statusText: 'Bad Request' });
+      .expectOne(
+        'http://localhost:8081/realms/tenant-a/protocol/openid-connect/token',
+      )
+      .flush(
+        { error: 'invalid_grant' },
+        { status: 400, statusText: 'Bad Request' },
+      );
 
     expect(await promise).toBe(false);
     expect(auth.isAuthenticated()).toBe(false);
   });
 
-  it('switches hospital silently, replacing the active token on success (issue #84)', async () => {
-    const silentFrame = vi.fn().mockImplementation(async (authorizeUrl: string) => {
-      const state = new URL(authorizeUrl).searchParams.get('state');
-      return `http://localhost:4200/callback?code=switch-code&state=${state}`;
-    });
-    configure({ provide: SILENT_FRAME, useValue: silentFrame });
+  it('starts a top-level PKCE transition for the target hospital without persisting a token', async () => {
     const auth = TestBed.inject(AuthService);
 
-    const token = fakeJwt({ sub: 'admin-1', organization: ['south-hospital'] });
-    const promise = auth.switchHospital('south-hospital');
-    const req = await vi.waitFor(() =>
-      httpMock.expectOne('http://localhost:8081/realms/tenant-a/protocol/openid-connect/token'),
-    );
-    req.flush({ access_token: token });
+    await auth.switchHospital('south-hospital');
 
-    expect(await promise).toBe(true);
-    expect(auth.accessToken()).toEqual(token);
-    expect(auth.claims()?.hospitalId).toEqual('south-hospital');
+    expect(redirectSpy).toHaveBeenCalledTimes(1);
+    const url = new URL(redirectSpy.mock.calls[0][0] as string);
+    expect(url.searchParams.get('response_type')).toBe('code');
+    expect(url.searchParams.get('scope')).toBe(
+      'openid organization:south-hospital',
+    );
+    expect(url.searchParams.get('prompt')).toBe('none');
+    expect(url.searchParams.get('code_challenge_method')).toBe('S256');
+    expect(sessionStorage.getItem('admin-console:oidc-transition')).toBe(
+      'hospital-switch',
+    );
+    expect(sessionStorage.getItem('admin-console:switch-target')).toBe(
+      'south-hospital',
+    );
+    expect(sessionStorage.getItem('admin-console:pkce-verifier')).toBeTruthy();
+    expect(sessionStorage.getItem('admin-console:pkce-state')).toBe(
+      url.searchParams.get('state'),
+    );
+    expect(
+      Object.keys(sessionStorage).some((key) => key.includes('token')),
+    ).toBe(false);
   });
 
-  it('leaves the existing session intact when a silent switch is refused (issue #84)', async () => {
-    const silentFrame = vi.fn().mockImplementation(async (authorizeUrl: string) => {
-      const state = new URL(authorizeUrl).searchParams.get('state');
-      return `http://localhost:4200/callback?error=interaction_required&state=${state}`;
-    });
-    configure({ provide: SILENT_FRAME, useValue: silentFrame });
+  it('commits a switch token only when it names the pending target hospital', async () => {
     const auth = TestBed.inject(AuthService);
-    await auth.login();
+    await auth.switchHospital('south-hospital');
     const state = sessionStorage.getItem('admin-console:pkce-state')!;
-    const existingToken = fakeJwt({ sub: 'admin-1', organization: ['north-hospital'] });
-    const callback = auth.handleCallback('auth-code-1', state);
+    const token = fakeJwt({ sub: 'admin-1', organization: ['south-hospital'] });
+
+    const callback = auth.handleCallback('switch-code', state);
     httpMock
-      .expectOne('http://localhost:8081/realms/tenant-a/protocol/openid-connect/token')
-      .flush({ access_token: existingToken });
-    await callback;
+      .expectOne(
+        'http://localhost:8081/realms/tenant-a/protocol/openid-connect/token',
+      )
+      .flush({ access_token: token });
 
-    const result = await auth.switchHospital('a-hospital-not-a-member-of');
+    expect(await callback).toBe(true);
+    expect(auth.accessToken()).toBe(token);
+    expect(auth.claims()?.hospitalId).toBe('south-hospital');
+  });
 
-    expect(result).toBe(false);
-    expect(auth.accessToken()).toEqual(existingToken);
-    // No token request at all: afterEach's httpMock.verify() would fail if
-    // the refused switch had issued one and left it outstanding.
+  it('rejects a switch token naming a different hospital and clears pending metadata', async () => {
+    const auth = TestBed.inject(AuthService);
+    await auth.switchHospital('south-hospital');
+    const state = sessionStorage.getItem('admin-console:pkce-state')!;
+    const token = fakeJwt({ sub: 'admin-1', organization: ['north-hospital'] });
+
+    const callback = auth.handleCallback('switch-code', state);
+    httpMock
+      .expectOne(
+        'http://localhost:8081/realms/tenant-a/protocol/openid-connect/token',
+      )
+      .flush({ access_token: token });
+
+    expect(await callback).toBe(false);
+    expect(auth.accessToken()).toBeNull();
+    expect(sessionStorage.getItem('admin-console:oidc-transition')).toBeNull();
+    expect(sessionStorage.getItem('admin-console:switch-target')).toBeNull();
+    expect(sessionStorage.getItem('admin-console:pkce-state')).toBeNull();
+    expect(sessionStorage.getItem('admin-console:pkce-verifier')).toBeNull();
+  });
+
+  it('rejects a superseded switch callback before exchanging its code', async () => {
+    const auth = TestBed.inject(AuthService);
+    await auth.switchHospital('south-hospital');
+
+    expect(await auth.handleCallback('switch-code', 'stale-state')).toBe(false);
+    httpMock.expectNone(
+      'http://localhost:8081/realms/tenant-a/protocol/openid-connect/token',
+    );
   });
 
   it('clears the token and redirects to the end-session endpoint on logout', async () => {
     const auth = TestBed.inject(AuthService);
     await auth.login();
     const state = sessionStorage.getItem('admin-console:pkce-state')!;
-    const promise = auth.handleCallback(
-      'auth-code-1',
-      state,
-    );
+    const promise = auth.handleCallback('auth-code-1', state);
     httpMock
-      .expectOne('http://localhost:8081/realms/tenant-a/protocol/openid-connect/token')
+      .expectOne(
+        'http://localhost:8081/realms/tenant-a/protocol/openid-connect/token',
+      )
       .flush({ access_token: fakeJwt({ sub: 'admin-1' }) });
     await promise;
 

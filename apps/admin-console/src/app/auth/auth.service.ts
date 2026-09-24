@@ -3,7 +3,6 @@ import { Injectable, computed, inject, signal } from '@angular/core';
 import { firstValueFrom } from 'rxjs';
 
 import {
-  HospitalSwitcher,
   TokenClaims,
   decodeAccessToken,
   deriveCodeChallenge,
@@ -16,7 +15,11 @@ import { REDIRECT } from './redirect';
 
 const VERIFIER_KEY = 'admin-console:pkce-verifier';
 const STATE_KEY = 'admin-console:pkce-state';
+const TRANSITION_KEY = 'admin-console:oidc-transition';
+const SWITCH_TARGET_KEY = 'admin-console:switch-target';
 const RETURN_TO_KEY = 'admin-console:return-to';
+
+type TransitionKind = 'login' | 'hospital-switch';
 
 /**
  * The Admin Console's OIDC login (§9's "Admin Console shell, navigation
@@ -24,9 +27,8 @@ const RETURN_TO_KEY = 'admin-console:return-to';
  * Keycloak.
  *
  * The access token lives only in this service's own in-memory signal,
- * never in localStorage or sessionStorage - only the ephemeral PKCE
- * verifier and state survive the redirect round trip, in sessionStorage,
- * and both are deleted the moment the callback consumes them. Every
+ * never in localStorage or sessionStorage. Only ephemeral PKCE and transition
+ * metadata survive a redirect round trip, and the callback consumes them once. Every
  * administrative call still goes through the server (§16.1); this token
  * only authenticates the browser to the Administration Service and the
  * ADS, never to the identity provider's own admin API.
@@ -36,7 +38,6 @@ export class AuthService {
   private readonly http = inject(HttpClient);
   private readonly config = inject(OIDC_CONFIG);
   private readonly redirect = inject(REDIRECT);
-  private readonly hospitalSwitcher = inject(HospitalSwitcher);
 
   private readonly accessTokenSignal = signal<string | null>(null);
   private readonly claimsSignal = signal<TokenClaims | null>(null);
@@ -72,6 +73,8 @@ export class AuthService {
 
     sessionStorage.setItem(VERIFIER_KEY, verifier);
     sessionStorage.setItem(STATE_KEY, state);
+    sessionStorage.setItem(TRANSITION_KEY, 'login');
+    sessionStorage.removeItem(SWITCH_TARGET_KEY);
     if (returnTo) {
       sessionStorage.setItem(RETURN_TO_KEY, returnTo);
     }
@@ -85,7 +88,9 @@ export class AuthService {
       code_challenge: challenge,
       code_challenge_method: 'S256',
     });
-    this.redirect(`${this.config.issuer}/protocol/openid-connect/auth?${params}`);
+    this.redirect(
+      `${this.config.issuer}/protocol/openid-connect/auth?${params}`,
+    );
   }
 
   /**
@@ -95,13 +100,31 @@ export class AuthService {
    * replayed callback) rather than throwing, so the callback route can
    * show a plain "log in again" prompt instead of an error page.
    */
-  async handleCallback(code: string, state: string): Promise<boolean> {
+  async handleCallback(
+    code: string | null,
+    state: string | null,
+    error: string | null = null,
+  ): Promise<boolean> {
     const expectedState = sessionStorage.getItem(STATE_KEY);
     const verifier = sessionStorage.getItem(VERIFIER_KEY);
+    const transition = sessionStorage.getItem(
+      TRANSITION_KEY,
+    ) as TransitionKind | null;
+    const switchTarget = sessionStorage.getItem(SWITCH_TARGET_KEY);
     sessionStorage.removeItem(STATE_KEY);
     sessionStorage.removeItem(VERIFIER_KEY);
+    sessionStorage.removeItem(TRANSITION_KEY);
+    sessionStorage.removeItem(SWITCH_TARGET_KEY);
 
-    if (!expectedState || !verifier || state !== expectedState) {
+    if (
+      error ||
+      !code ||
+      !state ||
+      !expectedState ||
+      !verifier ||
+      state !== expectedState ||
+      (transition !== 'login' && transition !== 'hospital-switch')
+    ) {
       return false;
     }
 
@@ -121,7 +144,17 @@ export class AuthService {
           { headers: { 'Content-Type': 'application/x-www-form-urlencoded' } },
         ),
       );
-      this.setAccessToken(response.access_token);
+      const claims = decodeAccessToken(
+        response.access_token,
+        this.config.clientId,
+      );
+      if (
+        transition === 'hospital-switch' &&
+        (!switchTarget || claims.hospitalId !== switchTarget)
+      ) {
+        return false;
+      }
+      this.setAccessToken(response.access_token, claims);
       return true;
     } catch {
       return false;
@@ -140,22 +173,37 @@ export class AuthService {
   }
 
   /**
-   * Switches to a different hospital with no re-entry of credentials
-   * (issue #84): a fresh authorization request against the browser's
-   * existing SSO session, scoped to organization. Returns false, leaving
-   * whatever token was already active untouched, when the user does not
-   * belong to that organization or the silent request otherwise cannot
-   * be satisfied - the caller sees no partial or inconsistent state
-   * either way.
+   * Starts a top-level Authorization Code + PKCE transition for another
+   * hospital. Only verifier, state, target and return path survive the
+   * navigation; the callback validates the issued token before committing it.
    */
-  async switchHospital(organization: string): Promise<boolean> {
-    try {
-      const token = await this.hospitalSwitcher.switchTo(this.config, organization);
-      this.setAccessToken(token);
-      return true;
-    } catch {
-      return false;
-    }
+  async switchHospital(organization: string): Promise<void> {
+    const verifier = generateCodeVerifier();
+    const state = generateState();
+    const challenge = await deriveCodeChallenge(verifier);
+
+    sessionStorage.setItem(VERIFIER_KEY, verifier);
+    sessionStorage.setItem(STATE_KEY, state);
+    sessionStorage.setItem(TRANSITION_KEY, 'hospital-switch');
+    sessionStorage.setItem(SWITCH_TARGET_KEY, organization);
+    sessionStorage.setItem(
+      RETURN_TO_KEY,
+      `${window.location.pathname}${window.location.search}${window.location.hash}`,
+    );
+
+    const params = new URLSearchParams({
+      response_type: 'code',
+      client_id: this.config.clientId,
+      redirect_uri: this.config.redirectUri,
+      scope: `openid organization:${organization}`,
+      state,
+      code_challenge: challenge,
+      code_challenge_method: 'S256',
+      prompt: 'none',
+    });
+    this.redirect(
+      `${this.config.issuer}/protocol/openid-connect/auth?${params}`,
+    );
   }
 
   logout(): void {
@@ -165,11 +213,16 @@ export class AuthService {
       client_id: this.config.clientId,
       post_logout_redirect_uri: window.location.origin,
     });
-    this.redirect(`${this.config.issuer}/protocol/openid-connect/logout?${params}`);
+    this.redirect(
+      `${this.config.issuer}/protocol/openid-connect/logout?${params}`,
+    );
   }
 
-  private setAccessToken(token: string): void {
+  private setAccessToken(
+    token: string,
+    claims = decodeAccessToken(token, this.config.clientId),
+  ): void {
     this.accessTokenSignal.set(token);
-    this.claimsSignal.set(decodeAccessToken(token, this.config.clientId));
+    this.claimsSignal.set(claims);
   }
 }

@@ -3,9 +3,7 @@ import {
   HttpTestingController,
   provideHttpClientTesting,
 } from '@angular/common/http/testing';
-import { Provider } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
-import { SILENT_FRAME } from '@cerbos-poc/auth';
 
 import { AuthService } from './auth.service';
 import { OIDC_CONFIG } from './oidc-config';
@@ -13,7 +11,10 @@ import { REDIRECT } from './redirect';
 
 function fakeJwt(payload: Record<string, unknown>): string {
   const encode = (value: unknown) =>
-    btoa(JSON.stringify(value)).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+    btoa(JSON.stringify(value))
+      .replace(/\+/g, '-')
+      .replace(/\//g, '_')
+      .replace(/=+$/, '');
   return `${encode({ alg: 'RS256' })}.${encode(payload)}.signature`;
 }
 
@@ -21,10 +22,7 @@ describe('AuthService', () => {
   let httpMock: HttpTestingController;
   let redirectSpy: ReturnType<typeof vi.fn>;
 
-  // A test naming an extra provider - the switch tests' own fake
-  // SILENT_FRAME - reconfigures the module before injecting anything, since
-  // Angular refuses to override a provider once the module is instantiated.
-  function configure(...extraProviders: Provider[]): void {
+  function configure(): void {
     TestBed.resetTestingModule();
     TestBed.configureTestingModule({
       providers: [
@@ -39,7 +37,6 @@ describe('AuthService', () => {
           },
         },
         { provide: REDIRECT, useValue: redirectSpy },
-        ...extraProviders,
       ],
     });
     httpMock = TestBed.inject(HttpTestingController);
@@ -70,7 +67,9 @@ describe('AuthService', () => {
 
     const promise = auth.handleCallback('auth-code-1', state);
     httpMock
-      .expectOne('http://localhost:8081/realms/tenant-a/protocol/openid-connect/token')
+      .expectOne(
+        'http://localhost:8081/realms/tenant-a/protocol/openid-connect/token',
+      )
       .flush({ access_token: token });
 
     expect(await promise).toBe(true);
@@ -78,45 +77,65 @@ describe('AuthService', () => {
     expect(auth.claims()?.hospitalId).toEqual('north-hospital');
   });
 
-  it('switches hospital silently, replacing the active token on success (issue #84)', async () => {
-    const silentFrame = vi.fn().mockImplementation(async (authorizeUrl: string) => {
-      const state = new URL(authorizeUrl).searchParams.get('state');
-      return `http://localhost:4200/callback?code=switch-code&state=${state}`;
-    });
-    configure({ provide: SILENT_FRAME, useValue: silentFrame });
+  it('starts a top-level PKCE transition for the target hospital', async () => {
     const auth = TestBed.inject(AuthService);
 
-    const token = fakeJwt({ sub: 'doctor-1', organization: ['south-hospital'] });
-    const promise = auth.switchHospital('south-hospital');
-    const req = await vi.waitFor(() =>
-      httpMock.expectOne('http://localhost:8081/realms/tenant-a/protocol/openid-connect/token'),
-    );
-    req.flush({ access_token: token });
+    await auth.switchHospital('south-hospital');
 
-    expect(await promise).toBe(true);
-    expect(auth.accessToken()).toEqual(token);
-    expect(auth.claims()?.hospitalId).toEqual('south-hospital');
+    expect(redirectSpy).toHaveBeenCalledTimes(1);
+    const url = new URL(redirectSpy.mock.calls[0][0] as string);
+    expect(url.searchParams.get('scope')).toBe(
+      'openid organization:south-hospital',
+    );
+    expect(url.searchParams.get('prompt')).toBe('none');
+    expect(url.searchParams.get('code_challenge_method')).toBe('S256');
+    expect(sessionStorage.getItem('business-ui:oidc-transition')).toBe(
+      'hospital-switch',
+    );
+    expect(sessionStorage.getItem('business-ui:switch-target')).toBe(
+      'south-hospital',
+    );
   });
 
-  it('leaves the existing session intact when a silent switch is refused (issue #84)', async () => {
-    const silentFrame = vi.fn().mockImplementation(async (authorizeUrl: string) => {
-      const state = new URL(authorizeUrl).searchParams.get('state');
-      return `http://localhost:4200/callback?error=interaction_required&state=${state}`;
-    });
-    configure({ provide: SILENT_FRAME, useValue: silentFrame });
+  it('commits a switch token only when it names the pending target hospital', async () => {
     const auth = TestBed.inject(AuthService);
-    await auth.login();
+    await auth.switchHospital('south-hospital');
     const state = sessionStorage.getItem('business-ui:pkce-state')!;
-    const existingToken = fakeJwt({ sub: 'doctor-1', organization: ['north-hospital'] });
-    const callback = auth.handleCallback('auth-code-1', state);
+    const token = fakeJwt({
+      sub: 'doctor-1',
+      organization: ['south-hospital'],
+    });
+
+    const callback = auth.handleCallback('switch-code', state);
     httpMock
-      .expectOne('http://localhost:8081/realms/tenant-a/protocol/openid-connect/token')
-      .flush({ access_token: existingToken });
-    await callback;
+      .expectOne(
+        'http://localhost:8081/realms/tenant-a/protocol/openid-connect/token',
+      )
+      .flush({ access_token: token });
 
-    const result = await auth.switchHospital('a-hospital-not-a-member-of');
+    expect(await callback).toBe(true);
+    expect(auth.accessToken()).toBe(token);
+    expect(auth.claims()?.hospitalId).toBe('south-hospital');
+  });
 
-    expect(result).toBe(false);
-    expect(auth.accessToken()).toEqual(existingToken);
+  it('rejects a switch token naming a different hospital', async () => {
+    const auth = TestBed.inject(AuthService);
+    await auth.switchHospital('south-hospital');
+    const state = sessionStorage.getItem('business-ui:pkce-state')!;
+    const token = fakeJwt({
+      sub: 'doctor-1',
+      organization: ['north-hospital'],
+    });
+
+    const callback = auth.handleCallback('switch-code', state);
+    httpMock
+      .expectOne(
+        'http://localhost:8081/realms/tenant-a/protocol/openid-connect/token',
+      )
+      .flush({ access_token: token });
+
+    expect(await callback).toBe(false);
+    expect(auth.accessToken()).toBeNull();
+    expect(sessionStorage.getItem('business-ui:switch-target')).toBeNull();
   });
 });

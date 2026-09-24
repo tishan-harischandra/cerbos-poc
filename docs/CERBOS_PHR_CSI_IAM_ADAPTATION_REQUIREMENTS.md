@@ -248,7 +248,7 @@ For every PHR realm:
    URIs/web origins, explicit audience, the organization client scope, the
    organization-role mapper, and the audit/display claim mappers in §5.1. The POC
    switcher requests `openid organization:<alias>` and exchanges a PKCE
-   authorization code (`cerbos-poc/libs/web/auth/src/lib/hospital-switcher.ts:34-82`).
+   authorization code through the browser application's top-level OIDC callback flow.
 7. Define tenant-wide administrative roles through ordinary realm groups kept
    outside every Organization. The selector allows a no-organization route only
    for the configured admin realm role

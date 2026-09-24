@@ -130,6 +130,48 @@ def check_identity_role_seed_order() -> None:
         )
 
 
+def check_native_organization_flow() -> None:
+    for path in sorted((REPO_ROOT / "deploy" / "keycloak").glob("realm-tenant-*.json")):
+        realm = json.loads(path.read_text())
+        selected = realm.get("browserFlow")
+        browser_flow = next(
+            (flow for flow in realm.get("authenticationFlows", []) if flow.get("alias") == selected),
+            None,
+        )
+        executions = browser_flow.get("authenticationExecutions", []) if browser_flow else []
+        organization = next(
+            (
+                execution
+                for execution in executions
+                if execution.get("flowAlias", "").endswith(" Organization")
+            ),
+            None,
+        )
+        forms = next(
+            (execution for execution in executions if execution.get("flowAlias", "").endswith("forms")),
+            None,
+        )
+        flow_by_alias = {
+            flow.get("alias"): flow for flow in realm.get("authenticationFlows", [])
+        }
+        native_flow = flow_by_alias.get(organization.get("flowAlias")) if organization else None
+        native_authenticators = {
+            execution.get("authenticator")
+            for flow in realm.get("authenticationFlows", [])
+            if flow.get("alias", "").endswith("Conditional Organization")
+            for execution in flow.get("authenticationExecutions", [])
+        }
+        check(
+            f"{path.name} runs native organization authentication before forms",
+            organization is not None
+            and forms is not None
+            and native_flow is not None
+            and "organization" in native_authenticators
+            and organization.get("requirement") == "ALTERNATIVE"
+            and organization.get("priority", 999) < forms.get("priority", 0),
+        )
+
+
 def check_identity_provider(services: dict) -> None:
     """The §7.1 installation selection, as the running stack expresses it."""
     check("service 'keycloak' is defined", "keycloak" in services)
@@ -317,6 +359,7 @@ def main() -> int:
 
     check_images_carry_no_native_clients()
     check_identity_role_seed_order()
+    check_native_organization_flow()
     check_identity_provider(services)
 
     if failures:

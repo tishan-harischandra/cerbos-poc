@@ -300,10 +300,56 @@
         },
         {
           "requirement": "ALTERNATIVE",
+          "priority": 26,
+          "flowAlias": "browser-with-org-selector Organization",
+          "userSetupAllowed": false,
+          "autheticatorFlow": true
+        },
+        {
+          "requirement": "ALTERNATIVE",
           "priority": 30,
           "flowAlias": "browser-with-org-selector forms",
           "userSetupAllowed": false,
           "autheticatorFlow": true
+        }
+      ]
+    },
+    {
+      "alias": "browser-with-org-selector Organization",
+      "description": "Native organization authentication for an existing SSO session.",
+      "providerId": "basic-flow",
+      "topLevel": false,
+      "builtIn": false,
+      "authenticationExecutions": [
+        {
+          "requirement": "CONDITIONAL",
+          "priority": 10,
+          "flowAlias": "browser-with-org-selector Browser - Conditional Organization",
+          "userSetupAllowed": false,
+          "autheticatorFlow": true
+        }
+      ]
+    },
+    {
+      "alias": "browser-with-org-selector Browser - Conditional Organization",
+      "description": "Determines whether organization identity-first login is used.",
+      "providerId": "basic-flow",
+      "topLevel": false,
+      "builtIn": false,
+      "authenticationExecutions": [
+        {
+          "authenticator": "conditional-user-configured",
+          "requirement": "REQUIRED",
+          "priority": 10,
+          "userSetupAllowed": false,
+          "autheticatorFlow": false
+        },
+        {
+          "authenticator": "organization",
+          "requirement": "ALTERNATIVE",
+          "priority": 20,
+          "userSetupAllowed": false,
+          "autheticatorFlow": false
         }
       ]
     },

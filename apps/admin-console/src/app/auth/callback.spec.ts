@@ -1,6 +1,11 @@
 import { provideLocationMocks } from '@angular/common/testing';
 import { TestBed } from '@angular/core/testing';
-import { ActivatedRoute, Router, convertToParamMap, provideRouter } from '@angular/router';
+import {
+  ActivatedRoute,
+  Router,
+  convertToParamMap,
+  provideRouter,
+} from '@angular/router';
 
 import { AuthService } from './auth.service';
 import { Callback } from './callback';
@@ -25,7 +30,10 @@ describe('Callback', () => {
             snapshot: { queryParamMap: convertToParamMap(queryParams) },
           },
         },
-        { provide: AuthService, useValue: { handleCallback, login: vi.fn(), consumeReturnTo } },
+        {
+          provide: AuthService,
+          useValue: { handleCallback, login: vi.fn(), consumeReturnTo },
+        },
       ],
     });
     return { handleCallback, consumeReturnTo };
@@ -39,7 +47,7 @@ describe('Callback', () => {
     fixture.detectChanges();
     await fixture.whenStable();
 
-    expect(handleCallback).toHaveBeenCalledWith('auth-code-1', 'state-1');
+    expect(handleCallback).toHaveBeenCalledWith('auth-code-1', 'state-1', null);
     expect(TestBed.inject(Router).url).toEqual('/');
   });
 
@@ -60,7 +68,10 @@ describe('Callback', () => {
   });
 
   it('shows a retry prompt when the exchange fails', async () => {
-    setUp({ code: 'auth-code-1', state: 'state-1' }, vi.fn().mockResolvedValue(false));
+    setUp(
+      { code: 'auth-code-1', state: 'state-1' },
+      vi.fn().mockResolvedValue(false),
+    );
 
     const fixture = TestBed.createComponent(Callback);
     fixture.detectChanges();
@@ -83,5 +94,20 @@ describe('Callback', () => {
     expect(
       fixture.nativeElement.querySelector('[data-testid="callback-failed"]'),
     ).toBeTruthy();
+  });
+
+  it('passes an OIDC switch error through the callback handler so pending state is cleared', async () => {
+    const handleCallback = vi.fn().mockResolvedValue(false);
+    setUp({ error: 'login_required', state: 'switch-state' }, handleCallback);
+
+    const fixture = TestBed.createComponent(Callback);
+    fixture.detectChanges();
+    await fixture.whenStable();
+
+    expect(handleCallback).toHaveBeenCalledWith(
+      null,
+      'switch-state',
+      'login_required',
+    );
   });
 });

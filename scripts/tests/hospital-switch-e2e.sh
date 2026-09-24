@@ -1,16 +1,9 @@
 #!/usr/bin/env bash
 # The hospital switcher, end to end (issue #84), against a real `make up`
-# stack.
-#
-# docs/MEASURED_FINDINGS.md#a-different-organization-scope-always-forces-re-authentication-issue-84
-# is the investigation this suite is the committed, repeatable form of: a
-# hospital switch cannot be made truly silent against this Keycloak
-# version's Organizations feature, so what this proves is the mechanism
-# HospitalSwitcher (libs/web/auth) actually depends on - a
-# `prompt=none` request is refused rather than granted for an organization
-# scope change, and the caller's existing session survives that refusal -
-# plus that a real re-authentication still lets the same request reach the
-# hospital it named.
+# stack. It proves that the custom browser flow retains Keycloak's native
+# Organization branch: an existing SSO session can complete a prompt=none
+# Authorization Code + PKCE transition for another real membership, while
+# a request for a non-membership is refused.
 set -uo pipefail
 
 cd "$(dirname "${BASH_SOURCE[0]}")/../.."
@@ -89,12 +82,27 @@ error_from_headers() {
 }
 
 token_from_code() {
-  curl -sS --max-time 10 \
-    -d "grant_type=authorization_code" \
-    -d "client_id=patient-app" \
-    -d "code=$1" \
-    -d "redirect_uri=${REDIRECT_URI}" \
+  local code="$1" verifier="${2:-}"
+  local args=(
+    -d "grant_type=authorization_code"
+    -d "client_id=patient-app"
+    -d "code=${code}"
+    -d "redirect_uri=${REDIRECT_URI}"
+  )
+  [[ -n "${verifier}" ]] && args+=(-d "code_verifier=${verifier}")
+  curl -sS --max-time 10 "${args[@]}" \
     "${KEYCLOAK_URL}/realms/tenant-a/protocol/openid-connect/token"
+}
+
+pkce_pair() {
+  python3 - <<'PY'
+import base64
+import hashlib
+import secrets
+verifier = secrets.token_urlsafe(48)
+challenge = base64.urlsafe_b64encode(hashlib.sha256(verifier.encode()).digest()).rstrip(b'=').decode()
+print(verifier, challenge)
+PY
 }
 
 # login <cookie-jar> <scope>
@@ -105,11 +113,27 @@ login() {
   authorize "${jar}" "${scope}"
   local action; action="$(login_action "${authorize_body}")"
   local headers
-  headers="$(curl -sS --max-time 10 -D - -o /dev/null -c "${jar}" -b "${jar}" \
+  headers="$(curl -sS --max-time 10 -D - -o /tmp/hospital-switch-login.html -c "${jar}" -b "${jar}" \
     --data-urlencode "username=user-doctor-multi" --data-urlencode "password=demo-password" \
     "${action}")"
   desecure_cookie_jar "${jar}"
   local code; code="$(code_from_headers "${headers}")"
+  if [[ -z "${code}" ]] && grep -qF 'name="password"' /tmp/hospital-switch-login.html; then
+    local password_action
+    password_action="$(login_action "$(cat /tmp/hospital-switch-login.html)")"
+    headers="$(curl -sS --max-time 10 -D - -o /tmp/hospital-switch-login.html -c "${jar}" -b "${jar}" \
+      --data-urlencode "password=demo-password" "${password_action}")"
+    desecure_cookie_jar "${jar}"
+    code="$(code_from_headers "${headers}")"
+  fi
+  if [[ -z "${code}" ]]; then
+    local selection_action
+    selection_action="$(login_action "$(cat /tmp/hospital-switch-login.html)")"
+    headers="$(curl -sS --max-time 10 -D - -o /dev/null -c "${jar}" -b "${jar}" \
+      --data-urlencode "organization=north-hospital" "${selection_action}")"
+    desecure_cookie_jar "${jar}"
+    code="$(code_from_headers "${headers}")"
+  fi
   [[ -z "${code}" ]] && return 1
   jq -r '.access_token // empty' <<<"$(token_from_code "${code}")"
 }
@@ -137,46 +161,40 @@ else
 fi
 
 echo
-echo "--- a silent (prompt=none) switch to a real membership is refused, not granted ---"
-echo "    (MEASURED_FINDINGS.md: Organizations forces re-authentication for any"
-echo "     organization scope change, so this is the behaviour HospitalSwitcher"
-echo "     actually depends on, not the one the PRD originally assumed)"
+echo "--- a prompt=none switch reuses SSO and yields a code for the target hospital ---"
 
-authorize "${jar}" "openid organization:south-hospital" --data-urlencode "prompt=none"
-silent_error="$(error_from_headers "${authorize_headers}")"
-silent_code="$(code_from_headers "${authorize_headers}")"
-if [[ -n "${silent_error}" && -z "${silent_code}" ]]; then
-  pass "a silent switch reaches an error, never a code or a screen"
+read -r switch_verifier switch_challenge <<<"$(pkce_pair)"
+authorize "${jar}" "openid organization:south-hospital" \
+  --data-urlencode "prompt=none" \
+  --data-urlencode "code_challenge=${switch_challenge}" \
+  --data-urlencode "code_challenge_method=S256"
+switch_error="$(error_from_headers "${authorize_headers}")"
+switch_code="$(code_from_headers "${authorize_headers}")"
+if [[ -n "${switch_code}" && -z "${switch_error}" ]]; then
+  pass "an existing SSO session switches hospitals without an interactive screen"
 else
-  fail "a silent switch reaches an error, never a code or a screen (error=${silent_error}, code=${silent_code})"
+  fail "an existing SSO session switches hospitals without an interactive screen (error=${switch_error}, code=${switch_code})"
 fi
 
-echo
-echo "--- the existing session's own token is unaffected by the refused silent switch ---"
-
-still_north="$(claim_of "${first_token}" '.organization | tojson' 2>/dev/null)"
-if [[ "${still_north}" == '["north-hospital"]' ]]; then
-  pass "the caller's own already-issued token still names its original hospital"
-else
-  fail "the caller's own already-issued token still names its original hospital (was ${still_north})"
+switched_token=""
+if [[ -n "${switch_code}" ]]; then
+  switched_token="$(jq -r '.access_token // empty' <<<"$(token_from_code "${switch_code}" "${switch_verifier}")")"
 fi
-
-echo
-echo "--- a real (non-silent) re-authentication still reaches the hospital named in scope ---"
-
-jar2="$(mktemp)"
-second_token="$(login "${jar2}" "openid organization:south-hospital")"
-organization_claim2="$(claim_of "${second_token}" '.organization | tojson' 2>/dev/null)"
-if [[ "${organization_claim2}" == '["south-hospital"]' ]]; then
-  pass "a real re-authentication yields a token for the hospital the switch named"
+switched_organization="$(claim_of "${switched_token}" '.organization | tojson' 2>/dev/null)"
+if [[ "${switched_organization}" == '["south-hospital"]' ]]; then
+  pass "the switched token names exactly the requested hospital"
 else
-  fail "a real re-authentication yields a token for the hospital the switch named (was ${organization_claim2})"
+  fail "the switched token names exactly the requested hospital (was ${switched_organization})"
 fi
 
 echo
 echo "--- a switch to an organization the user is not a member of fails outright ---"
 
-authorize "${jar2}" "openid organization:a-hospital-nobody-belongs-to" --data-urlencode "prompt=none"
+read -r rejected_verifier rejected_challenge <<<"$(pkce_pair)"
+authorize "${jar}" "openid organization:a-hospital-nobody-belongs-to" \
+  --data-urlencode "prompt=none" \
+  --data-urlencode "code_challenge=${rejected_challenge}" \
+  --data-urlencode "code_challenge_method=S256"
 tampered_error="$(error_from_headers "${authorize_headers}")"
 tampered_code="$(code_from_headers "${authorize_headers}")"
 if [[ -n "${tampered_error}" && -z "${tampered_code}" ]]; then
@@ -185,14 +203,7 @@ else
   fail "a switch to an organization the user does not belong to reaches an error, never a code (error=${tampered_error}, code=${tampered_code})"
 fi
 
-still_south="$(claim_of "${second_token}" '.organization | tojson' 2>/dev/null)"
-if [[ "${still_south}" == '["south-hospital"]' ]]; then
-  pass "the existing session's own token is unaffected by the refused switch"
-else
-  fail "the existing session's own token is unaffected by the refused switch (was ${still_south})"
-fi
-
-rm -f "${jar}" "${jar2}" /tmp/hospital-switch-response.html
+rm -f "${jar}" /tmp/hospital-switch-response.html /tmp/hospital-switch-login.html
 
 if (( failures > 0 )); then
   echo

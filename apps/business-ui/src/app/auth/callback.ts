@@ -34,13 +34,9 @@ export class Callback implements OnInit {
     const params = this.route.snapshot.queryParamMap;
     const code = params.get('code');
     const state = params.get('state');
+    const error = params.get('error');
 
-    if (!code || !state) {
-      this.failed.set(true);
-      return;
-    }
-
-    if (!(await this.auth.handleCallback(code, state))) {
+    if (!(await this.auth.handleCallback(code, state, error))) {
       this.failed.set(true);
       return;
     }

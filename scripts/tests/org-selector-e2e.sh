@@ -19,7 +19,7 @@ wait_for_keycloak || exit 1
 
 REDIRECT_URI="http://127.0.0.1:4200/"
 PORT="${ADMIN_CONSOLE_PORT:-4200}"
-ADS_URL="http://127.0.0.1:${PORT}/api/ads"
+ADS_URL="${ADS_URL:-http://127.0.0.1:${PORT}/api/ads}"
 
 # The browser flow's login form action and its Set-Cookie both carry
 # whatever host Keycloak was configured with (KC_HOSTNAME), which need not
@@ -61,10 +61,18 @@ login_action() {
 # Submits the login form, leaving the response headers in $login_headers.
 submit_credentials() {
   local action="$1" jar="$2" username="$3" password="$4"
-  login_headers="$(curl -sS --max-time 10 -D - -o /dev/null -c "${jar}" -b "${jar}" \
+  login_headers="$(curl -sS --max-time 10 -D - -o /tmp/org-selector-login.html -c "${jar}" -b "${jar}" \
     --data-urlencode "username=${username}" \
     --data-urlencode "password=${password}" \
     "${action}")"
+  login_body="$(cat /tmp/org-selector-login.html)"
+  if [[ -z "$(code_from_redirect)" ]] && grep -qF 'name="password"' <<<"${login_body}"; then
+    action="$(login_action "${login_body}")"
+    login_headers="$(curl -sS --max-time 10 -D - -o /tmp/org-selector-login.html -c "${jar}" -b "${jar}" \
+      --data-urlencode "password=${password}" \
+      "${action}")"
+    login_body="$(cat /tmp/org-selector-login.html)"
+  fi
 }
 
 # code_from_redirect
@@ -148,10 +156,9 @@ echo "--- no membership and not an administrator is refused with an explicit rea
 jar="$(mktemp)"
 login_page tenant-a patient-app "${jar}"
 action="$(login_action "${login_body}")"
-refusal="$(curl -sS --max-time 10 -o /tmp/org-selector-refusal.html -w '%{http_code}' \
-  -c "${jar}" -b "${jar}" \
-  --data-urlencode "username=user-forger" --data-urlencode "password=demo-password" \
-  "${action}")"
+submit_credentials "${action}" "${jar}" user-forger demo-password
+refusal="$(head -1 <<<"${login_headers}" | grep -o '[0-9][0-9][0-9]')"
+printf '%s' "${login_body}" > /tmp/org-selector-refusal.html
 if [[ "${refusal}" == "403" ]]; then
   pass "no membership and not an administrator is refused rather than shown a generic failure"
 else
@@ -195,9 +202,8 @@ echo "--- an administrator sees a tenant-wide entry; a non-administrator never d
 jar="$(mktemp)"
 login_page tenant-a patient-app "${jar}"
 action="$(login_action "${login_body}")"
-form_body="$(curl -sS --max-time 10 -c "${jar}" -b "${jar}" \
-  --data-urlencode "username=user-admin" --data-urlencode "password=demo-password" \
-  "${action}")"
+submit_credentials "${action}" "${jar}" user-admin demo-password
+form_body="${login_body}"
 if grep -qF "Tenant-wide" <<<"${form_body}"; then
   pass "a user holding the admin realm role sees a tenant-wide entry"
 else
@@ -208,9 +214,8 @@ selection_action="$(login_action "${form_body}")"
 jar2="$(mktemp)"
 login_page tenant-a patient-app "${jar2}"
 action2="$(login_action "${login_body}")"
-doctor_form="$(curl -sS --max-time 10 -c "${jar2}" -b "${jar2}" \
-  --data-urlencode "username=user-doctor-multi" --data-urlencode "password=demo-password" \
-  "${action2}")"
+submit_credentials "${action2}" "${jar2}" user-doctor-multi demo-password
+doctor_form="${login_body}"
 if grep -qF "Tenant-wide" <<<"${doctor_form}"; then
   fail "a user without the admin realm role never sees the tenant-wide entry (screen was: ${doctor_form})"
 else
@@ -243,9 +248,8 @@ echo "--- an administrator who also belongs to organizations can still choose on
 jar="$(mktemp)"
 login_page tenant-a patient-app "${jar}"
 action="$(login_action "${login_body}")"
-form_body="$(curl -sS --max-time 10 -c "${jar}" -b "${jar}" \
-  --data-urlencode "username=user-admin-clinician" --data-urlencode "password=demo-password" \
-  "${action}")"
+submit_credentials "${action}" "${jar}" user-admin-clinician demo-password
+form_body="${login_body}"
 selection_action="$(login_action "${form_body}")"
 submit_organization "${selection_action}" "${jar}" "north-hospital"
 code="$(code_from_redirect)"
@@ -269,9 +273,8 @@ echo "--- a non-administrator cannot forge a tenant-wide submission ---"
 jar="$(mktemp)"
 login_page tenant-a patient-app "${jar}"
 action="$(login_action "${login_body}")"
-form_body="$(curl -sS --max-time 10 -c "${jar}" -b "${jar}" \
-  --data-urlencode "username=user-doctor-multi" --data-urlencode "password=demo-password" \
-  "${action}")"
+submit_credentials "${action}" "${jar}" user-doctor-multi demo-password
+form_body="${login_body}"
 selection_action="$(login_action "${form_body}")"
 forged_status="$(curl -sS --max-time 10 -o /tmp/org-selector-forged.html -w '%{http_code}' \
   -c "${jar}" -b "${jar}" --data-urlencode "organization=" "${selection_action}")"
@@ -296,9 +299,8 @@ echo "--- a member of more than one organization sees the selection screen (issu
 jar="$(mktemp)"
 login_page tenant-a patient-app "${jar}"
 action="$(login_action "${login_body}")"
-form_body="$(curl -sS --max-time 10 -c "${jar}" -b "${jar}" \
-  --data-urlencode "username=user-doctor-multi" --data-urlencode "password=demo-password" \
-  "${action}")"
+submit_credentials "${action}" "${jar}" user-doctor-multi demo-password
+form_body="${login_body}"
 listed_aliases="$(grep -o 'value="[a-z-]*hospital"' <<<"${form_body}" | sed -e 's/value="//' -e 's/"$//' | sort)"
 if [[ "${listed_aliases}" == $'north-hospital\nsouth-hospital' ]]; then
   pass "the screen lists exactly the caller's own organizations"
@@ -324,9 +326,8 @@ rm -f "${jar}"
 jar="$(mktemp)"
 login_page tenant-a patient-app "${jar}"
 action="$(login_action "${login_body}")"
-form_body="$(curl -sS --max-time 10 -c "${jar}" -b "${jar}" \
-  --data-urlencode "username=user-doctor-multi" --data-urlencode "password=demo-password" \
-  "${action}")"
+submit_credentials "${action}" "${jar}" user-doctor-multi demo-password
+form_body="${login_body}"
 selection_action="$(login_action "${form_body}")"
 submit_organization "${selection_action}" "${jar}" "north-hospital"
 code="$(code_from_redirect)"
@@ -393,9 +394,8 @@ echo "--- a submitted organization the user is not a member of is rejected ---"
 jar="$(mktemp)"
 login_page tenant-a patient-app "${jar}"
 action="$(login_action "${login_body}")"
-form_body="$(curl -sS --max-time 10 -c "${jar}" -b "${jar}" \
-  --data-urlencode "username=user-doctor-multi" --data-urlencode "password=demo-password" \
-  "${action}")"
+submit_credentials "${action}" "${jar}" user-doctor-multi demo-password
+form_body="${login_body}"
 selection_action="$(login_action "${form_body}")"
 tampered_status="$(curl -sS --max-time 10 -o /tmp/org-selector-tampered.html -w '%{http_code}' \
   -c "${jar}" -b "${jar}" --data-urlencode "organization=a-hospital-nobody-belongs-to" "${selection_action}")"

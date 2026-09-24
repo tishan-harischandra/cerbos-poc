@@ -18,10 +18,14 @@ import { AuthService } from './auth.service';
         @if (failed()) {
           <p class="error" role="alert" data-testid="callback-failed">
             Login could not be completed.
-            <button class="btn-primary" type="button" (click)="retry()">Try again</button>
+            <button class="btn-primary" type="button" (click)="retry()">
+              Try again
+            </button>
           </p>
         } @else {
-          <p class="muted" role="status" data-testid="callback-pending">Completing login…</p>
+          <p class="muted" role="status" data-testid="callback-pending">
+            Completing login…
+          </p>
         }
       </div>
     </div>
@@ -66,13 +70,9 @@ export class Callback implements OnInit {
     const params = this.route.snapshot.queryParamMap;
     const code = params.get('code');
     const state = params.get('state');
+    const error = params.get('error');
 
-    if (!code || !state) {
-      this.failed.set(true);
-      return;
-    }
-
-    const ok = await this.auth.handleCallback(code, state);
+    const ok = await this.auth.handleCallback(code, state, error);
     if (!ok) {
       this.failed.set(true);
       return;
