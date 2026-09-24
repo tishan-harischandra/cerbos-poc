@@ -139,6 +139,7 @@ func goFiles(t *testing.T, root string) []string {
 	skipDirs := map[string]struct{}{
 		"node_modules": {},
 		".git":         {},
+		".worktrees":   {},
 		"dist":         {},
 		".gocache":     {},
 		"testdata":     {},

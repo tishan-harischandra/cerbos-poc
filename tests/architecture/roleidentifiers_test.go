@@ -146,7 +146,7 @@ func seededRealms(t *testing.T, root string) map[string]*architecture.SeededReal
 
 func skipDir(name string) bool {
 	switch name {
-	case "node_modules", ".git", "dist", ".nx", ".angular", ".gocache", "build", "tmp":
+	case "node_modules", ".git", ".worktrees", "dist", ".nx", ".angular", ".gocache", "build", "tmp":
 		return true
 	}
 	return false
